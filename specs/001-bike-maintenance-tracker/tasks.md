@@ -29,11 +29,11 @@ Single project per plan.md's Structure Decision — `app/` and `tests/` at the r
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create the project skeleton directories exactly as laid out in plan.md's Project Structure: `app/routers/`, `app/services/`, `app/models/`, `app/db/migrations/`, `app/templates/{bikes,components,maintenance,schedules,settings,partials}/`, `app/static/`, `tests/{routers,services,db}/`
-- [ ] T002 Create `pyproject.toml` declaring the dependencies fixed in plan.md's Technical Context: `fastapi`, `uvicorn`, `jinja2`, `httpx`, `apscheduler`, `itsdangerous` (session cookie signing), and dev dependencies `pytest`, `respx`
-- [ ] T003 [P] Create `.env.example` documenting `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `SESSION_SECRET_KEY`, `DATABASE_PATH` per quickstart.md Prerequisites
-- [ ] T004 [P] Add `app/static/htmx.min.js` (vendored HTMX asset, no build pipeline per the constitution's fixed Technology Stack) and a baseline `app/static/styles.css`
-- [ ] T005 [P] Configure `pytest` via `[tool.pytest.ini_options]` in `pyproject.toml` (rootdir `tests/`)
+- [X] T001 Create the project skeleton directories exactly as laid out in plan.md's Project Structure: `app/routers/`, `app/services/`, `app/models/`, `app/db/migrations/`, `app/templates/{bikes,components,maintenance,schedules,settings,partials}/`, `app/static/`, `tests/{routers,services,db}/`
+- [X] T002 Create `pyproject.toml` declaring the dependencies fixed in plan.md's Technical Context: `fastapi`, `uvicorn`, `jinja2`, `httpx`, `apscheduler`, `itsdangerous` (session cookie signing), and dev dependencies `pytest`, `respx`
+- [X] T003 [P] Create `.env.example` documenting `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `SESSION_SECRET_KEY`, `DATABASE_PATH` per quickstart.md Prerequisites
+- [X] T004 [P] Add `app/static/htmx.min.js` (vendored HTMX asset, no build pipeline per the constitution's fixed Technology Stack) and a baseline `app/static/styles.css`
+- [X] T005 [P] Configure `pytest` via `[tool.pytest.ini_options]` in `pyproject.toml` (rootdir `tests/`)
 
 ---
 

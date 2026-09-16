@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+
+{% block title %}Sign in — Bike Maintenance Tracker{% endblock %}
+
+{% block nav %}{% endblock %}
+
+{% block content %}
+<h1>Bike Maintenance Tracker</h1>
+<p>Track your bikes, components, and maintenance schedules with mileage synced from Strava.</p>
+<a href="{{ strava_authorize_url }}">Sign in with Strava</a>
+{% endblock %}

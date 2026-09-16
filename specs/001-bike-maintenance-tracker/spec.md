@@ -8,6 +8,15 @@
 
 **Input**: User description: "I would like to build a bike maintenance tracker web app. It will keep track of my bikes, the components attached to them, and any components not currently installed. Components can be nested (tires install on rims). The app should regularly pull from my Strava ride data to update the mileage on each bike and component. I should be able to log maintenance against the bike and components. I should be able to schedule maintenance and check them off when done. The app should notify me when maintenance is due soon by calculating expected maintenance date based on riding behavior."
 
+## Clarifications
+
+### Session 2026-09-15
+
+- Q: Should the app require its own login to be accessed, and if so, how? → A: Sign in with Strava — reuse the Strava OAuth connection itself as the app's login, with no separate password.
+- Q: When a bike is first connected to a Strava gear entry, should the app import that gear's full past ride history, or only start counting mileage from the connection date forward? → A: The app's bike inventory is managed independently of Strava's gear list; the user manually pairs an app bike to a Strava gear entry, and once paired the app imports that gear's full ride history.
+- Q: Where should the maintenance due-soon notification actually reach the user — in the app itself, via email, or both? → A: In-app and an outbound webhook (e.g., posting to a Discord channel via a user-configured webhook URL).
+- Q: Can more than one component be installed under the same parent at the same time, or should each parent hold at most one installed child at a time? → A: Follow real-world bicycle assembly conventions — a parent may have multiple distinct child components where a real bike genuinely has multiple parts (e.g., a wheel has a hub, rim, and spokes), but the system must prevent physically implausible duplicates (e.g., two tires on the same rim, or two rims on the same hub).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Maintain a Garage Inventory (Priority: P1)
@@ -87,6 +96,7 @@ As a bike owner, I want to set up recurring or one-off maintenance tasks for a b
 - What happens when a user deletes a bike or component that has maintenance history or an active schedule attached?
 - How does the system handle negative or corrected mileage (e.g., a Strava activity is deleted or edited after it was already synced)?
 - What happens when a component is uninstalled and reinstalled multiple times across different bikes within the notification lead-time window?
+- What happens when the user attempts to install a component into a position a real bike would only have one of, while another component already occupies that position (e.g., a second tire on a rim that already has one)?
 
 ## Requirements *(mandatory)*
 
@@ -97,7 +107,7 @@ As a bike owner, I want to set up recurring or one-off maintenance tasks for a b
 - **FR-003**: System MUST support components nested to an arbitrary depth (e.g., tire installed on rim, rim installed on wheel, wheel installed on bike) and reflect this hierarchy in every view of a bike's build.
 - **FR-004**: System MUST allow a component (and its full nested sub-tree, if any) to be moved between bikes, between parent components, or into/out of storage, while preserving its own accumulated mileage and maintenance history.
 - **FR-005**: System MUST allow the user to connect their Strava account and authorize the app to read their ride activity data.
-- **FR-006**: System MUST allow the user to map each Strava gear/bike entry to a corresponding bike in the app.
+- **FR-006**: System MUST let the user manage their bike inventory independently of Strava's own gear list, and MUST allow the user to manually pair any app bike with a corresponding Strava gear entry; the app MUST NOT auto-create or auto-import bikes from Strava's gear list.
 - **FR-007**: System MUST periodically sync new ride activity from Strava without requiring the user to manually trigger each sync.
 - **FR-008**: System MUST add each synced ride's distance to the mapped bike's total mileage and to every component that was installed on that bike (at any nesting depth) at the time the ride occurred.
 - **FR-009**: System MUST allow the user to manually adjust a bike's or component's mileage, and MUST retain a record that the adjustment was manual and why (if provided).
@@ -106,12 +116,16 @@ As a bike owner, I want to set up recurring or one-off maintenance tasks for a b
 - **FR-012**: System MUST allow the user to edit or delete a previously logged maintenance entry.
 - **FR-013**: System MUST allow the user to define a maintenance schedule on a bike or component, expressed as a mileage interval, a time interval, or both.
 - **FR-014**: System MUST calculate a projected due date for each active maintenance schedule by converting the remaining mileage (or elapsed time) into a calendar estimate using the bike's/component's recent riding pace.
-- **FR-015**: System MUST notify the user when a scheduled maintenance item's projected due date falls within a configurable lead-time window, and MUST NOT send duplicate notifications for the same due cycle.
+- **FR-015**: System MUST notify the user, both via an in-app alert and by posting to a user-configured outbound webhook (e.g., a Discord channel webhook), when a scheduled maintenance item's projected due date falls within a configurable lead-time window, and MUST NOT send duplicate notifications for the same due cycle.
+- **FR-023**: System MUST allow the user to configure (add, edit, remove) the outbound webhook URL used for due-soon notifications.
+- **FR-024**: System MUST validate component nesting against real-world bicycle assembly conventions: a parent may have multiple distinct child components installed at once where a real bike genuinely has multiple parts in that position (e.g., a wheel having a hub, rim, and spokes as separate installed components), but the system MUST reject installing a second component into a position that a real bike would only have one of (e.g., a second tire on a rim that already has one, or a second rim on a hub that already has one).
 - **FR-016**: System MUST allow the user to mark a scheduled maintenance item as done, which MUST create a corresponding maintenance log entry (FR-010) and recalculate the schedule's next due point from the completion date/mileage.
 - **FR-017**: System MUST recalculate a schedule's projected due date whenever the underlying component's installed status, parent bike, or riding pace changes.
 - **FR-018**: System MUST indicate when a projected due date is a low-confidence estimate (e.g., insufficient ride history) rather than presenting it with the same certainty as a well-supported projection.
 - **FR-019**: System MUST provide a single view summarizing all upcoming and overdue maintenance across every bike and component in the garage.
 - **FR-020**: System MUST preserve a component's maintenance and mileage history when the component is removed from a bike, moved, or placed into storage, and MUST prompt the user for confirmation before permanently deleting any bike or component that has maintenance history or an active schedule.
+- **FR-021**: System MUST require the user to sign in via their connected Strava account before granting access to any bike, component, maintenance, or schedule data; the app MUST NOT provide a separate username/password login.
+- **FR-022**: When a bike is newly paired with a Strava gear entry, system MUST import that gear's full historical ride activity (not only rides going forward) and apply it to the bike's and its currently-installed components' accumulated mileage per FR-008.
 
 ### Key Entities
 
@@ -140,7 +154,7 @@ As a bike owner, I want to set up recurring or one-off maintenance tasks for a b
 - Maintenance schedules may be defined by mileage interval, time interval, or both; when both are set, whichever threshold is reached first determines the due date.
 - Riding pace for due-date projection is estimated from the rider's recent ride history (e.g., a trailing window of recent activity) rather than all-time average, so projections stay responsive to changes in riding frequency.
 - The default notification lead time is configurable but defaults to a reasonable early-warning window (e.g., roughly a week or a modest mileage buffer) rather than notifying only exactly on the due date.
-- Notifications are delivered through the app itself (e.g., an in-app alert/dashboard indicator) at minimum; additional channels (email, push) are a reasonable future enhancement but not required for this feature.
-- Bikes and components already owned before adopting the app can be added with a manually entered starting mileage and, optionally, backdated maintenance history, so due-date projections are meaningful from day one.
+- Notifications are delivered through an in-app alert/dashboard indicator and through a user-configured outbound webhook (e.g., posting to a Discord channel); additional channels (email, push) are a reasonable future enhancement but not required for this feature.
+- A bike's mileage baseline is established automatically from Strava's full ride history once paired (FR-022); components (which Strava has no concept of) and any bike never paired to Strava still need a manually entered starting mileage and, optionally, backdated maintenance history, so due-date projections are meaningful from day one.
 - Strava is the sole external data source for ride mileage in this feature; manual mileage adjustments are supported as a correction mechanism, not as a primary data entry method.
 - If Strava access is not connected or lapses, previously synced mileage and history remain intact and usable; only new automatic syncing is affected.

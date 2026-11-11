@@ -139,3 +139,20 @@ def recompute_component_total_mileage(conn: sqlite3.Connection, component_id: in
         (total, _now(), component_id),
     )
     return total
+
+
+def recent_ride_stats_for_bike(conn: sqlite3.Connection, bike_id: int, *, since: str) -> tuple[float, int]:
+    """(total miles, number of distinct ride days) for `bike_id` since the `since` timestamp.
+
+    Feeds the trailing riding-pace estimate used for due-date projection (research.md §4).
+    """
+    row = conn.execute(
+        """
+        SELECT COALESCE(SUM(distance_miles), 0) AS miles,
+               COUNT(DISTINCT substr(occurred_at, 1, 10)) AS ride_days
+        FROM ride_activity
+        WHERE bike_id = ? AND is_deleted_upstream = 0 AND occurred_at >= ?
+        """,
+        (bike_id, since),
+    ).fetchone()
+    return row["miles"], row["ride_days"]

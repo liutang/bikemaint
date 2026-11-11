@@ -157,27 +157,27 @@ Single project per plan.md's Structure Decision — `app/` and `tests/` at the r
 
 ### Tests for User Story 4 ⚠️ (write first, confirm they fail)
 
-- [ ] T059 [P] [US4] Service test for due-date projection combining trailing riding pace (research.md §4: 90-day trailing window) with a mileage interval, a time interval, or both, taking whichever is sooner (Acceptance Scenario US4-1, spec Assumptions) in `tests/services/test_schedule_service.py`
-- [ ] T060 [P] [US4] Service test for the low-confidence fallback when there is insufficient ride history (fewer than the configured minimum ride-days), falling back to time-only or flagging low-confidence (Acceptance Scenario US4-5, FR-018) in `tests/services/test_schedule_service.py`
-- [ ] T061 [P] [US4] Service test that projection recalculates from the component's own mileage/pace after it moves to a different bike or into storage (Acceptance Scenario US4-4, FR-017) in `tests/services/test_schedule_service.py`
-- [ ] T062 [P] [US4] Service test that completing a schedule creates a `maintenance_log_entry`, increments `cycle_number`, and resets `baseline_mileage`/`baseline_date` (FR-016) in `tests/services/test_schedule_service.py`
-- [ ] T063 [P] [US4] Service test that two consecutive due-checks against the same uncompleted cycle produce exactly one `notification` row, enforced by the `UNIQUE(schedule_id, cycle_number)` constraint (FR-015) in `tests/services/test_notification_service.py`
-- [ ] T064 [P] [US4] Service test for webhook delivery success/failure/retry (5s timeout, up to 2 retries) that never blocks recording the in-app notification (research.md §6) using a mocked `httpx` transport in `tests/services/test_notification_service.py`
-- [ ] T065 [P] [US4] Router test that `GET /maintenance/due` lists every upcoming/overdue item across the garage in one view (FR-019, SC-005) in `tests/routers/test_schedules.py`
+- [X] T059 [P] [US4] Service test for due-date projection combining trailing riding pace (research.md §4: 90-day trailing window) with a mileage interval, a time interval, or both, taking whichever is sooner (Acceptance Scenario US4-1, spec Assumptions) in `tests/services/test_schedule_service.py`
+- [X] T060 [P] [US4] Service test for the low-confidence fallback when there is insufficient ride history (fewer than the configured minimum ride-days), falling back to time-only or flagging low-confidence (Acceptance Scenario US4-5, FR-018) in `tests/services/test_schedule_service.py`
+- [X] T061 [P] [US4] Service test that projection recalculates from the component's own mileage/pace after it moves to a different bike or into storage (Acceptance Scenario US4-4, FR-017) in `tests/services/test_schedule_service.py`
+- [X] T062 [P] [US4] Service test that completing a schedule creates a `maintenance_log_entry`, increments `cycle_number`, and resets `baseline_mileage`/`baseline_date` (FR-016) in `tests/services/test_schedule_service.py`
+- [X] T063 [P] [US4] Service test that two consecutive due-checks against the same uncompleted cycle produce exactly one `notification` row, enforced by the `UNIQUE(schedule_id, cycle_number)` constraint (FR-015) in `tests/services/test_notification_service.py`
+- [X] T064 [P] [US4] Service test for webhook delivery success/failure/retry (5s timeout, up to 2 retries) that never blocks recording the in-app notification (research.md §6) using a mocked `httpx` transport in `tests/services/test_notification_service.py`
+- [X] T065 [P] [US4] Router test that `GET /maintenance/due` lists every upcoming/overdue item across the garage in one view (FR-019, SC-005) in `tests/routers/test_schedules.py`
 
 ### Implementation for User Story 4
 
-- [ ] T066 [US4] Create `app/db/migrations/0004_maintenance_schedule_and_notification.sql` creating the `maintenance_schedule` and `notification` tables exactly as specified in data-model.md, including `UNIQUE(schedule_id, cycle_number)` on `notification`
-- [ ] T067 [P] [US4] Implement `app/db/schedules.py`: `create`, `get_by_id`, `list_active_for_bike`/`list_active_for_component`, `list_all_active` (for the due-soon dashboard), `update`, `complete` (bump `cycle_number`, reset baseline), `delete`
-- [ ] T068 [P] [US4] Implement `app/db/notifications.py`: `insert` (respecting the uniqueness constraint), `list_unacknowledged`, `mark_acknowledged`, record webhook delivery result
-- [ ] T069 [US4] Implement `app/services/schedule_service.py`: `project_due_date` (per research.md §4) and `complete_schedule` (creates a `maintenance_log_entry` via `maintenance_service.log_maintenance`, bumps the cycle) — depends on T067, T054
-- [ ] T070 [US4] Implement `app/services/notification_service.py`: `check_due_schedules` (iterates active schedules, computes projections, inserts a `notification` row when newly within the account's `notification_lead_time_days` window) and `deliver_webhook` (per contracts/webhook-payload.md: `httpx` POST, 5s timeout, up to 2 retries, failure logged to `webhook_delivery_error` but never blocking the in-app record) — depends on T068, T069
-- [ ] T071 [US4] Extend `app/services/scheduler.py` with a second APScheduler interval job (default 60 min, env-configurable) calling `notification_service.check_due_schedules` — depends on T070, T041
-- [ ] T072 [US4] Implement `app/routers/schedules.py`: `GET /maintenance/due`, `GET`/`POST /bikes/{bike_id}/schedules[/new]`, `GET`/`POST /components/{component_id}/schedules[/new]`, `GET /schedules/{schedule_id}/edit`, `POST /schedules/{schedule_id}`, `POST /schedules/{schedule_id}/complete`, `POST /schedules/{schedule_id}/delete` — depends on T069, T011
-- [ ] T073 [US4] Extend `app/routers/settings.py` with `POST /settings/webhook` and `POST /settings/notifications` (lead-time) — depends on T070, T045
-- [ ] T074 [P] [US4] Create `app/templates/schedules/{due_dashboard,form}.html`, `app/templates/partials/due_soon_row.html`; extend `app/templates/settings/index.html` with webhook/lead-time forms
-- [ ] T075 [US4] Wire the schedules router (and settings extensions) into `app/main.py` — depends on T072, T073, T057
-- [ ] T076 [US4] Extend `bike_service.delete_bike`/`component_service.delete_component`'s confirmation check (FR-020) to also require confirmation when the item has an active `maintenance_schedule` — depends on T058, T069
+- [X] T066 [US4] Create `app/db/migrations/0004_maintenance_schedule_and_notification.sql` creating the `maintenance_schedule` and `notification` tables exactly as specified in data-model.md, including `UNIQUE(schedule_id, cycle_number)` on `notification`
+- [X] T067 [P] [US4] Implement `app/db/schedules.py`: `create`, `get_by_id`, `list_active_for_bike`/`list_active_for_component`, `list_all_active` (for the due-soon dashboard), `update`, `complete` (bump `cycle_number`, reset baseline), `delete`
+- [X] T068 [P] [US4] Implement `app/db/notifications.py`: `insert` (respecting the uniqueness constraint), `list_unacknowledged`, `mark_acknowledged`, record webhook delivery result
+- [X] T069 [US4] Implement `app/services/schedule_service.py`: `project_due_date` (per research.md §4) and `complete_schedule` (creates a `maintenance_log_entry` via `maintenance_service.log_maintenance`, bumps the cycle) — depends on T067, T054
+- [X] T070 [US4] Implement `app/services/notification_service.py`: `check_due_schedules` (iterates active schedules, computes projections, inserts a `notification` row when newly within the account's `notification_lead_time_days` window) and `deliver_webhook` (per contracts/webhook-payload.md: `httpx` POST, 5s timeout, up to 2 retries, failure logged to `webhook_delivery_error` but never blocking the in-app record) — depends on T068, T069
+- [X] T071 [US4] Extend `app/services/scheduler.py` with a second APScheduler interval job (default 60 min, env-configurable) calling `notification_service.check_due_schedules` — depends on T070, T041
+- [X] T072 [US4] Implement `app/routers/schedules.py`: `GET /maintenance/due`, `GET`/`POST /bikes/{bike_id}/schedules[/new]`, `GET`/`POST /components/{component_id}/schedules[/new]`, `GET /schedules/{schedule_id}/edit`, `POST /schedules/{schedule_id}`, `POST /schedules/{schedule_id}/complete`, `POST /schedules/{schedule_id}/delete` — depends on T069, T011
+- [X] T073 [US4] Extend `app/routers/settings.py` with `POST /settings/webhook` and `POST /settings/notifications` (lead-time) — depends on T070, T045
+- [X] T074 [P] [US4] Create `app/templates/schedules/{due_dashboard,form}.html`, `app/templates/partials/due_soon_row.html`; extend `app/templates/settings/index.html` with webhook/lead-time forms
+- [X] T075 [US4] Wire the schedules router (and settings extensions) into `app/main.py` — depends on T072, T073, T057
+- [X] T076 [US4] Extend `bike_service.delete_bike`/`component_service.delete_component`'s confirmation check (FR-020) to also require confirmation when the item has an active `maintenance_schedule` — depends on T058, T069
 
 **Checkpoint**: All four user stories are independently functional.
 

@@ -99,3 +99,17 @@ def upsert_from_strava(
     account = get_by_strava_athlete_id(conn, strava_athlete_id)
     assert account is not None
     return account
+
+
+def update_webhook_url(conn: sqlite3.Connection, account_id: int, url: str | None) -> None:
+    conn.execute(
+        "UPDATE account SET notification_webhook_url = ?, updated_at = ? WHERE id = ?",
+        (url, _now(), account_id),
+    )
+
+
+def update_lead_time_days(conn: sqlite3.Connection, account_id: int, days: int) -> None:
+    conn.execute(
+        "UPDATE account SET notification_lead_time_days = ?, updated_at = ? WHERE id = ?",
+        (days, _now(), account_id),
+    )

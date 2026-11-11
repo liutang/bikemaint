@@ -1,4 +1,5 @@
-"""APScheduler background job: periodic Strava sync (research.md §7).
+"""APScheduler background jobs: periodic Strava sync and due-soon notification check
+(research.md §7).
 
 `app/main.py` starts/stops this on the FastAPI app's `startup`/`shutdown` events.
 """
@@ -12,7 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.db import accounts as accounts_db
 from app.db.connection import get_connection
-from app.services import sync_service
+from app.services import notification_service, sync_service
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,13 @@ def _run_sync_job() -> None:
         logger.exception("scheduled Strava sync failed account_id=%s", account.id)
 
 
+def _run_notification_job() -> None:
+    try:
+        notification_service.check_due_schedules()
+    except Exception:
+        logger.exception("scheduled due-soon notification check failed")
+
+
 def start() -> BackgroundScheduler:
     """Idempotent: returns the existing scheduler if already started."""
     global _scheduler
@@ -37,7 +45,14 @@ def start() -> BackgroundScheduler:
         return _scheduler
     interval_minutes = int(os.environ.get("STRAVA_SYNC_INTERVAL_MINUTES", "30"))
     scheduler = BackgroundScheduler()
+    notification_interval_minutes = int(os.environ.get("NOTIFICATION_CHECK_INTERVAL_MINUTES", "60"))
     scheduler.add_job(_run_sync_job, "interval", minutes=interval_minutes, id="strava_sync")
+    scheduler.add_job(
+        _run_notification_job,
+        "interval",
+        minutes=notification_interval_minutes,
+        id="due_notifications",
+    )
     scheduler.start()
     _scheduler = scheduler
     return scheduler

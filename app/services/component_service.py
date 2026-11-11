@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from app.db import components as components_db
 from app.db import maintenance as maintenance_db
+from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models.requests import MULTI_INSTANCE_COMPONENT_TYPES
 from app.models.rows import Component
@@ -254,12 +255,14 @@ def delete_component(component_id: int, *, confirmed: bool = False) -> None:
             raise ConfirmationRequiredError(
                 "This component has an installed sub-tree; confirm to delete it too."
             )
-        has_history = any(
-            maintenance_db.has_entries_for_component(conn, c.id) for c in [component, *descendants]
+        has_history_or_schedule = any(
+            maintenance_db.has_entries_for_component(conn, c.id)
+            or schedules_db.has_active_for_component(conn, c.id)
+            for c in [component, *descendants]
         )
-        if has_history and not confirmed:
+        if has_history_or_schedule and not confirmed:
             raise ConfirmationRequiredError(
-                "This component (or something installed in it) has maintenance history; "
-                "confirm to delete it."
+                "This component (or something installed in it) has maintenance history or an "
+                "active schedule; confirm to delete it."
             )
         soft_delete_recursive(conn, component_id, removed_at=_now())

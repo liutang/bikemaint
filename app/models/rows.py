@@ -191,3 +191,61 @@ class MaintenanceLogEntry:
             created_at=row["created_at"],
             updated_at=row["updated_at"],
         )
+
+
+@dataclass(frozen=True)
+class MaintenanceSchedule:
+    id: int
+    bike_id: int | None
+    component_id: int | None
+    name: str
+    interval_miles: float | None
+    interval_days: int | None
+    baseline_mileage: float
+    baseline_date: str
+    cycle_number: int
+    is_active: bool
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> MaintenanceSchedule:
+        return cls(
+            id=row["id"],
+            bike_id=row["bike_id"],
+            component_id=row["component_id"],
+            name=row["name"],
+            interval_miles=row["interval_miles"],
+            interval_days=row["interval_days"],
+            baseline_mileage=row["baseline_mileage"],
+            baseline_date=row["baseline_date"],
+            cycle_number=row["cycle_number"],
+            is_active=bool(row["is_active"]),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+
+@dataclass(frozen=True)
+class Notification:
+    id: int
+    schedule_id: int
+    cycle_number: int
+    projected_due_at: str
+    webhook_delivered: bool
+    webhook_delivery_error: str | None
+    acknowledged_at: str | None
+    created_at: str
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> Notification:
+        return cls(
+            id=row["id"],
+            schedule_id=row["schedule_id"],
+            cycle_number=row["cycle_number"],
+            projected_due_at=row["projected_due_at"],
+            webhook_delivered=bool(row["webhook_delivered"]),
+            webhook_delivery_error=row["webhook_delivery_error"],
+            acknowledged_at=row["acknowledged_at"],
+            created_at=row["created_at"],
+        )

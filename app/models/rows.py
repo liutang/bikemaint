@@ -84,6 +84,7 @@ class Component:
     is_deleted: bool
     created_at: str
     updated_at: str
+    position: int = 0
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Component:
@@ -98,6 +99,7 @@ class Component:
             is_deleted=bool(row["is_deleted"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            position=row["position"],
         )
 
 

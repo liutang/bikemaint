@@ -90,6 +90,33 @@ class MoveTargetRequest(BaseModel):
         }
 
 
+class BuilderAddRequest(BaseModel):
+    """Palette drop / Add control: create a new part of a type on a bike or component."""
+
+    component_type: str
+    target: str = Field(pattern=r"^(bike|component):[0-9]{1,9}$")
+    before_component_id: int | None = Field(default=None, ge=1)
+
+    @field_validator("component_type")
+    @classmethod
+    def _check_component_type(cls, value: str) -> str:
+        return _validate_component_type(value)
+
+    def parents(self) -> dict[str, int | None]:
+        return MoveTargetRequest(target=self.target).parents()
+
+
+class BuilderMoveRequest(BaseModel):
+    """Drag / Move-to / reorder: put a part on a parent (or storage), optionally before a sibling."""
+
+    component_id: int = Field(ge=1)
+    target: str = Field(pattern=r"^(storage|bike:[0-9]{1,9}|component:[0-9]{1,9})$")
+    before_component_id: int | None = Field(default=None, ge=1)
+
+    def parents(self) -> dict[str, int | None]:
+        return MoveTargetRequest(target=self.target).parents()
+
+
 class MaintenanceLogRequest(BaseModel):
     description: str = Field(min_length=1)
     performed_at: date

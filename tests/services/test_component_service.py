@@ -307,3 +307,153 @@ def test_move_target_labels_show_the_path(db_path):
 def test_move_targets_for_an_unknown_component_raise(db_path):
     with pytest.raises(LookupError):
         component_service.list_move_targets(999)
+
+
+# ------------------------------------------------ ordering and mounting (M3)
+
+
+def _order(parent_bike_id=None, parent_component_id=None):
+    return [
+        c.name
+        for c in (
+            component_service.get_tree_for_bike(parent_bike_id)
+            if parent_bike_id
+            else component_service.get_descendants(parent_component_id)
+        )
+        if (c.parent_bike_id == parent_bike_id if parent_bike_id else c.parent_component_id == parent_component_id)
+    ]
+
+
+def test_reorder_within_the_same_parent_keeps_installation_history(db_path):
+    bike = _create_bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    s1, s2, s3 = (_mk(n, "spoke", parent_component_id=wheel.id) for n in ("S1", "S2", "S3"))
+    with connection.get_connection() as conn:
+        periods_before = conn.execute(
+            "SELECT COUNT(*) AS c FROM component_installation_period WHERE component_id = ?", (s3.id,)
+        ).fetchone()["c"]
+
+    component_service.move_component(
+        s3.id, parent_component_id=wheel.id, before_component_id=s1.id
+    )
+
+    assert _order(parent_component_id=wheel.id) == ["S3", "S1", "S2"]
+    with connection.get_connection() as conn:
+        periods_after = conn.execute(
+            "SELECT COUNT(*) AS c FROM component_installation_period WHERE component_id = ?", (s3.id,)
+        ).fetchone()["c"]
+        open_periods = conn.execute(
+            "SELECT COUNT(*) AS c FROM component_installation_period "
+            "WHERE component_id = ? AND removed_at IS NULL", (s3.id,)
+        ).fetchone()["c"]
+    assert periods_after == periods_before and open_periods == 1
+
+
+def test_reorder_to_the_end_with_no_before_target(db_path):
+    bike = _create_bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    s1, s2 = (_mk(n, "spoke", parent_component_id=wheel.id) for n in ("S1", "S2"))
+
+    component_service.move_component(s1.id, parent_component_id=wheel.id)
+
+    assert _order(parent_component_id=wheel.id) == ["S2", "S1"]
+
+
+def test_move_to_another_parent_can_insert_before_a_sibling(db_path):
+    bike = _create_bike()
+    w1 = _mk("W1", "wheel", parent_bike_id=bike.id)
+    other = _create_bike("Other")
+    w2 = _mk("W2", "wheel", parent_bike_id=other.id)
+    a, b = (_mk(n, "spoke", parent_component_id=w1.id) for n in ("A", "B"))
+    c = _mk("C", "spoke", parent_component_id=w2.id)
+
+    component_service.move_component(c.id, parent_component_id=w1.id, before_component_id=a.id)
+
+    assert _order(parent_component_id=w1.id) == ["C", "A", "B"]
+
+
+def test_before_target_must_be_a_sibling_under_the_destination(db_path):
+    bike = _create_bike()
+    w1 = _mk("W1", "wheel", parent_bike_id=bike.id)
+    s = _mk("S", "spoke", parent_component_id=w1.id)
+    stray = _mk("Stray", "spoke")
+
+    with pytest.raises(ValueError):
+        component_service.move_component(stray.id, parent_component_id=w1.id, before_component_id=999)
+    assert component_service.get_component(stray.id).parent_component_id is None  # nothing moved
+
+
+def test_moving_onto_the_current_parent_does_not_revalidate_legacy_arrangements(db_path):
+    bike = _create_bike()
+    with connection.get_connection() as conn:
+        conn.execute(
+            "INSERT INTO component (name, component_type, parent_bike_id, created_at, updated_at)"
+            " VALUES ('Old tire', 'tire', ?, 'x', 'x')", (bike.id,),
+        )
+        conn.execute(
+            "INSERT INTO component (name, component_type, parent_bike_id, created_at, updated_at)"
+            " VALUES ('Old tire 2', 'tire', ?, 'x', 'x')", (bike.id,),
+        )
+    first = component_service.get_tree_for_bike(bike.id)[0]
+
+    component_service.move_component(first.id, parent_bike_id=bike.id)  # reorder to end only
+
+    assert [c.name for c in component_service.get_tree_for_bike(bike.id)] == ["Old tire 2", "Old tire"]
+
+
+def test_mount_new_component_uses_the_type_default_name_and_checks_placement(db_path):
+    bike = _create_bike()
+    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
+
+    pedal = component_service.mount_new_component("pedal", parent_component_id=crank.id)
+
+    assert (pedal.name, pedal.component_type, pedal.parent_component_id) == ("Pedal", "pedal", crank.id)
+    with pytest.raises(component_service.ComponentPlacementError):
+        component_service.mount_new_component("pedal", parent_bike_id=bike.id)
+    other = component_service.mount_new_component("other", parent_bike_id=bike.id)
+    assert other.name == "Other part"
+
+
+def test_mount_new_component_can_insert_before_a_sibling(db_path):
+    bike = _create_bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    first = _mk("S1", "spoke", parent_component_id=wheel.id)
+
+    spoke = component_service.mount_new_component(
+        "spoke", parent_component_id=wheel.id, before_component_id=first.id
+    )
+
+    assert _order(parent_component_id=wheel.id) == [spoke.name, "S1"]
+
+
+def test_type_targets_list_valid_places_on_one_bike_only(db_path):
+    bike = _create_bike("Road")
+    other = _create_bike("Other")
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    _mk("Wheel", "wheel", parent_bike_id=other.id)
+    rim = _mk("Rim", "rim", parent_component_id=wheel.id)
+
+    tire_targets = component_service.list_type_targets("tire", bike_id=bike.id)
+    hub_targets = component_service.list_type_targets("hub", bike_id=bike.id)
+
+    assert [t.value for t in tire_targets] == [f"component:{rim.id}"]
+    assert [t.value for t in hub_targets] == [f"component:{wheel.id}"]
+    assert [t.value for t in component_service.list_type_targets("frame", bike_id=bike.id)] == [f"bike:{bike.id}"]
+    # single slot taken -> not offered again
+    _mk("Frame", "frame", parent_bike_id=bike.id)
+    assert component_service.list_type_targets("frame", bike_id=bike.id) == []
+
+
+def test_move_targets_can_be_limited_to_one_bike(db_path):
+    bike = _create_bike("Road")
+    other = _create_bike("Other")
+    wa = _mk("Wheel A", "wheel", parent_bike_id=bike.id)
+    wb = _mk("Wheel B", "wheel", parent_bike_id=other.id)
+    hub = _mk("Hub", "hub")
+
+    limited = component_service.list_move_targets(hub.id, only_bike_id=bike.id)
+
+    assert [t.value for t in limited] == [f"component:{wa.id}"]
+    assert {t.value for t in component_service.list_move_targets(hub.id)} == {
+        f"component:{wa.id}", f"component:{wb.id}",
+    }

@@ -10,6 +10,7 @@
   <p class="bike-card-figure"><span class="bike-card-stat"><strong>{{ "%.1f"|format(bike.total_mileage) }} mi</strong><small>total mileage</small></span></p>
   <div class="bike-card-actions">
     <a class="btn btn-primary" href="/bikes/{{ bike.id }}">View</a>
+    <a class="btn btn-quiet" href="/bikes/{{ bike.id }}/build">Build</a>
     <a class="btn btn-quiet" href="/components/new?parent_bike_id={{ bike.id }}">Add component</a>
     <a class="btn btn-quiet" href="/bikes/{{ bike.id }}/maintenance">Maintenance history</a>
   </div>

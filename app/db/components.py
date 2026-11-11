@@ -16,6 +16,20 @@ def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
+def _next_position(
+    conn: sqlite3.Connection, *, parent_bike_id: int | None, parent_component_id: int | None
+) -> int:
+    """One past the last live sibling under the given parent (storage when both are None)."""
+    row = conn.execute(
+        """
+        SELECT COALESCE(MAX(position) + 1, 0) AS next FROM component
+        WHERE parent_bike_id IS ? AND parent_component_id IS ? AND is_deleted = 0
+        """,
+        (parent_bike_id, parent_component_id),
+    ).fetchone()
+    return row["next"]
+
+
 def create(
     conn: sqlite3.Connection,
     *,
@@ -30,8 +44,8 @@ def create(
         """
         INSERT INTO component (
             name, component_type, parent_bike_id, parent_component_id,
-            manual_baseline_mileage, total_mileage, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            manual_baseline_mileage, total_mileage, position, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             name,
@@ -40,6 +54,9 @@ def create(
             parent_component_id,
             manual_baseline_mileage,
             manual_baseline_mileage,
+            _next_position(
+                conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
+            ),
             now,
             now,
         ),
@@ -65,12 +82,12 @@ def list_children(
     """Direct, non-deleted children of a bike, a component, or storage (both None)."""
     if parent_bike_id is not None:
         rows = conn.execute(
-            "SELECT * FROM component WHERE parent_bike_id = ? AND is_deleted = 0 ORDER BY id",
+            "SELECT * FROM component WHERE parent_bike_id = ? AND is_deleted = 0 ORDER BY position, id",
             (parent_bike_id,),
         ).fetchall()
     elif parent_component_id is not None:
         rows = conn.execute(
-            "SELECT * FROM component WHERE parent_component_id = ? AND is_deleted = 0 ORDER BY id",
+            "SELECT * FROM component WHERE parent_component_id = ? AND is_deleted = 0 ORDER BY position, id",
             (parent_component_id,),
         ).fetchall()
     else:
@@ -78,7 +95,7 @@ def list_children(
             """
             SELECT * FROM component
             WHERE parent_bike_id IS NULL AND parent_component_id IS NULL AND is_deleted = 0
-            ORDER BY id
+            ORDER BY position, id
             """
         ).fetchall()
     return [Component.from_row(row) for row in rows]
@@ -100,7 +117,7 @@ def get_descendants(conn: sqlite3.Connection, component_id: int) -> list[Compone
             WHERE c.is_deleted = 0
         )
         SELECT component.* FROM component JOIN subtree ON component.id = subtree.id
-        ORDER BY component.id
+        ORDER BY component.position, component.id
         """,
         (component_id,),
     ).fetchall()
@@ -119,7 +136,7 @@ def get_tree_for_bike(conn: sqlite3.Connection, bike_id: int) -> list[Component]
             WHERE c.is_deleted = 0
         )
         SELECT component.* FROM component JOIN tree ON component.id = tree.id
-        ORDER BY component.id
+        ORDER BY component.position, component.id
         """,
         (bike_id,),
     ).fetchall()
@@ -159,14 +176,53 @@ def set_parent(
     conn.execute(
         """
         UPDATE component
-        SET parent_bike_id = ?, parent_component_id = ?, updated_at = ?
+        SET parent_bike_id = ?, parent_component_id = ?, position = ?, updated_at = ?
         WHERE id = ?
         """,
-        (parent_bike_id, parent_component_id, _now(), component_id),
+        (
+            parent_bike_id,
+            parent_component_id,
+            _next_position(
+                conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
+            ),
+            _now(),
+            component_id,
+        ),
     )
     component = get_by_id(conn, component_id)
     assert component is not None
     return component
+
+
+def reorder(
+    conn: sqlite3.Connection, component_id: int, *, before_component_id: int | None
+) -> None:
+    """Place `component_id` just before a sibling (or last when None) and renumber 0..n.
+
+    Both must live under the same parent; anything else raises ValueError.
+    """
+    component = get_by_id(conn, component_id)
+    if component is None:
+        raise LookupError(f"No component with id {component_id}")
+    siblings = list_children(
+        conn,
+        parent_bike_id=component.parent_bike_id,
+        parent_component_id=component.parent_component_id,
+    )
+    others = [c for c in siblings if c.id != component_id]
+    if before_component_id is None:
+        ordered = [*others, component]
+    else:
+        if before_component_id == component_id or all(c.id != before_component_id for c in others):
+            raise ValueError("That position is not under the same parent.")
+        ordered = []
+        for sibling in others:
+            if sibling.id == before_component_id:
+                ordered.append(component)
+            ordered.append(sibling)
+    for index, item in enumerate(ordered):
+        if item.position != index:
+            conn.execute("UPDATE component SET position = ? WHERE id = ?", (index, item.id))
 
 
 def soft_delete(conn: sqlite3.Connection, component_id: int) -> None:

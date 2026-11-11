@@ -242,18 +242,14 @@ def _make_alert():
     return notification_service.check_due_schedules()
 
 
-def test_alerts_are_dismissible_in_place(signed_in_client):
+def test_due_page_shows_no_alerts_list_even_with_unacknowledged_notifications(signed_in_client):
     _make_alert()
 
     html = signed_in_client.get("/maintenance/due").text
 
-    alert = re.search(r'<li class="alert[^"]*"[^>]*>(.*?)</li>', html, re.S)
-    assert alert, "alert should render as a list item with class alert"
-    body = alert.group(1)
-    assert "Chain swap" in body and "Alert Bike" in body
-    assert 'hx-post="/notifications/1/acknowledge"' in body
-    assert 'hx-target="closest li"' in body
-    assert 'hx-swap="outerHTML"' in body
+    assert "Due-soon alerts" not in html
+    assert 'class="alert' not in html
+    assert "alert-list" not in html
 
 
 def test_acknowledge_with_htmx_returns_an_empty_fragment(signed_in_client):

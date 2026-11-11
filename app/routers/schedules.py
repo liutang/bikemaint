@@ -81,12 +81,7 @@ def due_dashboard(
     all_tasks: str | None = Query(default=None, alias="all"),
 ):
     context = _board_context(account, show_all=all_tasks == "1")  # only "1" turns it on
-    items_by_schedule_id = {item.schedule.id: item for item in context["items"]}
-    alerts = [
-        {"notification": notification, "item": items_by_schedule_id.get(notification.schedule_id)}
-        for notification in notification_service.list_unacknowledged()
-    ]
-    return _render(request, "schedules/due_dashboard.html", {**context, "alerts": alerts})
+    return _render(request, "schedules/due_dashboard.html", context)
 
 
 @router.post("/notifications/{notification_id}/acknowledge", name="acknowledge_notification")

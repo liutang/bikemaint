@@ -7,31 +7,6 @@
   <h1>What needs attention</h1>
 </div>
 
-{% if alerts %}
-<section class="alerts" aria-labelledby="alerts-heading">
-  <h2 id="alerts-heading">Due-soon alerts</h2>
-  <ul class="alert-list">
-    {% for alert in alerts %}
-    <li class="alert">
-      <span>
-        {% if alert.item %}
-        <strong>{{ alert.item.schedule.name }}</strong> on {{ alert.item.owner_name }}
-        {% else %}
-        <strong>Schedule #{{ alert.notification.schedule_id }}</strong>
-        {% endif %}
-        is due around {{ alert.notification.projected_due_at }}.
-      </span>
-      <form method="post" action="/notifications/{{ alert.notification.id }}/acknowledge"
-            hx-post="/notifications/{{ alert.notification.id }}/acknowledge"
-            hx-target="closest li" hx-swap="outerHTML">
-        <button class="btn" type="submit">Dismiss</button>
-      </form>
-    </li>
-    {% endfor %}
-  </ul>
-</section>
-{% endif %}
-
 {% if items %}
 {% include "partials/attention_board.html" %}
 {% else %}

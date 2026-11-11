@@ -158,7 +158,7 @@ def test_scenario_4_schedules_notifications_and_completion(signed_in, monkeypatc
     client.post("/components/1/schedules", data={"name": "Replace chain", "interval_miles": "1500"})
     dashboard = client.get("/maintenance/due").text
     assert "Replace chain" in dashboard
-    assert "low confidence" in dashboard
+    assert "low confidence" in dashboard.lower()
 
     # A time-interval schedule inside the lead-time window notifies exactly once per cycle.
     client.post("/bikes/1/schedules", data={"name": "Annual service", "interval_days": "10"})

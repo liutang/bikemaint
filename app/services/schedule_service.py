@@ -44,6 +44,24 @@ class DueItem:
     owner_id: int
     owner_name: str
     projection: Projection
+    status: str  # overdue | due_soon | on_track | no_estimate (see `due_status`)
+
+
+DEFAULT_LEAD_TIME_DAYS = 7
+
+
+def due_status(projection: Projection, lead_time_days: int, today: date) -> str:
+    """Dashboard status for a projection: overdue, due_soon, on_track or no_estimate.
+
+    `due_soon` mirrors the notification rule: not overdue and due within `lead_time_days`.
+    """
+    if projection.is_overdue:
+        return "overdue"
+    if projection.due_at is None:
+        return "no_estimate"
+    if (projection.due_at - today).days <= lead_time_days:
+        return "due_soon"
+    return "on_track"
 
 
 def _today(today: date | None) -> date:
@@ -221,35 +239,43 @@ def project_due_date(schedule: MaintenanceSchedule, *, today: date | None = None
         return _project(conn, schedule, _today(today))
 
 
-def _due_item(conn, schedule: MaintenanceSchedule, today: date) -> DueItem | None:
+def _due_item(
+    conn, schedule: MaintenanceSchedule, today: date, lead_time_days: int
+) -> DueItem | None:
     owner = _owner(conn, schedule)
     if owner is None:
         return None  # the bike/component was deleted; nothing to project
+    projection = _project(conn, schedule, today)
     return DueItem(
         schedule=schedule,
         owner_type="bike" if schedule.bike_id is not None else "component",
         owner_id=owner.id,
         owner_name=owner.name,
-        projection=_project(conn, schedule, today),
+        projection=projection,
+        status=due_status(projection, lead_time_days, today),
     )
 
 
-def get_due_item(schedule_id: int, *, today: date | None = None) -> DueItem | None:
+def get_due_item(
+    schedule_id: int, *, today: date | None = None, lead_time_days: int = DEFAULT_LEAD_TIME_DAYS
+) -> DueItem | None:
     with get_connection() as conn:
         schedule = schedules_db.get_by_id(conn, schedule_id)
         if schedule is None or not schedule.is_active:
             return None
-        return _due_item(conn, schedule, _today(today))
+        return _due_item(conn, schedule, _today(today), lead_time_days)
 
 
-def list_due_overview(*, today: date | None = None) -> list[DueItem]:
+def list_due_overview(
+    *, today: date | None = None, lead_time_days: int = DEFAULT_LEAD_TIME_DAYS
+) -> list[DueItem]:
     """Every active schedule in the garage, most urgent first (FR-019)."""
     day = _today(today)
     with get_connection() as conn:
         items = [
             item
             for schedule in schedules_db.list_all_active(conn)
-            if (item := _due_item(conn, schedule, day)) is not None
+            if (item := _due_item(conn, schedule, day, lead_time_days)) is not None
         ]
     return sorted(
         items,

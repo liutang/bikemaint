@@ -8,7 +8,7 @@ and `app/services/notification_service.py`.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from pydantic import ValidationError
 
 from app.models.requests import ScheduleRequest
@@ -62,14 +62,13 @@ def _schedule_owner(schedule):
 
 @router.get("/maintenance/due", name="due_dashboard")
 def due_dashboard(request: Request, account=Depends(require_account)):
-    return _render(
-        request,
-        "schedules/due_dashboard.html",
-        {
-            "items": schedule_service.list_due_overview(),
-            "notifications": notification_service.list_unacknowledged(),
-        },
-    )
+    items = schedule_service.list_due_overview(lead_time_days=account.notification_lead_time_days)
+    items_by_schedule_id = {item.schedule.id: item for item in items}
+    alerts = [
+        {"notification": notification, "item": items_by_schedule_id.get(notification.schedule_id)}
+        for notification in notification_service.list_unacknowledged()
+    ]
+    return _render(request, "schedules/due_dashboard.html", {"items": items, "alerts": alerts})
 
 
 @router.post("/notifications/{notification_id}/acknowledge", name="acknowledge_notification")
@@ -77,6 +76,8 @@ def acknowledge_notification(
     request: Request, notification_id: int, account=Depends(require_account)
 ):
     notification_service.acknowledge(notification_id)
+    if request.headers.get("hx-request") == "true":
+        return HTMLResponse("")  # the dismissed alert is removed in place
     return RedirectResponse(url="/maintenance/due", status_code=303)
 
 
@@ -170,7 +171,9 @@ def complete_schedule(request: Request, schedule_id: int, account=Depends(requir
     except LookupError:
         return PlainTextResponse("Schedule not found", status_code=404)
     if request.headers.get("hx-request") == "true":
-        item = schedule_service.get_due_item(schedule_id)
+        item = schedule_service.get_due_item(
+            schedule_id, lead_time_days=account.notification_lead_time_days
+        )
         return _render(request, "partials/due_soon_row.html", {"item": item})
     return RedirectResponse(url="/maintenance/due", status_code=303)
 

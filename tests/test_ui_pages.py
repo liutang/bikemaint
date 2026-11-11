@@ -153,3 +153,130 @@ def test_htmx_component_delete_redirects_to_storage_list(signed_in_client):
     )
 
     assert response.headers["hx-redirect"] == "/components"
+
+
+# ------------------------------------------------------------ User Story 3: dashboard
+
+from datetime import date, timedelta  # noqa: E402
+
+from app.services import notification_service, schedule_service  # noqa: E402
+
+
+def _row(html: str, schedule_id: int) -> str:
+    match = re.search(rf'<tr id="schedule-row-{schedule_id}".*?</tr>', html, re.S)
+    assert match, f"row {schedule_id} not found"
+    return match.group(0)
+
+
+def _seed_schedules():
+    from app.services import bike_service
+
+    bike = bike_service.create_bike(name="Dash Bike")
+    today = date.today()
+    schedule_service.create_schedule(
+        bike_id=bike.id, name="Overdue job", interval_days=10, today=today - timedelta(days=30)
+    )  # id 1
+    schedule_service.create_schedule(
+        bike_id=bike.id, name="Soon job", interval_days=3, today=today
+    )  # id 2
+    schedule_service.create_schedule(
+        bike_id=bike.id, name="Far job", interval_days=100, today=today
+    )  # id 3
+    schedule_service.create_schedule(
+        bike_id=bike.id, name="Mileage job", interval_miles=500
+    )  # id 4: no ride history -> no estimate, low confidence
+
+
+def test_dashboard_rows_carry_status_badges_with_text_and_icon(signed_in_client):
+    _seed_schedules()
+
+    html = signed_in_client.get("/maintenance/due").text
+
+    expectations = {
+        1: ("badge-overdue", "Overdue"),
+        2: ("badge-soon", "Due soon"),
+        3: ("badge-ok", "On track"),
+        4: ("badge-low", "No estimate yet"),
+    }
+    for schedule_id, (css, text) in expectations.items():
+        row = _row(html, schedule_id)
+        badge = re.search(rf'<span class="badge {css}">(.*?)</span>', row, re.S)
+        assert badge, f"row {schedule_id} lacks {css}"
+        assert text in badge.group(1)
+        assert '<svg class="icon" viewBox' in badge.group(1) and 'aria-hidden="true"' in badge.group(1)
+    assert "Low confidence" in _row(html, 4)
+    assert "Low confidence" not in _row(html, 3)
+
+
+def test_dashboard_table_is_semantic_and_stackable(signed_in_client):
+    _seed_schedules()
+
+    html = signed_in_client.get("/maintenance/due").text
+
+    assert 'class="table-responsive"' in html
+    assert html.count('<th scope="col"') >= 4
+    row = _row(html, 2)
+    assert row.count("<td") == row.count("data-label=")
+
+
+def test_dashboard_with_no_schedules_shows_an_empty_state(signed_in_client):
+    html = signed_in_client.get("/maintenance/due").text
+
+    assert 'class="empty-state"' in html
+
+
+def _make_alert():
+    from app.services import bike_service
+
+    bike = bike_service.create_bike(name="Alert Bike")
+    schedule_service.create_schedule(
+        bike_id=bike.id, name="Chain swap", interval_days=3, today=date.today()
+    )
+    return notification_service.check_due_schedules()
+
+
+def test_alerts_are_dismissible_in_place(signed_in_client):
+    _make_alert()
+
+    html = signed_in_client.get("/maintenance/due").text
+
+    alert = re.search(r'<li class="alert[^"]*"[^>]*>(.*?)</li>', html, re.S)
+    assert alert, "alert should render as a list item with class alert"
+    body = alert.group(1)
+    assert "Chain swap" in body and "Alert Bike" in body
+    assert 'hx-post="/notifications/1/acknowledge"' in body
+    assert 'hx-target="closest li"' in body
+    assert 'hx-swap="outerHTML"' in body
+
+
+def test_acknowledge_with_htmx_returns_an_empty_fragment(signed_in_client):
+    _make_alert()
+
+    response = signed_in_client.post(
+        "/notifications/1/acknowledge", headers={"hx-request": "true"}, follow_redirects=False
+    )
+
+    assert response.status_code == 200
+    assert response.text == ""
+    assert notification_service.list_unacknowledged() == []
+
+
+def test_acknowledge_without_htmx_still_redirects(signed_in_client):
+    _make_alert()
+
+    response = signed_in_client.post("/notifications/1/acknowledge", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/maintenance/due"
+
+
+def test_mark_done_with_htmx_returns_only_the_updated_row(signed_in_client):
+    _seed_schedules()
+
+    response = signed_in_client.post("/schedules/1/complete", headers={"hx-request": "true"})
+
+    html = response.text
+    assert html.lstrip().startswith('<tr id="schedule-row-1"')
+    assert "<html" not in html
+    # Completing the overdue 10-day job restarts its cycle, so it is no longer overdue.
+    assert "badge-ok" in html and "badge-overdue" not in html

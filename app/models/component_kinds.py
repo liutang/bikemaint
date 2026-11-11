@@ -32,6 +32,7 @@ _OFFERED: tuple[ComponentKind, ...] = (
     _kind("fork", "fork", {BIKE}),
     _kind("wheel", "wheel", {BIKE}, multi=True),  # a wheel or a wheelset; front and rear allowed
     _kind("tire", "tire", {"wheel", "rim"}),
+    _kind("rotor", "rotor", {"wheel", "hub"}),
     _kind("brake", "brake", {BIKE}, multi=True),
     _kind("drivetrain", "drivetrain", {BIKE}),
     _kind("chain", "chain", {BIKE, "drivetrain"}),
@@ -47,7 +48,6 @@ _LEGACY: tuple[ComponentKind, ...] = (
     _kind("rim", "rim", {"wheel"}, offered=False),
     _kind("spoke", "spoke", {"wheel"}, multi=True, offered=False),
     _kind("cassette", "cassette", {"hub"}, offered=False),
-    _kind("rotor", "rotor", {"hub"}, offered=False),
     _kind("crankset", "crankset", {BIKE, "drivetrain"}, offered=False),
     _kind("derailleur", "derailleur", {BIKE, "drivetrain"}, offered=False),
     _kind("shifter", "shifter", {BIKE, "handlebar"}, multi=True, offered=False),

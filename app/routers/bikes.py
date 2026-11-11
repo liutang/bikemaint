@@ -33,12 +33,13 @@ def _render(request: Request, template: str, context: dict, status_code: int = 2
 
 @router.get("/", name="garage_overview")
 def garage_overview(request: Request, account=Depends(require_account)):
-    bikes = bike_service.list_bikes()
-    in_storage_components = component_service.list_in_storage()
     return _render(
         request,
         "bikes/list.html",
-        {"bikes": bikes, "in_storage_components": in_storage_components},
+        {
+            "bikes": bike_service.list_bikes(),
+            "storage_count": len(component_service.list_in_storage()),
+        },
     )
 
 
@@ -109,7 +110,7 @@ async def create_bike(request: Request, account=Depends(require_account)):
     if request.headers.get("hx-request") == "true":
         return _render(request, "bikes/list.html", {
             "bikes": bike_service.list_bikes(),
-            "in_storage_components": component_service.list_in_storage(),
+            "storage_count": len(component_service.list_in_storage()),
         })
     return RedirectResponse(url=f"/bikes/{bike.id}", status_code=303)
 

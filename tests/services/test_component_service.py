@@ -469,3 +469,63 @@ def test_move_targets_can_be_limited_to_one_bike(db_path):
     assert {t.value for t in component_service.list_move_targets(tire.id)} == {
         f"component:{wa.id}", f"component:{wb.id}",
     }
+
+
+# ------------------------------------------------ deleting keeps sub-parts (specs/006, M1)
+
+
+def test_deleting_a_part_moves_its_sub_parts_to_storage(db_path):
+    bike = _create_bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
+    valve = _mk("Valve", "other", parent_component_id=tire.id)
+
+    component_service.delete_component(wheel.id, confirmed=True)
+
+    assert component_service.get_component(wheel.id) is None
+    stored = component_service.get_component(tire.id)
+    assert (stored.parent_bike_id, stored.parent_component_id) == (None, None)
+    assert component_service.get_component(valve.id).parent_component_id == tire.id
+    assert {c.id for c in component_service.list_in_storage()} == {tire.id}
+    assert component_service.get_tree_for_bike(bike.id) == []
+
+
+def test_deleting_a_part_closes_the_sub_parts_installation_periods(db_path):
+    bike = _create_bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
+
+    component_service.delete_component(wheel.id, confirmed=True)
+
+    with connection.get_connection() as conn:
+        open_on_bike = conn.execute(
+            "SELECT COUNT(*) AS c FROM component_installation_period "
+            "WHERE component_id = ? AND removed_at IS NULL AND parent_bike_id = ?",
+            (tire.id, bike.id),
+        ).fetchone()["c"]
+    assert open_on_bike == 0  # it no longer accrues the bike's rides
+
+
+def test_deleting_a_part_with_sub_parts_asks_first_and_says_they_move_to_storage(db_path):
+    bike = _create_bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    _mk("Tire", "tire", parent_component_id=wheel.id)
+
+    with pytest.raises(component_service.ConfirmationRequiredError, match="storage"):
+        component_service.delete_component(wheel.id)
+    assert component_service.get_component(wheel.id) is not None
+
+
+def test_a_sub_parts_own_history_does_not_force_confirmation_of_the_parent(db_path):
+    from app.services import maintenance_service
+
+    bike = _create_bike()
+    saddle = _mk("Saddle", "saddle", parent_bike_id=bike.id)
+    other = _mk("Bag", "other", parent_component_id=saddle.id)
+    maintenance_service.log_maintenance(component_id=other.id, description="Checked", performed_at="2026-05-01")
+
+    with pytest.raises(component_service.ConfirmationRequiredError):  # because it has a sub-part
+        component_service.delete_component(saddle.id)
+    component_service.delete_component(saddle.id, confirmed=True)
+
+    assert component_service.get_component(other.id) is not None  # kept, with its history

@@ -7,7 +7,7 @@
       {{ status_badge(item.status) }}
       <h3 class="attention-title">{{ item.schedule.name }}</h3>
       <p class="attention-meta">
-        <a href="/{{ item.owner_type }}s/{{ item.owner_id }}">{{ item.owner_name }}</a>
+        {% if item.bike_name %}<span class="owner-bike">{{ item.bike_name }}</span> {% endif %}<a href="/{{ item.owner_type }}s/{{ item.owner_id }}">{{ item.owner_name }}</a>
         {% if item.projection.due_at %}· Due {{ item.projection.due_at.isoformat() }}{% endif %}
       </p>
     </div>

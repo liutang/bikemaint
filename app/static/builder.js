@@ -22,7 +22,7 @@
   // Where would a drop on `target` land? null means "not allowed here".
   function resolve(target, event) {
     const ref = target.dataset.ref;
-    if (ref === "storage") return drag.source === "node" ? { target: "storage", before: "" } : null;
+    if (ref === "storage") return drag.source !== "storage" ? { target: "storage", before: "" } : null;
     if (insideDragged(target)) return null;
     if (target.classList.contains("node-row") && target.dataset.id !== drag.id) {
       const box = target.getBoundingClientRect();

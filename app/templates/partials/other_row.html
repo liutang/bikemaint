@@ -2,7 +2,7 @@
 <li class="other-row" id="schedule-row-{{ item.schedule.id }}">
   <div class="other-main">
     <strong>{{ item.schedule.name }}</strong>
-    <small><a href="/{{ item.owner_type }}s/{{ item.owner_id }}">{{ item.owner_name }}</a></small>
+    <small>{% if item.bike_name %}<span class="owner-bike">{{ item.bike_name }}</span> {% endif %}<a href="/{{ item.owner_type }}s/{{ item.owner_id }}">{{ item.owner_name }}</a></small>
   </div>
   <div class="other-status">
     {{ status_badge(item.status) }}

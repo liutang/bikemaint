@@ -87,3 +87,7 @@ def test_breadcrumb_markup_is_an_ordered_list_with_the_current_page_marked(signe
     nav = re.search(r'<nav class="breadcrumb" aria-label="Breadcrumb">\s*<ol>.*?</ol>\s*</nav>', html, re.S).group(0)
     assert nav.count("<li") == 3 and nav.count('aria-current="page"') == 1
     assert nav.rstrip().endswith("</nav>")
+
+
+def test_script_lets_palette_parts_be_dropped_on_the_storage_box():
+    assert re.search(r'ref === "storage"\) return drag\.source !== "storage"', JS)

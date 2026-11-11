@@ -16,7 +16,7 @@ from app.db.connection import get_connection
 from app.models.rows import Bike
 from app.models.requests import BIKE_CATEGORIES
 from app.services import sync_service
-from app.services.component_service import ConfirmationRequiredError, soft_delete_recursive
+from app.services.component_service import ConfirmationRequiredError, detach_to_storage
 
 __all__ = [
     "ConfirmationRequiredError",
@@ -170,6 +170,7 @@ def pair_to_strava_gear(bike_id: int, strava_gear_id: str) -> Bike:
 
 
 def delete_bike(bike_id: int, *, confirmed: bool = False) -> None:
+    """Delete a bike. Its parts are kept: they move to storage with their own sub-trees."""
     with get_connection() as conn:
         bike = bikes_db.get_by_id(conn, bike_id)
         if bike is None:
@@ -177,24 +178,16 @@ def delete_bike(bike_id: int, *, confirmed: bool = False) -> None:
         top_level_components = components_db.list_children(conn, parent_bike_id=bike_id)
         if top_level_components and not confirmed:
             raise ConfirmationRequiredError(
-                "This bike has installed components; confirm to delete them too."
+                "Its parts will move to storage; confirm to delete the bike."
             )
-        has_history_or_schedule = (
-            maintenance_db.has_entries_for_bike(conn, bike_id)
-            or schedules_db.has_active_for_bike(conn, bike_id)
-            or any(
-                maintenance_db.has_entries_for_component(conn, c.id)
-                or schedules_db.has_active_for_component(conn, c.id)
-                for top in top_level_components
-                for c in [top, *components_db.get_descendants(conn, top.id)]
-            )
-        )
+        has_history_or_schedule = maintenance_db.has_entries_for_bike(
+            conn, bike_id
+        ) or schedules_db.has_active_for_bike(conn, bike_id)
         if has_history_or_schedule and not confirmed:
             raise ConfirmationRequiredError(
-                "This bike (or something installed on it) has maintenance history or an "
-                "active schedule; confirm to delete it."
+                "It has maintenance history or an active schedule; confirm to delete it."
             )
         now = _now()
         for component in top_level_components:
-            soft_delete_recursive(conn, component.id, removed_at=now)
+            detach_to_storage(conn, component.id, removed_at=now)
         bikes_db.soft_delete(conn, bike_id)

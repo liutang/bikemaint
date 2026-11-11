@@ -53,7 +53,7 @@ def test_garage_bike_card_uses_the_cockpit_card_layout(signed_in_client):
 def test_storage_components_use_the_same_card_style_on_garage_and_storage_pages(signed_in_client):
     _add_component(signed_in_client, "Spare Tire", "tire")
 
-    for path in ("/", "/components"):
+    for path in ("/components",):  # the garage lists bikes only; storage has its own screen
         html = signed_in_client.get(path).text
         card = re.search(r'<article class="card bike-card is-storage"[^>]*>(.*?)</article>', html, re.S)
         assert card, path
@@ -62,21 +62,12 @@ def test_storage_components_use_the_same_card_style_on_garage_and_storage_pages(
         assert 'class="bike-card-stat"' in card.group(1)
 
 
-def test_garage_lists_storage_under_its_own_heading(signed_in_client):
-    _add_component(signed_in_client, "Spare Tire", "tire")
+def test_empty_garage_shows_guidance_and_empty_storage_has_its_own_screen(signed_in_client):
+    garage = signed_in_client.get("/").text
+    storage = signed_in_client.get("/components").text
 
-    html = signed_in_client.get("/").text
-
-    assert re.search(r"<h2[^>]*>\s*In storage\s*</h2>", html)
-    assert "Spare Tire" in html
-
-
-def test_empty_garage_and_storage_show_guidance(signed_in_client):
-    html = signed_in_client.get("/").text
-
-    assert html.count('class="empty-state"') >= 2
-    assert 'href="/bikes/new"' in html
-    assert 'href="/components/new"' in html
+    assert garage.count('class="empty-state"') == 1 and 'href="/bikes/new"' in garage
+    assert storage.count('class="empty-state"') == 1 and 'href="/components/new"' in storage
 
 
 def test_empty_storage_page_shows_an_empty_state(signed_in_client):

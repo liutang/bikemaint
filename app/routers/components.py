@@ -19,7 +19,7 @@ from app.models.requests import (
     MoveTargetRequest,
 )
 from app.routers.screen import render_screen
-from app.services import component_service
+from app.services import builder_service, component_service
 from app.services.auth_dependency import require_account
 from app.services.component_service import ComponentNestingConflictError
 
@@ -54,7 +54,13 @@ def _form_context(component, parent_bike_id, parent_component_id, extra: dict | 
     )
     if component is not None and component.component_type not in types:
         types = [component.component_type, *types]  # an older kind stays selectable on its own part
+    if component is None:
+        crumbs = [("Garage", "/"), ("Storage", "/components"), ("Add a part", None)]
+    else:
+        trail = builder_service.breadcrumbs(f"component:{component.id}")
+        crumbs = [*trail[:-1], (component.name, f"/components/{component.id}"), ("Edit", None)]
     return {
+        "crumbs": crumbs,
         "component": component,
         "component_types": types,
         "parent_bike_id": parent_bike_id,
@@ -70,20 +76,20 @@ def _message(exc: Exception) -> str:
 
 @router.get("/components", name="components_in_storage")
 def components_in_storage(request: Request, account=Depends(require_account)):
-    components = component_service.list_in_storage()
-    return _render(request, "components/list.html", {"components": components})
+    return _render(
+        request,
+        "components/list.html",
+        {
+            "components": component_service.list_in_storage(),
+            "crumbs": [("Garage", "/"), ("Storage", None)],
+        },
+    )
 
 
 @router.get("/components/new", name="new_component_form")
-def new_component_form(
-    request: Request,
-    account=Depends(require_account),
-    parent_bike_id: int | None = None,
-    parent_component_id: int | None = None,
-):
-    return _render(
-        request, "components/form.html", _form_context(None, parent_bike_id, parent_component_id)
-    )
+def new_component_form(request: Request, account=Depends(require_account)):
+    """Add a part to storage; mounting it on a bike is done on the bike's screen."""
+    return _render(request, "components/form.html", _form_context(None, None, None))
 
 
 @router.post("/components", name="create_component")

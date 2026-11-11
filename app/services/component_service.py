@@ -489,17 +489,23 @@ def move_component(
         return moved
 
 
-def soft_delete_recursive(conn: sqlite3.Connection, component_id: int, *, removed_at: str) -> None:
-    """Soft-delete `component_id` and its entire installed sub-tree on an open connection.
+def detach_to_storage(conn: sqlite3.Connection, component_id: int, *, removed_at: str) -> None:
+    """Move a component (with its own sub-tree) to storage on an open connection.
 
-    Shared by `delete_component` below and `bike_service.delete_bike`, which both need
-    this cascade to run inside their own transaction rather than opening a nested one.
+    Shared by `delete_component` and `bike_service.delete_bike`: what was installed in
+    something that goes away is kept, not deleted. Rides stop accruing to it from now on.
     """
+    components_db.close_open_installation_period(conn, component_id, removed_at=removed_at)
+    components_db.set_parent(conn, component_id, parent_bike_id=None, parent_component_id=None)
     for descendant in components_db.get_descendants(conn, component_id):
         components_db.close_open_installation_period(conn, descendant.id, removed_at=removed_at)
-        components_db.soft_delete(conn, descendant.id)
-    components_db.close_open_installation_period(conn, component_id, removed_at=removed_at)
-    components_db.soft_delete(conn, component_id)
+        components_db.open_installation_period(
+            conn,
+            descendant.id,
+            parent_bike_id=None,
+            parent_component_id=descendant.parent_component_id,
+            installed_at=removed_at,
+        )
 
 
 class ConfirmationRequiredError(Exception):
@@ -507,23 +513,25 @@ class ConfirmationRequiredError(Exception):
 
 
 def delete_component(component_id: int, *, confirmed: bool = False) -> None:
+    """Delete a part. Its sub-parts are kept: they move to storage with their own sub-trees."""
     with get_connection() as conn:
         component = components_db.get_by_id(conn, component_id)
         if component is None:
             raise LookupError(f"No component with id {component_id}")
-        descendants = components_db.get_descendants(conn, component_id)
-        if descendants and not confirmed:
+        children = components_db.list_children(conn, parent_component_id=component_id)
+        if children and not confirmed:
             raise ConfirmationRequiredError(
-                "This component has an installed sub-tree; confirm to delete it too."
+                "Its sub-parts will move to storage; confirm to delete it."
             )
-        has_history_or_schedule = any(
-            maintenance_db.has_entries_for_component(conn, c.id)
-            or schedules_db.has_active_for_component(conn, c.id)
-            for c in [component, *descendants]
-        )
+        has_history_or_schedule = maintenance_db.has_entries_for_component(
+            conn, component_id
+        ) or schedules_db.has_active_for_component(conn, component_id)
         if has_history_or_schedule and not confirmed:
             raise ConfirmationRequiredError(
-                "This component (or something installed in it) has maintenance history or an "
-                "active schedule; confirm to delete it."
+                "It has maintenance history or an active schedule; confirm to delete it."
             )
-        soft_delete_recursive(conn, component_id, removed_at=_now())
+        now = _now()
+        for child in children:
+            detach_to_storage(conn, child.id, removed_at=now)
+        components_db.close_open_installation_period(conn, component_id, removed_at=now)
+        components_db.soft_delete(conn, component_id)

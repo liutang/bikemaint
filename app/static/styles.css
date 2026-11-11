@@ -1297,6 +1297,11 @@ input[type="radio"] {
   margin: 0;
 }
 
+.owner-bike {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 /* ---------- Bike builder (drag and drop) ---------- */
 .builder-message {
   min-height: 1.5rem;

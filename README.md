@@ -116,6 +116,21 @@ stylesheet, `app/static/styles.css`, with no framework and no build step (consti
   was ever installed on them is recomputed after each change. A part's **Rides** is a read-only view of the
   rides while it was installed. Code: `app/services/ride_service.py`, `app/routers/rides.py`.
 
+## Behind a reverse proxy (Nginx Proxy Manager)
+
+The session cookie is `Secure`, so the app must be reached over HTTPS (except on `localhost`). Point a
+proxy host at the container (scheme `http`, the container's host and port, websockets not needed, **Force
+SSL** on, a certificate for the hostname) and set on the container:
+
+- `PUBLIC_BASE_URL=https://bikemaint.example.com` pins the redirect address sent to Strava
+  (`https://bikemaint.example.com/auth/strava/callback`); the Strava app's **Authorization Callback Domain**
+  is just `bikemaint.example.com`.
+- `FORWARDED_ALLOW_IPS=*` lets uvicorn trust the proxy's `X-Forwarded-Proto`/`-For` headers. Use the
+  proxy's address instead of `*` if you can.
+
+CI (`.github/workflows/ci.yml`) runs the tests on every pull request, and every merge to `master`
+publishes `ghcr.io/<owner>/bikemaint:latest` for the Docker host to pull.
+
 ## Running in Docker
 
 ```bash

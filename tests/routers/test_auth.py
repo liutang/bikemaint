@@ -93,3 +93,39 @@ def test_logout_clears_session_and_redirects_to_login(client, monkeypatch):
     protected_response = client.get("/protected-test-route", follow_redirects=False)
     assert protected_response.status_code == 303
     assert protected_response.headers["location"] == "/login"
+
+
+# ------------------------------------------------ behind a reverse proxy (specs/009)
+
+from urllib.parse import parse_qs, urlparse  # noqa: E402
+
+
+def _redirect_uri(html: str) -> str:
+    import html as html_lib
+    import re
+
+    href = html_lib.unescape(re.search(r'href="(https://www\.strava\.com/oauth/authorize[^"]+)"', html).group(1))
+    return parse_qs(urlparse(href).query)["redirect_uri"][0]
+
+
+def test_the_redirect_address_follows_the_request_by_default(client):
+    assert _redirect_uri(client.get("/login").text) == "https://testserver/auth/strava/callback"
+
+
+def test_a_public_base_url_overrides_the_redirect_address(client, monkeypatch):
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://bikemaint.hosts.the-tangs.com")
+
+    assert _redirect_uri(client.get("/login").text) == "https://bikemaint.hosts.the-tangs.com/auth/strava/callback"
+
+
+def test_a_trailing_slash_in_the_public_base_url_is_tolerated(client, monkeypatch):
+    monkeypatch.setenv("PUBLIC_BASE_URL", "https://bikemaint.hosts.the-tangs.com/")
+
+    assert _redirect_uri(client.get("/login").text) == "https://bikemaint.hosts.the-tangs.com/auth/strava/callback"
+
+
+@pytest.mark.parametrize("bad", ["", "   ", "javascript:alert(1)", "ftp://x", "not a url"])
+def test_an_unusable_public_base_url_is_ignored(client, monkeypatch, bad):
+    monkeypatch.setenv("PUBLIC_BASE_URL", bad)
+
+    assert _redirect_uri(client.get("/login").text) == "https://testserver/auth/strava/callback"

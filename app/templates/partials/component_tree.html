@@ -1,0 +1,11 @@
+{% macro render_tree(nodes) %}
+<ul>
+  {% for node in nodes %}
+  <li>
+    <a href="/components/{{ node.component.id }}">{{ node.component.name }}</a>
+    ({{ node.component.component_type }}, {{ node.component.total_mileage }} mi)
+    {% if node.children %}{{ render_tree(node.children) }}{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endmacro %}

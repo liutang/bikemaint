@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+
+{% block title %}Settings — Bike Maintenance Tracker{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+
+{% if errors %}
+<ul class="errors">
+  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+</ul>
+{% endif %}
+
+<h2>Strava connection</h2>
+{% if account.strava_connection_stale %}
+<p>Status: <strong>stale</strong> — mileage may not reflect recent rides.</p>
+<form method="post" action="/settings/strava/reconnect">
+  <button type="submit">Reconnect</button>
+</form>
+{% else %}
+<p>Status: connected since {{ account.strava_connected_at }}.</p>
+{% endif %}
+
+<h2>Notifications</h2>
+<p>Webhook URL: {{ account.notification_webhook_url or "not set" }}</p>
+<form method="post" action="/settings/webhook">
+  <label>Webhook URL (leave blank to remove)
+    <input type="url" name="notification_webhook_url"
+           value="{{ account.notification_webhook_url or '' }}">
+  </label>
+  <button type="submit">Save webhook</button>
+</form>
+
+<p>Lead time: {{ account.notification_lead_time_days }} days</p>
+<form method="post" action="/settings/notifications">
+  <label>Notify this many days before something is due
+    <input type="number" min="0" max="365" name="notification_lead_time_days"
+           value="{{ account.notification_lead_time_days }}" required>
+  </label>
+  <button type="submit">Save lead time</button>
+</form>
+{% endblock %}

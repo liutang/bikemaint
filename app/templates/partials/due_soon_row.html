@@ -1,0 +1,28 @@
+{% set projection = item.projection %}
+<tr id="schedule-row-{{ item.schedule.id }}">
+  <td>
+    {{ item.schedule.name }}
+    <br><small>
+      <a href="/{{ item.owner_type }}s/{{ item.owner_id }}">{{ item.owner_name }}</a>
+    </small>
+  </td>
+  <td>
+    {% if projection.is_overdue %}<strong>Overdue</strong>{% endif %}
+    {% if projection.due_at %}{{ projection.due_at.isoformat() }}{% else %}No estimate yet{% endif %}
+    {% if projection.is_low_confidence %}<em title="Not enough ride history for a reliable estimate">(low confidence)</em>{% endif %}
+  </td>
+  <td>
+    {% if projection.remaining_miles is not none %}{{ "%.0f"|format(projection.remaining_miles) }} mi{% else %}—{% endif %}
+  </td>
+  <td>
+    <form method="post" action="/schedules/{{ item.schedule.id }}/complete" style="display:inline"
+          hx-post="/schedules/{{ item.schedule.id }}/complete"
+          hx-target="#schedule-row-{{ item.schedule.id }}" hx-swap="outerHTML">
+      <button type="submit">Mark done</button>
+    </form>
+    <a href="/schedules/{{ item.schedule.id }}/edit">Edit</a>
+    <form method="post" action="/schedules/{{ item.schedule.id }}/delete" style="display:inline">
+      <button type="submit">Delete</button>
+    </form>
+  </td>
+</tr>

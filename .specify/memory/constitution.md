@@ -1,11 +1,11 @@
 <!--
 Sync Impact Report
-Version change: 1.0.0 → 1.1.0
-Rationale: MINOR bump — new "Project Structure" section added, materially expanding governance
-  guidance without redefining or removing any existing principle.
+Version change: 1.1.0 → 1.2.0
+Rationale: MINOR bump — new "Git Practices" guidance added under Development Workflow,
+  materially expanding governance guidance without redefining or removing any existing principle.
 Modified principles: none
 Added sections:
-  - Project Structure (new, inserted after Technology Stack)
+  - Git Practices (new, appended to Development Workflow)
 Removed sections: none
 Deferred TODOs: none
 Templates requiring follow-up: none — this command only amends the constitution;
@@ -103,6 +103,25 @@ readable and correctly leveled (Principle V). Reviewers reject PRs that introduc
 without justification (Principle I), that expand the technology stack without an accompanying
 constitution amendment, or that place files outside the structure defined above.
 
+### Git Practices
+
+- `main` MUST always be in a deployable state. All non-trivial work happens on short-lived
+  feature branches created from `main` and merged back via pull request; direct pushes to
+  `main` are reserved for previously-agreed trivial exceptions (e.g., a one-line typo fix)
+  and MUST still pass CI before landing.
+- Commits MUST be atomic: each commit represents one logical, reviewable change and leaves
+  the codebase in a working state. Squash exploratory or fixup commits before merge rather
+  than merging a noisy history.
+- Commit messages MUST be written in the imperative mood (e.g., "Add retry logic", not
+  "Added" or "Adding"), with a concise summary line and, when the reasoning is not obvious
+  from the diff, a body explaining *why* the change was made.
+- Merging to `main` MUST go through a pull request that satisfies the review requirements
+  above; force-pushing to `main` or any other shared branch is prohibited, as is rewriting
+  history that has already been pushed and reviewed by someone else.
+- Secrets, credentials, and generated/build artifacts MUST NOT be committed. `.gitignore`
+  MUST be kept current so this is enforced before history is created, reinforcing Principle
+  IV rather than relying on after-the-fact cleanup.
+
 ## Governance
 
 This constitution supersedes any conflicting practice, style guide, or prior convention in
@@ -116,4 +135,4 @@ untested behavior, stack deviations, or directory-structure violations are groun
 rejection. Use this document as the runtime source of truth for `/speckit-plan`,
 `/speckit-tasks`, and `/speckit-implement`.
 
-**Version**: 1.1.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-15
+**Version**: 1.2.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-15

@@ -1,0 +1,38 @@
+{% extends "layout.html" %}
+
+{% block title %}Maintenance due — Bike Maintenance Tracker{% endblock %}
+
+{% block content %}
+<h1>Maintenance due</h1>
+
+{% if notifications %}
+<section class="alerts">
+  <h2>Due soon</h2>
+  <ul>
+    {% for notification in notifications %}
+    <li>
+      Schedule #{{ notification.schedule_id }} is due around {{ notification.projected_due_at }}.
+      <form method="post" action="/notifications/{{ notification.id }}/acknowledge" style="display:inline">
+        <button type="submit">Dismiss</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if items %}
+<table>
+  <thead>
+    <tr><th>Item</th><th>Projected due</th><th>Remaining</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for item in items %}
+    {% include "partials/due_soon_row.html" %}
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No maintenance schedules yet. Add one from a bike or component page.</p>
+{% endif %}
+{% endblock %}

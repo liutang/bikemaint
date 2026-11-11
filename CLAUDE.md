@@ -1,0 +1,67 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project state
+
+The 001 feature is implemented (all tasks in `tasks.md` are checked off). Common commands, from the repo root:
+
+- Install: `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`
+- Test: `.venv/bin/python -m pytest -q` (single file: `pytest tests/services/test_x.py`)
+- Run: export the variables in `.env.example`, then `uvicorn app.main:app --reload`
+
+The active feature is `specs/001-bike-maintenance-tracker/`, tracked on git branch `001-bike-maintenance-tracker`. Its full spec/plan/design chain lives there:
+- `spec.md` — feature spec (user stories, functional requirements, clarifications)
+- `plan.md` — implementation plan (tech stack choices, constitution gate check, source layout)
+- `research.md` — Phase 0 design decisions and rejected alternatives
+- `data-model.md` — SQLite schema/entities
+- `contracts/routes.md`, `contracts/webhook-payload.md` — HTTP route contract and outbound webhook contract
+- `quickstart.md` — end-to-end manual validation script per user story
+- `tasks.md` (once generated) — the dependency-ordered task list to implement against
+
+## Spec Kit workflow
+
+This project uses [GitHub Spec Kit](https://github.com/github/spec-kit) for spec-driven development, invoked as slash-command skills. The intended cycle per feature is:
+
+1. `/speckit-constitution` — create/amend `.specify/memory/constitution.md` (project-wide governance; rare, deliberate).
+2. `/speckit-specify` — create/update a feature's `spec.md` from a natural-language description.
+3. `/speckit-clarify` — resolve ambiguous areas of a spec via targeted Q&A before planning (already run once for 001-bike-maintenance-tracker; see its Clarifications section).
+4. `/speckit-checklist` — generate a custom requirements-quality checklist for a feature.
+5. `/speckit-plan` — generate `plan.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md` from the spec + constitution.
+6. `/speckit-tasks` — generate `tasks.md`, a dependency-ordered task breakdown, from the plan/design artifacts.
+7. `/speckit-analyze` — non-destructive cross-check of spec.md/plan.md/tasks.md for consistency before implementing.
+8. `/speckit-implement` — execute `tasks.md` against the codebase.
+9. `/speckit-converge` — after ad hoc changes, diff the codebase against spec/plan/tasks and append any unbuilt work as new tasks.
+10. `/speckit-taskstoissues` — convert `tasks.md` entries into GitHub issues.
+
+Each feature lives under `specs/NNN-feature-name/`, numbered sequentially; `.specify/scripts/python/` (invoked by the skills, not directly) resolves paths like `FEATURE_DIR`/`IMPL_PLAN` and copies the right template. Don't hand-edit the numbering scheme or bypass these skills to create feature directories.
+
+## Constitution (binding on all code in this repo)
+
+`.specify/memory/constitution.md` (currently v1.2.0) is the authoritative governance document — `/speckit-plan`, `/speckit-tasks`, and `/speckit-implement` all read it, and code review is expected to enforce it. Key points future work must not violate:
+
+- **Fixed tech stack**: FastAPI (web/API) + HTMX (server-rendered fragments, no SPA framework/build pipeline) + Jinja2 (templates) + SQLite. Diversifying this (second templating engine, frontend framework, alternate DB) requires a constitution amendment, not a unilateral choice in a feature branch.
+- **Fixed directory layout**: `app/routers/` (route handlers only, no business logic or direct DB queries), `app/services/` (business logic, must be importable/callable without FastAPI or request objects), `app/models/` (Pydantic schemas + row models), `app/db/` (connection setup, parameterized query functions, migrations — no ORM), `app/templates/`, `app/static/`; `tests/` mirrors `app/` 1:1 (e.g. `tests/services/test_x.py` tests `app/services/x.py`). A file must live in the directory matching its *responsibility*, regardless of what it's named.
+- **TDD is non-negotiable**: every behavior change needs a failing test first, then the minimal code to pass. No PR merges with untested new behavior.
+- **Security by default**: all input validated at the boundary via Pydantic; all DB access parameterized (no string-built SQL); secrets only from environment config; auth/authz enforced server-side on every route, including HTMX partial endpoints.
+- **Observability**: log lines must be human-readable sentences or key=value pairs with relevant IDs, correctly leveled, never containing secrets or full sensitive request bodies.
+- **Git practices**: `main` always deployable; short-lived feature branches merged via PR; atomic, imperative-mood commits; no force-push or history rewriting on shared branches.
+
+## Architecture (per plan.md / research.md / data-model.md for 001-bike-maintenance-tracker)
+
+This is a **single-user, self-hosted** app (one rider, one Strava account) — do not add multi-tenancy, auth beyond Strava OAuth, or concurrency handling beyond what a single user needs.
+
+- **Auth**: Strava OAuth2 is the *only* login (no password). Server-side session cookie (Starlette `SessionMiddleware`) after the OAuth callback; tokens live only in the `account` table, never sent to the browser.
+- **Data layer**: raw `sqlite3` with hand-written parameterized query functions per entity in `app/db/`, no ORM; schema changes via sequential `.sql` files in `app/db/migrations/` tracked by a `schema_version` table.
+- **Component hierarchy**: components form an arbitrary-depth tree (bike → wheel → rim → tire, etc.) via a self-referential adjacency list (`parent_bike_id` / `parent_component_id`), read with recursive CTEs. A small hardcoded "multi-instance type" list (e.g. spoke, bolt, pad) is the only exception to "one component per type per parent" — this deliberately avoids a generic slot/cardinality rules engine.
+- **Mileage attribution**: `component_installation_period` rows record when a component was under which parent, so a scheduled Strava sync can attribute historical ride mileage correctly even after components move between bikes.
+- **Strava sync**: in-process APScheduler jobs poll Strava's activity API on an interval (deliberately *not* Strava's Webhook Events API — see research.md §1 for why polling was chosen for this single-user scale). The same sync function backs both the scheduled job and the manual `/sync/strava` route.
+- **Maintenance due-date projection**: computed on read (never stored) from a trailing riding-pace window plus each schedule's mileage/time interval — see research.md §4 for the exact algorithm and low-confidence fallback rules.
+- **Notification dedup**: each `maintenance_schedule` has a `cycle_number` bumped on every completion; `notification` rows are uniquely keyed on `(schedule_id, cycle_number)` to prevent duplicate due-soon alerts within the same cycle.
+- **Outbound webhook**: due-soon notifications POST a JSON payload (contract in `contracts/webhook-payload.md`) to a user-configured URL (e.g. a Discord incoming webhook) via `httpx`, with a short timeout and limited retries that never block recording the in-app notification.
+
+Consult `contracts/routes.md` for the full intended HTTP surface (page routes vs. HTMX partial-returning mutation routes) before adding or renaming a route.
+
+## Codex config detected
+
+A Codex CLI config was found at `~/.codex/config.toml`. If you want to import any of it (MCP servers, slash commands, subagents, skills, instructions) into Claude Code, run `/import` to see what's importable, then `/import --yes=<digest>` to apply it.

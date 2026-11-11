@@ -1,0 +1,34 @@
+[project]
+name = "bikemaint"
+version = "0.1.0"
+description = "Single-user, self-hosted bike maintenance tracker with Strava mileage sync"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "httpx",
+    "apscheduler",
+    "itsdangerous",
+    "python-multipart",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "respx",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# TDD workflow stages tests for not-yet-implemented modules ahead of their code
+# (constitution Principle III); those files' import errors shouldn't block the
+# rest of the suite from collecting and running.
+addopts = "--continue-on-collection-errors"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]

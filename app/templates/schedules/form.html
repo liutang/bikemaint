@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ "Edit" if schedule else "New" }} schedule — {{ owner.name }}{% endblock %}
+
+{% block content %}
+<h1>{{ "Edit schedule" if schedule else "New maintenance schedule" }} for "{{ owner.name }}"</h1>
+
+{% if errors %}
+<ul class="errors">
+  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+</ul>
+{% endif %}
+
+<form method="post" action="{{ action }}">
+  <label>Name (e.g. "Replace chain")
+    <input type="text" name="name" value="{{ schedule.name if schedule else '' }}" required>
+  </label>
+  <label>Every ___ miles
+    <input type="number" step="any" min="0" name="interval_miles"
+           value="{{ schedule.interval_miles if schedule and schedule.interval_miles is not none else '' }}">
+  </label>
+  <label>Every ___ days
+    <input type="number" step="1" min="0" name="interval_days"
+           value="{{ schedule.interval_days if schedule and schedule.interval_days is not none else '' }}">
+  </label>
+  <p><small>Set a mileage interval, a time interval, or both — whichever comes first is due.</small></p>
+  {% if schedule %}
+  <label>
+    <input type="checkbox" name="is_active" {{ "checked" if schedule.is_active }}> Active
+  </label>
+  {% endif %}
+  <button type="submit">Save</button>
+</form>
+{% endblock %}

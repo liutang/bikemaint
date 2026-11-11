@@ -138,6 +138,34 @@ def test_get_activities_omits_after_cursor_when_not_given():
     assert "after" not in route.calls.last.request.url.params
 
 
+@respx.mock
+def test_get_activities_follows_pages_until_a_short_page():
+    full = [{"id": i} for i in range(200)]
+    route = respx.get("https://www.strava.com/api/v3/athlete/activities").mock(
+        side_effect=[
+            httpx.Response(200, json=full),
+            httpx.Response(200, json=full),
+            httpx.Response(200, json=[{"id": 999}]),
+        ]
+    )
+
+    activities = strava_client.get_activities("my-token")
+
+    assert len(activities) == 401
+    pages = [c.request.url.params["page"] for c in route.calls]
+    assert pages == ["1", "2", "3"]
+
+
+@respx.mock
+def test_get_activities_stops_when_first_page_is_empty():
+    route = respx.get("https://www.strava.com/api/v3/athlete/activities").mock(
+        return_value=httpx.Response(200, json=[])
+    )
+
+    assert strava_client.get_activities("my-token") == []
+    assert route.call_count == 1
+
+
 def _create_account(expires_at: str) -> accounts.Account:
     with connection.get_connection() as conn:
         return accounts.upsert_from_strava(

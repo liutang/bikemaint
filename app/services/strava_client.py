@@ -79,20 +79,28 @@ def get_athlete_gear(access_token: str) -> list[dict]:
 
 
 def get_activities(
-    access_token: str, *, after: int | None = None, page: int = 1, per_page: int = 200
+    access_token: str, *, after: int | None = None, per_page: int = 200
 ) -> list[dict]:
-    """Fetch a page of the athlete's activities, optionally only those after a Unix
-    `after` cursor (used for an incremental sync; omitted for a full-history backfill)."""
-    params: dict[str, int] = {"page": page, "per_page": per_page}
-    if after is not None:
-        params["after"] = after
-    response = httpx.get(
-        f"{STRAVA_API_BASE_URL}/athlete/activities",
-        headers={"Authorization": f"Bearer {access_token}"},
-        params=params,
-    )
-    response.raise_for_status()
-    return response.json()
+    """Fetch all of the athlete's activities, following Strava's pages until a short
+    page comes back. `after` is an optional Unix cursor (incremental sync); omitted
+    for a full-history backfill."""
+    activities: list[dict] = []
+    page = 1
+    while True:
+        params: dict[str, int] = {"page": page, "per_page": per_page}
+        if after is not None:
+            params["after"] = after
+        response = httpx.get(
+            f"{STRAVA_API_BASE_URL}/athlete/activities",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params=params,
+        )
+        response.raise_for_status()
+        batch = response.json()
+        activities.extend(batch)
+        if len(batch) < per_page:
+            return activities
+        page += 1
 
 
 class StravaTokenRefreshError(Exception):

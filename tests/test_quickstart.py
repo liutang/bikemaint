@@ -40,7 +40,7 @@ def signed_in(client, monkeypatch):
 
 
 def _add_bike(client, name):
-    client.post("/bikes", data={"name": name, "manual_baseline_mileage": "0"})
+    bike_service.create_bike(name=name, manual_baseline_mileage=0)
 
 
 def _add_component(client, name, component_type, **parent):

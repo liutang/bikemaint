@@ -14,12 +14,15 @@ from app.db import maintenance as maintenance_db
 from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models.rows import Bike
-from app.services import sync_service
+from app.services import bike_catalog, sync_service
 from app.services.component_service import ConfirmationRequiredError, soft_delete_recursive
 
 __all__ = [
     "ConfirmationRequiredError",
+    "KEEP_CURRENT",
     "create_bike",
+    "create_bike_from_catalog",
+    "update_bike_from_catalog",
     "get_bike",
     "list_bikes",
     "update_bike",
@@ -49,6 +52,68 @@ def create_bike(
     with get_connection() as conn:
         return bikes_db.create(
             conn, name=name, bike_type=bike_type, manual_baseline_mileage=manual_baseline_mileage
+        )
+
+
+KEEP_CURRENT = "__keep__"  # form value: a legacy bike keeps the name and type it already has
+
+
+def _unique_name(conn, base: str, *, exclude_bike_id: int | None = None) -> str:
+    taken = {b.name for b in bikes_db.list_active(conn) if b.id != exclude_bike_id}
+    if base not in taken:
+        return base
+    number = 2
+    while f"{base} ({number})" in taken:
+        number += 1
+    return f"{base} ({number})"
+
+
+def create_bike_from_catalog(catalog_id: str | None, *, manual_baseline_mileage: float = 0.0) -> Bike:
+    """Add a bike from the common-bike catalog: name is "Make Model", type is the category."""
+    entry = bike_catalog.get(catalog_id)
+    if entry is None:
+        raise ValueError("Choose a bike from the list.")
+    with get_connection() as conn:
+        return bikes_db.create(
+            conn,
+            name=_unique_name(conn, bike_catalog.display_name(entry)),
+            bike_type=entry.category,
+            manual_baseline_mileage=manual_baseline_mileage,
+            catalog_id=entry.id,
+        )
+
+
+def update_bike_from_catalog(
+    bike_id: int, catalog_id: str | None, *, manual_baseline_mileage: float
+) -> Bike:
+    """Edit a bike by catalog entry. A legacy bike (no catalog entry) may pass `KEEP_CURRENT`."""
+    with get_connection() as conn:
+        bike = bikes_db.get_by_id(conn, bike_id)
+        if bike is None:
+            raise LookupError(f"No bike with id {bike_id}")
+        if catalog_id == KEEP_CURRENT:
+            if bike.catalog_id is not None:
+                raise ValueError("Choose a bike from the list.")
+            name, bike_type, new_catalog_id = bike.name, bike.bike_type, None
+        else:
+            entry = bike_catalog.get(catalog_id)
+            if entry is None:
+                raise ValueError("Choose a bike from the list.")
+            new_catalog_id, bike_type = entry.id, entry.category
+            name = (
+                bike.name
+                if bike.catalog_id == entry.id
+                else _unique_name(conn, bike_catalog.display_name(entry), exclude_bike_id=bike_id)
+            )
+        earned_beyond_baseline = bike.total_mileage - bike.manual_baseline_mileage
+        return bikes_db.update(
+            conn,
+            bike_id,
+            name=name,
+            bike_type=bike_type,
+            manual_baseline_mileage=manual_baseline_mileage,
+            total_mileage=earned_beyond_baseline + manual_baseline_mileage,
+            catalog_id=new_catalog_id,
         )
 
 

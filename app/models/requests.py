@@ -44,6 +44,14 @@ class BikeUpdateRequest(BikeCreateRequest):
     pass
 
 
+class BikeCatalogRequest(BaseModel):
+    """Add/edit a bike by catalog entry. Only the id's shape is checked here; membership in the
+    catalog (and whether `__keep__` is allowed) is decided by `app/services/bike_service.py`."""
+
+    catalog_id: str = Field(pattern=r"^(__keep__|[a-z0-9]+(-[a-z0-9]+)*)$", max_length=64)
+    manual_baseline_mileage: float = Field(default=0.0, ge=0)
+
+
 class _ComponentParentFields(BaseModel):
     parent_bike_id: int | None = None
     parent_component_id: int | None = None

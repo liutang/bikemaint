@@ -18,15 +18,17 @@ def create(
     name: str,
     bike_type: str | None = None,
     manual_baseline_mileage: float = 0.0,
+    catalog_id: str | None = None,
 ) -> Bike:
     now = _now()
     cursor = conn.execute(
         """
         INSERT INTO bike (
-            name, bike_type, manual_baseline_mileage, total_mileage, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
+            name, bike_type, manual_baseline_mileage, total_mileage, catalog_id,
+            created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (name, bike_type, manual_baseline_mileage, manual_baseline_mileage, now, now),
+        (name, bike_type, manual_baseline_mileage, manual_baseline_mileage, catalog_id, now, now),
     )
     bike = get_by_id(conn, cursor.lastrowid)
     assert bike is not None
@@ -76,14 +78,16 @@ def update(
     bike_type: str | None,
     manual_baseline_mileage: float,
     total_mileage: float,
+    catalog_id: str | None = None,
 ) -> Bike:
     conn.execute(
         """
         UPDATE bike
-        SET name = ?, bike_type = ?, manual_baseline_mileage = ?, total_mileage = ?, updated_at = ?
+        SET name = ?, bike_type = ?, manual_baseline_mileage = ?, total_mileage = ?,
+            catalog_id = ?, updated_at = ?
         WHERE id = ?
         """,
-        (name, bike_type, manual_baseline_mileage, total_mileage, _now(), bike_id),
+        (name, bike_type, manual_baseline_mileage, total_mileage, catalog_id, _now(), bike_id),
     )
     bike = get_by_id(conn, bike_id)
     assert bike is not None

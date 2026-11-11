@@ -1,5 +1,7 @@
 import pytest
 
+from app.services import bike_service
+
 
 @pytest.mark.parametrize(
     "method,path",
@@ -24,7 +26,7 @@ def test_schedule_routes_redirect_unauthenticated_requests_to_login(client, meth
 
 
 def _login(client, monkeypatch, athlete_id=42):
-    from app.services import strava_client
+    from app.services import bike_service, strava_client
 
     monkeypatch.setattr(
         strava_client,
@@ -41,7 +43,7 @@ def _login(client, monkeypatch, athlete_id=42):
 
 def test_due_dashboard_lists_schedules_across_bikes_and_components(client, monkeypatch):
     _login(client, monkeypatch)
-    client.post("/bikes", data={"name": "Road Bike", "manual_baseline_mileage": "0"})
+    bike_service.create_bike(name="Road Bike", manual_baseline_mileage=0)
     client.post("/components", data={"name": "Wax Chain", "component_type": "chain"})
 
     client.post("/bikes/1/schedules", data={"name": "Annual service", "interval_days": "365"})
@@ -57,7 +59,7 @@ def test_due_dashboard_lists_schedules_across_bikes_and_components(client, monke
 
 def test_schedule_without_any_interval_is_rejected(client, monkeypatch):
     _login(client, monkeypatch)
-    client.post("/bikes", data={"name": "Road Bike", "manual_baseline_mileage": "0"})
+    bike_service.create_bike(name="Road Bike", manual_baseline_mileage=0)
 
     response = client.post("/bikes/1/schedules", data={"name": "No interval"})
 
@@ -74,7 +76,7 @@ def test_schedule_for_unknown_bike_returns_404(client, monkeypatch):
 
 def test_complete_schedule_logs_maintenance_and_returns_to_dashboard(client, monkeypatch):
     _login(client, monkeypatch)
-    client.post("/bikes", data={"name": "Road Bike", "manual_baseline_mileage": "0"})
+    bike_service.create_bike(name="Road Bike", manual_baseline_mileage=0)
     client.post("/bikes/1/schedules", data={"name": "Annual service", "interval_days": "365"})
 
     response = client.post("/schedules/1/complete", follow_redirects=False)
@@ -86,7 +88,7 @@ def test_complete_schedule_logs_maintenance_and_returns_to_dashboard(client, mon
 
 def test_edit_and_delete_schedule(client, monkeypatch):
     _login(client, monkeypatch)
-    client.post("/bikes", data={"name": "Road Bike", "manual_baseline_mileage": "0"})
+    bike_service.create_bike(name="Road Bike", manual_baseline_mileage=0)
     client.post("/bikes/1/schedules", data={"name": "Old name", "interval_days": "30"})
 
     form = client.get("/schedules/1/edit")

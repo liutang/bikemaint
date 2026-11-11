@@ -22,13 +22,13 @@ description: "Task list for the Bike Catalog and Interactive Builder feature"
 
 ## Milestone 1: Bike catalog (US1, P1)
 
-- [ ] T001 [US1] Create `tests/services/test_bike_catalog.py` (about 60 entries; unique slugs; categories only road/gravel/mountain/hybrid/e-bike; grouping by category then make; `display_name`; `get(id)` returns None for unknown) and implement `app/services/bike_catalog.py`
-- [ ] T002 [US1] Create migration `app/db/migrations/0005_bike_catalog_id.sql`; extend `tests/db/test_bikes.py`-style coverage (`catalog_id` stored and read) in `tests/db/test_bikes_catalog_id.py`; update `app/models/rows.py` `Bike` and `app/db/bikes.py`
-- [ ] T003 [US1] Extend `tests/services/test_bike_service.py`: `create_bike_from_catalog` sets name/type/catalog_id, numeric suffix for duplicates ("(2)", "(3)", ignoring soft-deleted bikes), unknown id raises; `update_bike_from_catalog` and keep-current for legacy bikes only; implement in `app/services/bike_service.py`
-- [ ] T004 [US1] Update `tests/models/test_requests.py` (`BikeCatalogRequest` accepts only catalog ids or `__keep__`, rejects blank/forged) and `app/models/requests.py`
-- [ ] T005 [US1] Update `tests/routers/test_bikes.py` and `tests/test_ui_pages.py`/`tests/test_quickstart.py` where bikes are created with a free-text `name`: new form markup (no `name`/`bike_type` inputs, `<select name="catalog_id">` with optgroups), create/edit success and 422 paths, legacy keep-current, duplicate suffix through HTTP; then update `app/routers/bikes.py` and `app/templates/bikes/form.html`
-- [ ] T006 [US1] Keep the existing service/test helpers working (tests and the seed use `bike_service.create_bike(name=...)`): leave `create_bike` for internal/legacy use and document it; confirm the full suite passes
-- [ ] T007 [US1] M1 checkpoint: full suite green, `docker build -t bikemaint:m1-bike-catalog .`, verify the image runs and the add-bike flow works in the browser, mark tasks, commit, report
+- [X] T001 [US1] Create `tests/services/test_bike_catalog.py` (about 60 entries; unique slugs; categories only road/gravel/mountain/hybrid/e-bike; grouping by category then make; `display_name`; `get(id)` returns None for unknown) and implement `app/services/bike_catalog.py`
+- [X] T002 [US1] Create migration `app/db/migrations/0005_bike_catalog_id.sql`; extend `tests/db/test_bikes.py`-style coverage (`catalog_id` stored and read) in `tests/db/test_bikes_catalog_id.py`; update `app/models/rows.py` `Bike` and `app/db/bikes.py`
+- [X] T003 [US1] Extend `tests/services/test_bike_service.py`: `create_bike_from_catalog` sets name/type/catalog_id, numeric suffix for duplicates ("(2)", "(3)", ignoring soft-deleted bikes), unknown id raises; `update_bike_from_catalog` and keep-current for legacy bikes only; implement in `app/services/bike_service.py`
+- [X] T004 [US1] Update `tests/models/test_requests.py` (`BikeCatalogRequest` accepts only catalog ids or `__keep__`, rejects blank/forged) and `app/models/requests.py`
+- [X] T005 [US1] Update `tests/routers/test_bikes.py` and `tests/test_ui_pages.py`/`tests/test_quickstart.py` where bikes are created with a free-text `name`: new form markup (no `name`/`bike_type` inputs, `<select name="catalog_id">` with optgroups), create/edit success and 422 paths, legacy keep-current, duplicate suffix through HTTP; then update `app/routers/bikes.py` and `app/templates/bikes/form.html`
+- [X] T006 [US1] Keep the existing service/test helpers working (tests and the seed use `bike_service.create_bike(name=...)`): leave `create_bike` for internal/legacy use and document it; confirm the full suite passes
+- [X] T007 [US1] M1 checkpoint: full suite green, `docker build -t bikemaint:m1-bike-catalog .`, verify the image runs and the add-bike flow works in the browser, mark tasks, commit, report
 
 ## Milestone 2: Placement rules (US2, P2)
 

@@ -1,13 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <title>BikeMaint</title>
-  <rect width="512" height="512" rx="112" fill="#FFA800"/>
-  <g transform="translate(64 68) scale(16)" fill="none" stroke="#1b1e25" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="5.5" cy="16.5" r="3.5"/>
-    <circle cx="18.5" cy="16.5" r="3.5"/>
-    <path d="M5.5 16.5 9.5 8.5H16l2.5 8"/>
-    <path d="M9.5 8.5 12 16.5 16 8.5"/>
-    <path d="M5.5 16.5H12"/>
-    <path d="M8 6h3.5"/>
-    <path d="M14.5 5.5H18M16 5.5v3"/>
+  <rect width="512" height="512" rx="120" fill="#1b1e25"/>
+  <g fill="none" stroke="#FFA800" stroke-width="30" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M138 356C104 356 92 318 92 276C92 224 118 185 172 185H205Q219 185 219 200V256"/>
+    <path d="M374 356C408 356 420 318 420 276C420 224 394 185 340 185H307Q293 185 293 200V256"/>
   </g>
+  <circle cx="256" cy="300" r="62" fill="#FFA800"/>
+  <rect x="234" y="236" width="44" height="54" fill="#1b1e25"/>
+  <circle cx="256" cy="290" r="22" fill="#1b1e25"/>
 </svg>

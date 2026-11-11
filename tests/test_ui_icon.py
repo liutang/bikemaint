@@ -26,11 +26,13 @@ def test_png_icons_exist_at_their_stated_size(name, size):
     assert _png_size(ICONS / name) == (size, size)
 
 
-def test_the_svg_icon_is_a_self_contained_bike_on_the_accent():
+def test_the_svg_icon_is_drop_bars_with_a_wrench_head_amber_on_charcoal():
     svg = (ICONS / "icon.svg").read_text()
 
-    assert 'fill="#FFA800"' in svg and "#1b1e25" in svg
-    assert svg.count("<circle") == 2  # the wheels
+    assert re.search(r'<rect width="512" height="512" rx="\d+" fill="#1b1e25"/>', svg)  # charcoal tile
+    assert svg.count('stroke="#FFA800"') == 1 and svg.count('fill="#FFA800"') == 1  # bars + wrench head
+    assert svg.count("<path") == 2  # the two halves of the bar
+    assert svg.count("<circle") == 2 and svg.count("<rect") == 2  # wrench head and its open jaw
     assert not re.search(r"https?://(?!www\.w3\.org/2000/svg)", svg) and "<script" not in svg and "<image" not in svg
 
 

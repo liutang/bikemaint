@@ -63,3 +63,42 @@ def test_complete_strava_login_upserts_same_account_on_repeat_login(db_path, mon
 
     assert second.id == first.id
     assert second.strava_access_token == "access-token-2"
+
+
+def test_successful_login_is_logged_with_ids_but_never_tokens(db_path, monkeypatch, caplog):
+    monkeypatch.setattr(
+        auth_service.strava_client,
+        "exchange_code_for_token",
+        lambda code: {
+            "access_token": "SECRET-ACCESS",
+            "refresh_token": "SECRET-REFRESH",
+            "expires_at": 1893456000,
+            "athlete": {"id": 42},
+        },
+    )
+
+    with caplog.at_level("INFO"):
+        account = auth_service.complete_strava_login("auth-code")
+
+    assert f"account_id={account.id}" in caplog.text
+    assert "athlete_id=42" in caplog.text
+    assert "SECRET-ACCESS" not in caplog.text
+    assert "SECRET-REFRESH" not in caplog.text
+    assert "auth-code" not in caplog.text
+
+
+def test_failed_token_exchange_is_logged_and_reraised(db_path, monkeypatch, caplog):
+    import httpx
+
+    def fail(code):
+        raise httpx.HTTPStatusError(
+            "bad code", request=httpx.Request("POST", "https://x"), response=httpx.Response(400)
+        )
+
+    monkeypatch.setattr(auth_service.strava_client, "exchange_code_for_token", fail)
+
+    with caplog.at_level("WARNING"), pytest.raises(httpx.HTTPStatusError):
+        auth_service.complete_strava_login("bad-code")
+
+    assert "Strava sign-in failed" in caplog.text
+    assert "bad-code" not in caplog.text

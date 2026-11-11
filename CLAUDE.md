@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project state
 
-This repository is currently **pre-implementation**: it contains only governance and Spec-Driven Development (Spec Kit) artifacts, no application code yet (`app/`, `tests/`, and any dependency manifest do not exist). Before assuming build/lint/test commands, check whether they've been added since this file was written — if not, the first implementation task should create them per the constitution and plan described below rather than inventing ad hoc tooling.
+The 001 feature is implemented (all tasks in `tasks.md` are checked off). Common commands, from the repo root:
+
+- Install: `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`
+- Test: `.venv/bin/python -m pytest -q` (single file: `pytest tests/services/test_x.py`)
+- Run: export the variables in `.env.example`, then `uvicorn app.main:app --reload`
 
 The active feature is `specs/001-bike-maintenance-tracker/`, tracked on git branch `001-bike-maintenance-tracker`. Its full spec/plan/design chain lives there:
 - `spec.md` — feature spec (user stories, functional requirements, clarifications)

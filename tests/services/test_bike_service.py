@@ -84,3 +84,17 @@ def test_delete_bike_confirmed_cascades_to_installed_components(db_path):
         ).fetchone()
     assert bike_row["is_deleted"] == 1
     assert component_row["is_deleted"] == 1
+
+
+def test_unpaired_gear_excludes_gear_already_paired_to_a_bike(tmp_path, monkeypatch):
+    from app.db import connection
+
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "test.sqlite3"))
+    connection.run_migrations()
+    bike = bike_service.create_bike(name="Paired Bike")
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE bike SET strava_gear_id = 'g1' WHERE id = ?", (bike.id,))
+
+    gear = [{"id": "g1", "name": "Taken"}, {"id": "g2", "name": "Free"}]
+
+    assert bike_service.unpaired_gear(gear) == [{"id": "g2", "name": "Free"}]

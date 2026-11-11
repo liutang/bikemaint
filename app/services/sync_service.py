@@ -6,6 +6,7 @@ Per Constitution Principle II this module is callable without FastAPI/request ob
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from datetime import datetime, timezone
 
@@ -16,6 +17,8 @@ from app.db import mileage as mileage_db
 from app.db.connection import get_connection
 from app.models.rows import Bike, Component
 from app.services import strava_client
+
+logger = logging.getLogger(__name__)
 
 METERS_PER_MILE = 1609.34
 
@@ -78,6 +81,10 @@ def sync_incremental(account_id: int) -> None:
         access_token = strava_client.ensure_fresh_access_token(account)
     except strava_client.StravaTokenRefreshError:
         # Acceptance Scenario US2-3: flag is already set; skip without losing prior data.
+        logger.warning(
+            "skipping Strava sync: token refresh failed, connection marked stale account_id=%s",
+            account_id,
+        )
         return
 
     activities = strava_client.get_activities(access_token, after=after)
@@ -86,6 +93,12 @@ def sync_incremental(account_id: int) -> None:
         touched_bike_ids = _upsert_activities(conn, activities)
         for bike_id in touched_bike_ids:
             _recompute_bike_and_its_components(conn, bike_id)
+    logger.info(
+        "Strava incremental sync finished account_id=%s activities=%s bikes_updated=%s",
+        account_id,
+        len(activities),
+        len(touched_bike_ids),
+    )
 
 
 def backfill_bike(bike_id: int) -> None:
@@ -104,6 +117,9 @@ def backfill_bike(bike_id: int) -> None:
     with get_connection() as conn:
         _upsert_activities(conn, activities)
         _recompute_bike_and_its_components(conn, bike_id)
+    logger.info(
+        "Strava backfill finished bike_id=%s activities_fetched=%s", bike_id, len(activities)
+    )
 
 
 def adjust_bike_mileage(bike_id: int, *, delta_miles: float, reason: str | None = None) -> Bike:

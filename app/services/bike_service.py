@@ -25,6 +25,7 @@ __all__ = [
     "update_bike",
     "delete_bike",
     "pair_to_strava_gear",
+    "unpaired_gear",
 ]
 
 
@@ -68,6 +69,12 @@ def update_bike(
             manual_baseline_mileage=manual_baseline_mileage,
             total_mileage=new_total_mileage,
         )
+
+
+def unpaired_gear(gear: list[dict]) -> list[dict]:
+    """`gear` minus entries already paired to one of the garage's bikes."""
+    paired_ids = {bike.strava_gear_id for bike in list_bikes() if bike.strava_gear_id}
+    return [entry for entry in gear if entry["id"] not in paired_ids]
 
 
 def pair_to_strava_gear(bike_id: int, strava_gear_id: str) -> Bike:

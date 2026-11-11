@@ -143,3 +143,45 @@ def test_adjust_component_mileage_records_signed_delta_and_updates_total_without
         ).fetchone()
     assert row["delta_miles"] == pytest.approx(10.0)
     assert row["reason"] is None
+
+
+def test_incremental_sync_logs_a_readable_summary(db_path, monkeypatch, caplog):
+    account = _connected_account()
+    bike = bike_service.create_bike(name="Gravel Bike")
+    _pair_bike_to_gear(bike.id, "gear-1")
+    monkeypatch.setattr(
+        strava_client,
+        "get_activities",
+        lambda access_token, **kwargs: [
+            {
+                "id": 1,
+                "gear_id": "gear-1",
+                "distance": 16093.4,
+                "start_date": "2026-09-01T08:00:00Z",
+            }
+        ],
+    )
+
+    with caplog.at_level("INFO"):
+        sync_service.sync_incremental(account.id)
+
+    assert f"account_id={account.id}" in caplog.text
+    assert "activities=1" in caplog.text
+    assert "access-token" not in caplog.text
+
+
+def test_sync_skipped_for_stale_connection_is_logged_as_a_warning(db_path, monkeypatch, caplog):
+    account = _connected_account()
+
+    def stale(_account):
+        raise strava_client.StravaTokenRefreshError("revoked")
+
+    monkeypatch.setattr(strava_client, "ensure_fresh_access_token", stale)
+
+    with caplog.at_level("WARNING"):
+        sync_service.sync_incremental(account.id)
+
+    assert any(
+        record.levelname == "WARNING" and f"account_id={account.id}" in record.getMessage()
+        for record in caplog.records
+    )

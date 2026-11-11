@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -31,7 +32,16 @@ async def _lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(lifespan=_lifespan)
+    logging.basicConfig(
+        level=os.environ.get("LOG_LEVEL", "INFO").upper(),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+    # httpx logs each outbound request URL at INFO; webhook URLs (e.g. Discord's) embed a
+    # secret token, so keep that logger quiet (Constitution Principle V: no secrets in logs).
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    # The auto-generated API docs would be reachable without a session (FR-021); this app
+    # is server-rendered HTML for a single user, so they have no audience.
+    app = FastAPI(lifespan=_lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
     app.add_middleware(
         SessionMiddleware,

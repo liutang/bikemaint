@@ -117,7 +117,7 @@ def strava_pairing_form(request: Request, bike_id: int, account=Depends(require_
         return PlainTextResponse("Bike not found", status_code=404)
     try:
         access_token = strava_client.ensure_fresh_access_token(account)
-        gear = strava_client.get_athlete_gear(access_token)
+        gear = bike_service.unpaired_gear(strava_client.get_athlete_gear(access_token))
     except strava_client.StravaTokenRefreshError:
         gear = []
     return _render(request, "bikes/strava_pairing.html", {"bike": bike, "gear": gear, "errors": []})

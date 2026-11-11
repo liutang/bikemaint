@@ -69,6 +69,7 @@ Route handlers live only in `app/routers/`; they call into `app/services/` for a
 | `POST /schedules/{schedule_id}` | Update a schedule's intervals or active flag. |
 | `POST /schedules/{schedule_id}/complete` | Check off a schedule: creates a `maintenance_log_entry` (FR-016), bumps `cycle_number`, resets `baseline_mileage`/`baseline_date`, returns the updated due-soon row fragment. |
 | `POST /schedules/{schedule_id}/delete` | Delete a schedule (history of past completions in `maintenance_log_entry` is preserved; their `schedule_id` reference is kept for traceability). |
+| `POST /notifications/{notification_id}/acknowledge` | Dismisses an in-app due-soon alert (sets `acknowledged_at`); redirects back to `/maintenance/due`. Added during implementation: FR-015's in-app alert needs a way to be dismissed. |
 
 ## Account settings
 

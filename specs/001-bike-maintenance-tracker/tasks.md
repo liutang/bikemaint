@@ -187,10 +187,10 @@ Single project per plan.md's Structure Decision — `app/` and `tests/` at the r
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T077 [P] Add structured, human-readable logging (request id, resource id; Constitution Principle V) to `sync_service`, `notification_service`, and the auth flow
-- [ ] T078 [P] Write `README.md` documenting setup, environment variables, and how to run the app (`uvicorn app.main:app --reload`)
-- [ ] T079 Walk through quickstart.md end-to-end against the running app and fix any discrepancies found
-- [ ] T080 Security review pass: confirm every route depends on `require_account` (FR-021), all `app/db/*` queries are parameterized (Constitution Principle IV), and the session cookie is `Secure`/`HttpOnly`/`SameSite`
+- [X] T077 [P] Add structured, human-readable logging (request id, resource id; Constitution Principle V) to `sync_service`, `notification_service`, and the auth flow
+- [X] T078 [P] Write `README.md` documenting setup, environment variables, and how to run the app (`uvicorn app.main:app --reload`)
+- [X] T079 Walk through quickstart.md end-to-end against the running app and fix any discrepancies found
+- [X] T080 Security review pass: confirm every route depends on `require_account` (FR-021), all `app/db/*` queries are parameterized (Constitution Principle IV), and the session cookie is `Secure`/`HttpOnly`/`SameSite`
 
 ---
 

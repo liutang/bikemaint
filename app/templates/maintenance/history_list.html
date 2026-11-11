@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+
+{% block title %}Maintenance — {{ item.name }}{% endblock %}
+
+{% block content %}
+<h1>Maintenance history: {{ item.name }}</h1>
+<p>
+  <a href="/{{ item_kind }}s/{{ item.id }}">Back to {{ item_kind }}</a>
+  &middot;
+  <a href="/{{ item_kind }}s/{{ item.id }}/maintenance/new">Log maintenance</a>
+</p>
+
+{% if entries %}
+<table>
+  <thead>
+    <tr><th>Date</th><th>Description</th><th>Mileage at service</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for entry in entries %}
+    <tr>
+      <td>{{ entry.performed_at }}</td>
+      <td>{{ entry.description }}</td>
+      <td>{{ entry.mileage_at_service }} mi</td>
+      <td>
+        <a href="/maintenance/{{ entry.id }}/edit">Edit</a>
+        <form method="post" action="/maintenance/{{ entry.id }}/delete" style="display:inline">
+          <button type="submit">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No maintenance logged yet.</p>
+{% endif %}
+{% endblock %}

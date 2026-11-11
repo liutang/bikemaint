@@ -13,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db.connection import run_migrations
-from app.routers import auth, bikes, components, mileage, settings
+from app.routers import auth, bikes, components, maintenance, mileage, settings
 from app.services import scheduler
 from app.services.auth_dependency import AuthRequiredError
 
@@ -51,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(bikes.router)
     app.include_router(components.router)
     app.include_router(mileage.router)
+    app.include_router(maintenance.router)
     app.include_router(settings.router)
 
     return app

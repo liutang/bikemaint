@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from app.db import bikes as bikes_db
 from app.db import components as components_db
+from app.db import maintenance as maintenance_db
 from app.db.connection import get_connection
 from app.models.rows import Bike
 from app.services import sync_service
@@ -92,6 +93,16 @@ def delete_bike(bike_id: int, *, confirmed: bool = False) -> None:
         if top_level_components and not confirmed:
             raise ConfirmationRequiredError(
                 "This bike has installed components; confirm to delete them too."
+            )
+        has_history = maintenance_db.has_entries_for_bike(conn, bike_id) or any(
+            maintenance_db.has_entries_for_component(conn, c.id)
+            for top in top_level_components
+            for c in [top, *components_db.get_descendants(conn, top.id)]
+        )
+        if has_history and not confirmed:
+            raise ConfirmationRequiredError(
+                "This bike (or something installed on it) has maintenance history; "
+                "confirm to delete it."
             )
         now = _now()
         for component in top_level_components:

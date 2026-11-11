@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 # Curated vocabulary (research.md §3): drives the FR-024 single-instance-per-type-per-parent
@@ -79,3 +81,9 @@ class ComponentUpdateRequest(BaseModel):
 
 class ComponentMoveRequest(_ComponentParentFields):
     pass
+
+
+class MaintenanceLogRequest(BaseModel):
+    description: str = Field(min_length=1)
+    performed_at: date
+    mileage_at_service: float | None = Field(default=None, ge=0)

@@ -130,20 +130,20 @@ Single project per plan.md's Structure Decision — `app/` and `tests/` at the r
 
 ### Tests for User Story 3 ⚠️ (write first, confirm they fail)
 
-- [ ] T048 [P] [US3] Service test for logging maintenance capturing `description`, `performed_at`, and a `mileage_at_service` snapshot (FR-010) in `tests/services/test_maintenance_service.py`
-- [ ] T049 [P] [US3] Service test that a component's maintenance history stays attached to the component (not its original bike) after it moves to a different bike (Acceptance Scenario US3-2) in `tests/services/test_maintenance_service.py`
-- [ ] T050 [P] [US3] Service test for editing and deleting a log entry updating the item's history (FR-012) in `tests/services/test_maintenance_service.py`
-- [ ] T051 [P] [US3] DB test for chronological ordering of `maintenance_log_entry` rows in `tests/db/test_maintenance.py`
+- [X] T048 [P] [US3] Service test for logging maintenance capturing `description`, `performed_at`, and a `mileage_at_service` snapshot (FR-010) in `tests/services/test_maintenance_service.py`
+- [X] T049 [P] [US3] Service test that a component's maintenance history stays attached to the component (not its original bike) after it moves to a different bike (Acceptance Scenario US3-2) in `tests/services/test_maintenance_service.py`
+- [X] T050 [P] [US3] Service test for editing and deleting a log entry updating the item's history (FR-012) in `tests/services/test_maintenance_service.py`
+- [X] T051 [P] [US3] DB test for chronological ordering of `maintenance_log_entry` rows in `tests/db/test_maintenance.py`
 
 ### Implementation for User Story 3
 
-- [ ] T052 [US3] Create `app/db/migrations/0003_maintenance_log_entry.sql` creating the `maintenance_log_entry` table exactly as specified in data-model.md (`bike_id`/`component_id` nullable with exactly one set, `description NOT NULL`, `performed_at NOT NULL`, `mileage_at_service NOT NULL`, `schedule_id` nullable FK)
-- [ ] T053 [P] [US3] Implement `app/db/maintenance.py`: `create`, `get_by_id`, `list_for_bike`/`list_for_component` (chronological order), `update`, `delete`
-- [ ] T054 [US3] Implement `app/services/maintenance_service.py`: `log_maintenance` (defaults `mileage_at_service` to the item's current `total_mileage`), `update_entry`, `delete_entry` — depends on T053
-- [ ] T055 [US3] Implement `app/routers/maintenance.py`: `GET .../maintenance`, `GET .../maintenance/new`, `POST .../maintenance`, `GET /maintenance/{entry_id}/edit`, `POST /maintenance/{entry_id}`, `POST /maintenance/{entry_id}/delete` for both bike and component owners — depends on T054, T011
-- [ ] T056 [P] [US3] Create `app/templates/maintenance/{history_list,form}.html`
-- [ ] T057 [US3] Wire the maintenance router into `app/main.py` — depends on T055, T047
-- [ ] T058 [US3] Extend `bike_service.delete_bike`/`component_service.delete_component`'s confirmation check (FR-020) to also require confirmation when the item has maintenance history — depends on T022, T023, T054
+- [X] T052 [US3] Create `app/db/migrations/0003_maintenance_log_entry.sql` creating the `maintenance_log_entry` table exactly as specified in data-model.md (`bike_id`/`component_id` nullable with exactly one set, `description NOT NULL`, `performed_at NOT NULL`, `mileage_at_service NOT NULL`, `schedule_id` nullable FK)
+- [X] T053 [P] [US3] Implement `app/db/maintenance.py`: `create`, `get_by_id`, `list_for_bike`/`list_for_component` (chronological order), `update`, `delete`
+- [X] T054 [US3] Implement `app/services/maintenance_service.py`: `log_maintenance` (defaults `mileage_at_service` to the item's current `total_mileage`), `update_entry`, `delete_entry` — depends on T053
+- [X] T055 [US3] Implement `app/routers/maintenance.py`: `GET .../maintenance`, `GET .../maintenance/new`, `POST .../maintenance`, `GET /maintenance/{entry_id}/edit`, `POST /maintenance/{entry_id}`, `POST /maintenance/{entry_id}/delete` for both bike and component owners — depends on T054, T011
+- [X] T056 [P] [US3] Create `app/templates/maintenance/{history_list,form}.html`
+- [X] T057 [US3] Wire the maintenance router into `app/main.py` — depends on T055, T047
+- [X] T058 [US3] Extend `bike_service.delete_bike`/`component_service.delete_component`'s confirmation check (FR-020) to also require confirmation when the item has maintenance history — depends on T022, T023, T054
 
 **Checkpoint**: User Stories 1, 2, AND 3 all work independently.
 

@@ -164,3 +164,30 @@ class MileageAdjustment:
             reason=row["reason"],
             created_at=row["created_at"],
         )
+
+
+@dataclass(frozen=True)
+class MaintenanceLogEntry:
+    id: int
+    bike_id: int | None
+    component_id: int | None
+    description: str
+    performed_at: str
+    mileage_at_service: float
+    schedule_id: int | None
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> MaintenanceLogEntry:
+        return cls(
+            id=row["id"],
+            bike_id=row["bike_id"],
+            component_id=row["component_id"],
+            description=row["description"],
+            performed_at=row["performed_at"],
+            mileage_at_service=row["mileage_at_service"],
+            schedule_id=row["schedule_id"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )

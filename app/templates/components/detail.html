@@ -7,7 +7,11 @@
 <h1>{{ component.name }}</h1>
 <p>Type: {{ component.component_type }}</p>
 <p>Total mileage: {{ component.total_mileage }} mi</p>
-<p><a href="/components/{{ component.id }}/edit">Edit</a></p>
+<p>
+  <a href="/components/{{ component.id }}/edit">Edit</a>
+  &middot;
+  <a href="/components/{{ component.id }}/maintenance">Maintenance history</a>
+</p>
 
 {% if errors %}
 <ul class="errors">

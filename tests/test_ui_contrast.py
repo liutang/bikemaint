@@ -189,3 +189,7 @@ def test_status_hues_are_mutually_distinct(theme):
     tokens = _themes()[theme]
     hues = [_hue(tokens[f"--ring-{n}"]) for n in ("overdue", "soon", "ok")]
     assert min(abs(a - b) for i, a in enumerate(hues) for b in hues[i + 1 :]) >= 20
+
+
+def test_text_input_rule_does_not_stretch_checkboxes_or_radios():
+    assert 'input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])' in CSS

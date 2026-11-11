@@ -917,7 +917,7 @@ td[data-label="Mileage at service"] {
   font-weight: 600;
 }
 
-input:not([type="checkbox"]):not([type="hidden"]),
+input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
 select,
 textarea {
   width: 100%;
@@ -930,7 +930,8 @@ textarea {
   font: inherit;
 }
 
-input[type="checkbox"] {
+input[type="checkbox"],
+input[type="radio"] {
   width: 1.25rem;
   height: 1.25rem;
   accent-color: var(--primary);

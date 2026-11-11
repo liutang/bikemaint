@@ -123,7 +123,7 @@ Single project; existing `app/` and `tests/` layout. Plain CSS in `app/static/st
 - [X] T027 [US4] Add `ThemeSettingsRequest` to `app/models/requests.py`, a theme cookie helper in `app/services/theme_service.py`, `POST /settings/theme` in `app/routers/settings.py`, Appearance panel in `app/templates/settings/index.html`, and `data-theme` on `<html>` in `app/templates/layout.html`
 - [X] T028 [US4] CSS: dark tokens apply for `:root[data-theme="dark"]` and, under `prefers-color-scheme: dark`, for `:root:not([data-theme="light"])`; set `color-scheme` per choice; style the radio group
 - [X] T029 [US3] Tests first in `tests/test_ui_pages.py` for the garage markup (bike cards: `.bike-card` with `.bike-card-stat` mileage, primary View, quieter secondary actions; storage cards likewise); then restyle `app/templates/bikes/list.html`, `partials/bike_row.html` and the garage CSS
-- [ ] T030 Run the full suite, rebuild the Docker image, verify dark/light/forced-theme and the garage visually, update `contracts/ui-contract.md`, mark tasks `[X]`, commit
+- [X] T030 Run the full suite, rebuild the Docker image, verify dark/light/forced-theme and the garage visually, update `contracts/ui-contract.md`, mark tasks `[X]`, commit
 
 ---
 

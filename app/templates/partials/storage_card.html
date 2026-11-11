@@ -1,7 +1,7 @@
 {% import "partials/icons.html" as ui_icons %}
 <article class="card bike-card is-storage" id="component-{{ component.id }}">
   <header class="bike-card-head">
-    <span class="bike-card-icon">{{ ui_icons.wrench() }}</span>
+    <span class="bike-card-icon">{{ ui_icons.part(component.component_type, "icon part-icon") }}</span>
     <div>
       <h3><a href="/components/{{ component.id }}">{{ component.name }}</a></h3>
       <span class="chip">{{ component.component_type }}</span>

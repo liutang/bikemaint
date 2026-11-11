@@ -185,6 +185,8 @@ class MaintenanceLogEntry:
     schedule_id: int | None
     created_at: str
     updated_at: str
+    kind: str = "service"  # "service" (logged work) or "event" (parts added/removed)
+    performed_time: str | None = None  # optional HH:MM typed by the rider
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> MaintenanceLogEntry:
@@ -198,6 +200,8 @@ class MaintenanceLogEntry:
             schedule_id=row["schedule_id"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            kind=row["kind"],
+            performed_time=row["performed_time"],
         )
 
 

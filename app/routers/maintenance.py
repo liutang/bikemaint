@@ -36,6 +36,7 @@ def _parse(form) -> MaintenanceLogRequest:
     return MaintenanceLogRequest(
         description=form.get("description", ""),
         performed_at=form.get("performed_at", ""),
+        performed_time=form.get("performed_time", ""),
         mileage_at_service=_optional_float(form.get("mileage_at_service")),
     )
 
@@ -106,6 +107,7 @@ async def _create(request: Request, kind: str, item_id: int):
         **{f"{kind}_id": item_id},
         description=payload.description,
         performed_at=payload.performed_at.isoformat(),
+        performed_time=payload.performed_time,
         mileage_at_service=payload.mileage_at_service,
     )
     return RedirectResponse(url=_history_url(kind, item_id), status_code=303)
@@ -184,6 +186,7 @@ async def update_maintenance(request: Request, entry_id: int, account=Depends(re
         entry_id,
         description=payload.description,
         performed_at=payload.performed_at.isoformat(),
+        performed_time=payload.performed_time,
         mileage_at_service=(
             entry.mileage_at_service
             if payload.mileage_at_service is None

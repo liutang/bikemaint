@@ -189,5 +189,7 @@ def delete_bike(bike_id: int, *, confirmed: bool = False) -> None:
             )
         now = _now()
         for component in top_level_components:
-            detach_to_storage(conn, component.id, removed_at=now)
+            detach_to_storage(
+                conn, component.id, removed_at=now, deleted_parent_name=bike.name
+            )
         bikes_db.soft_delete(conn, bike_id)

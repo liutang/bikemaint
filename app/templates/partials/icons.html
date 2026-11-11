@@ -10,7 +10,7 @@
 {% macro chevron(class="icon") -%}{{ _svg('<path d="m9 6 6 6-6 6"/>', class) }}{%- endmacro %}
 {% macro plus(class="icon") -%}{{ _svg('<path d="M12 5v14M5 12h14"/>', class) }}{%- endmacro %}
 {% macro trash(class="icon") -%}{{ _svg('<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6"/>', class) }}{%- endmacro %}
-{% macro bike(class="icon") -%}{{ _svg('<circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><path d="M5.5 17 9 8h5l4.5 9M9 8 7.5 5H6M14 8l-3 9"/>', class) }}{%- endmacro %}
+{% macro bike(class="icon") -%}{{ _svg('<circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9.5 8.5H16l2.5 8"/><path d="M9.5 8.5 12 16.5 16 8.5"/><path d="M5.5 16.5H12"/><path d="M8 6h3.5"/><path d="M14.5 5.5H18M16 5.5v3"/>', class) }}{%- endmacro %}
 {% macro wrench(class="icon") -%}{{ _svg('<path d="M14.7 6.3a4 4 0 0 0 5 5L21 12.6l-3.4 3.4-9 9-3-3 9-9L18 9z" transform="translate(-1.5 -3) scale(.95)"/>', class) }}{%- endmacro %}
 {% macro settings(class="icon") -%}{{ _svg('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>', class) }}{%- endmacro %}
 {% macro sign_out(class="icon") -%}{{ _svg('<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>', class) }}{%- endmacro %}
@@ -19,3 +19,34 @@
 {% macro arrow_up(class="icon") -%}{{ _svg('<path d="M12 19V5M5 12l7-7 7 7"/>', class) }}{%- endmacro %}
 {% macro arrow_down(class="icon") -%}{{ _svg('<path d="M12 5v14M19 12l-7 7-7-7"/>', class) }}{%- endmacro %}
 {% macro garage(class="icon") -%}{{ _svg('<path d="M3 21V9l9-6 9 6v12"/><path d="M7 21v-7h10v7M7 17.5h10"/>', class) }}{%- endmacro %}
+{% macro frame(class="icon") -%}{{ _svg('<path d="M5 18 10 7h8l-5.5 11z"/><path d="M10 7l2.5 11"/><path d="M8 5h4"/>', class) }}{%- endmacro %}
+{% macro fork(class="icon") -%}{{ _svg('<path d="M12 3v5"/><path d="M8.5 8h7"/><path d="M8.5 8 7 21"/><path d="M15.5 8 17 21"/>', class) }}{%- endmacro %}
+{% macro wheel(class="icon") -%}{{ _svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1.5"/><path d="M12 3v7.5M12 13.5V21M3 12h7.5M13.5 12H21M5.6 5.6l5.3 5.3M13.1 13.1l5.3 5.3M18.4 5.6l-5.3 5.3M10.9 13.1l-5.3 5.3"/>', class) }}{%- endmacro %}
+{% macro tire(class="icon") -%}{{ _svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8"/>', class) }}{%- endmacro %}
+{% macro rotor(class="icon") -%}{{ _svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="6.5" r="0.9"/><circle cx="16.8" cy="14.8" r="0.9"/><circle cx="7.2" cy="14.8" r="0.9"/>', class) }}{%- endmacro %}
+{% macro brake(class="icon") -%}{{ _svg('<circle cx="10" cy="12" r="7"/><circle cx="10" cy="12" r="1.5"/><rect x="15" y="7" width="6" height="10" rx="1.5"/>', class) }}{%- endmacro %}
+{% macro drivetrain(class="icon") -%}{{ _svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/><path d="M12 10V4M13.9 11.4l5.7-1.8M13.2 13.6l3.5 4.8M10.8 13.6l-3.5 4.8M10.1 11.4 4.4 9.6"/>', class) }}{%- endmacro %}
+{% macro chain(class="icon") -%}{{ _svg('<rect x="2" y="9" width="11" height="6" rx="3"/><rect x="11" y="9" width="11" height="6" rx="3"/>', class) }}{%- endmacro %}
+{% macro pedal(class="icon") -%}{{ _svg('<path d="M4 20 10 12"/><rect x="8" y="6" width="13" height="6" rx="1.5"/>', class) }}{%- endmacro %}
+{% macro saddle(class="icon") -%}{{ _svg('<path d="M3 8c4-2 9-2 12-1 3 .6 5 .3 6 1.5.8 1.2-.5 3-3 3H10c-3 0-6-1-7-3.5z"/><path d="M12 12.5V20M9 20h6"/>', class) }}{%- endmacro %}
+{% macro handlebar(class="icon") -%}{{ _svg('<path d="M3 8h18"/><path d="M3 8v5M21 8v5"/><path d="M10 12h4v8h-4z"/>', class) }}{%- endmacro %}
+
+{# One icon per part kind. Older, finer kinds borrow the closest drawing; anything unknown is generic. #}
+{% macro part(type, class="icon") -%}
+{%- set kind = {"hub": "wheel", "rim": "tire", "spoke": "wheel", "cassette": "drivetrain", "crankset": "drivetrain",
+                "derailleur": "chain", "shifter": "handlebar", "pad": "brake", "stem": "handlebar",
+                "seatpost": "saddle"}.get(type, type) -%}
+{%- if kind == "frame" -%}{{ frame(class) }}
+{%- elif kind == "fork" -%}{{ fork(class) }}
+{%- elif kind == "wheel" -%}{{ wheel(class) }}
+{%- elif kind == "tire" -%}{{ tire(class) }}
+{%- elif kind == "rotor" -%}{{ rotor(class) }}
+{%- elif kind == "brake" -%}{{ brake(class) }}
+{%- elif kind == "drivetrain" -%}{{ drivetrain(class) }}
+{%- elif kind == "chain" -%}{{ chain(class) }}
+{%- elif kind == "pedal" -%}{{ pedal(class) }}
+{%- elif kind == "saddle" -%}{{ saddle(class) }}
+{%- elif kind == "handlebar" -%}{{ handlebar(class) }}
+{%- else -%}{{ wrench(class) }}
+{%- endif -%}
+{%- endmacro %}

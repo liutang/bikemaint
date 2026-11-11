@@ -65,12 +65,20 @@ def _schedule_owner(schedule):
     return kind, _owner(kind, schedule.bike_id if kind == "bike" else schedule.component_id)
 
 
-def _board_context(account, show_all: bool) -> dict:
+def _board_context(account, show_all: bool, *, done_id: int | None = None) -> dict:
+    """Board data; `done_id` names a just-completed schedule to confirm and highlight."""
     items = schedule_service.list_due_overview(lead_time_days=account.notification_lead_time_days)
+    done = next((i for i in items if i.schedule.id == done_id), None) if done_id else None
     return {
         "items": items,
         "board": schedule_service.split_attention(items, show_all=show_all),
         "show_all": show_all,
+        "notice": (
+            f"Marked done: {done.schedule.name}. {schedule_service.next_due_text(done)}."
+            if done
+            else None
+        ),
+        "just_done": done.schedule.id if done else None,
     }
 
 
@@ -79,8 +87,10 @@ def due_dashboard(
     request: Request,
     account=Depends(require_account),
     all_tasks: str | None = Query(default=None, alias="all"),
+    done: str | None = Query(default=None),
 ):
-    context = _board_context(account, show_all=all_tasks == "1")  # only "1" turns it on
+    done_id = int(done) if done and done.isdigit() and len(done) <= 9 else None
+    context = _board_context(account, show_all=all_tasks == "1", done_id=done_id)  # "1" = on
     return _render(request, "schedules/due_dashboard.html", context)
 
 
@@ -189,10 +199,10 @@ def complete_schedule(
     except LookupError:
         return PlainTextResponse("Schedule not found", status_code=404)
     if request.headers.get("hx-request") == "true":
-        # Re-render the whole board so the completed task moves to its new place.
-        context = _board_context(account, show_all=all_tasks == "1")
+        # Re-render the whole board so the completed task moves to its new place and says so.
+        context = _board_context(account, show_all=all_tasks == "1", done_id=schedule_id)
         return _render(request, "partials/attention_board.html", context)
-    return RedirectResponse(url="/maintenance/due", status_code=303)
+    return RedirectResponse(url=f"/maintenance/due?done={schedule_id}", status_code=303)
 
 
 @router.post("/schedules/{schedule_id}/delete", name="delete_schedule")

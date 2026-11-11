@@ -87,9 +87,13 @@ def test_component_history_stays_with_component_after_moving_bikes(db_path):
     component_service.move_component(component.id, parent_bike_id=bike_b.id)
 
     history = maintenance_service.list_for_component(component.id)
-    assert [e.description for e in history] == ["Waxed"]
-    assert maintenance_service.list_for_bike(bike_a.id) == []
-    assert maintenance_service.list_for_bike(bike_b.id) == []
+    # the logged work stays with the part; moving it also records parts events
+    assert [e.description for e in history if e.kind == "service"] == ["Waxed"]
+    assert [e.description for e in maintenance_service.list_for_bike(bike_a.id) if e.kind == "service"] == []
+    assert [e.description for e in maintenance_service.list_for_bike(bike_b.id) if e.kind == "service"] == []
+    assert [e.description for e in history if e.kind == "event"] == [
+        "Installed on Bike A", "Removed from Bike A", "Installed on Bike B",
+    ]
 
 
 def test_update_entry_changes_history(db_path):

@@ -16,6 +16,7 @@ import respx
 from app.db import connection
 from app.services import (
     bike_service,
+    maintenance_service,
     notification_service,
     schedule_service,
     strava_client,
@@ -138,12 +139,13 @@ def test_scenario_3_maintenance_log_follows_the_component(signed_in):
     assert "Waxed" in client.get("/components/1/maintenance").text
     assert "Waxed" not in client.get("/bikes/1/maintenance").text
 
+    waxed = next(e for e in maintenance_service.list_for_component(1) if e.description == "Waxed")
     client.post(
-        "/maintenance/1",
+        f"/maintenance/{waxed.id}",
         data={"description": "Waxed and checked", "performed_at": "2026-05-02"},
     )
     assert "Waxed and checked" in client.get("/components/1/maintenance").text
-    client.post("/maintenance/1/delete")
+    client.post(f"/maintenance/{waxed.id}/delete")
     assert "Waxed" not in client.get("/components/1/maintenance").text
 
 

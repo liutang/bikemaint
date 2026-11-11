@@ -1,5 +1,5 @@
 {% from "partials/badges.html" import status_badge, low_confidence_badge %}
-<li class="other-row" id="schedule-row-{{ item.schedule.id }}">
+<li class="other-row{% if just_done == item.schedule.id %} is-just-done{% endif %}" id="schedule-row-{{ item.schedule.id }}">
   <div class="other-main">
     <strong>{{ item.schedule.name }}</strong>
     <small>{% if item.bike_name %}<span class="owner-bike">{{ item.bike_name }}</span> {% endif %}<a href="/{{ item.owner_type }}s/{{ item.owner_id }}">{{ item.owner_name }}</a></small>
@@ -13,7 +13,8 @@
     {% if item.projection.remaining_miles is not none %}<small>{{ "%.0f"|format(item.projection.remaining_miles) }} mi left</small>{% endif %}
   </div>
   <form class="other-actions" method="post" action="/schedules/{{ item.schedule.id }}/complete"
-        hx-post="/schedules/{{ item.schedule.id }}/complete" hx-target="#attention" hx-swap="outerHTML">
+        hx-post="/schedules/{{ item.schedule.id }}/complete" hx-target="#attention" hx-swap="outerHTML"
+        hx-disabled-elt="find button">
     {% if show_all %}<input type="hidden" name="all" value="1">{% endif %}
     <button class="btn" type="submit">Mark done</button>
     <a class="btn btn-quiet" href="/schedules/{{ item.schedule.id }}/edit">Edit</a>

@@ -2,6 +2,7 @@
 {%- set tiles = board.shown|length + (1 if board.overflow_count else 0) -%}
 <section id="attention" aria-labelledby="attention-heading">
   <h2 id="attention-heading" class="visually-hidden">Needs action</h2>
+  <p id="board-notice" class="board-notice{% if notice %} is-success{% endif %}" role="status" aria-live="polite">{{ notice or "" }}</p>
   {% if board.urgent_total %}
   <div class="attention-grid {{ 'cols-3' if tiles > 3 else 'cols-2' }}">
     {% for item in board.shown %}{% include "partials/attention_card.html" %}{% endfor %}

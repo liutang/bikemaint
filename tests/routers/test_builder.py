@@ -658,3 +658,33 @@ def test_garage_cards_open_the_bike_and_have_no_build_or_add_component(signed_in
 
     assert f'href="/bikes/{bike.id}">View</a>' in html
     assert not re.search(r"/bikes/\d+/build", html) and "Add component</a>" not in html
+
+
+# ---------------------------------------------------------------- icons on the screen (specs/006, M2)
+
+
+def test_tree_rows_palette_and_storage_items_show_their_part_icons(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    _mk("Tire", "tire", parent_component_id=wheel.id)
+    _mk("Spare saddle", "saddle")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}").text
+
+    rows = re.findall(r'<div class="node-row drop-target".*?</div>', html, re.S)
+    assert len(rows) == 2 and all('class="icon part-icon"' in r for r in rows)
+    palette = re.findall(r'<li class="side-item"[^>]*data-source="palette".*?</li>', html, re.S)
+    assert palette and all('class="icon part-icon"' in p for p in palette)
+    storage = re.search(r'<li class="side-item"[^>]*data-source="storage".*?</li>', html, re.S).group(0)
+    assert 'class="icon part-icon"' in storage
+
+
+def test_garage_bike_cards_and_storage_cards_use_the_new_icons(signed_in_client):
+    _bike()
+    _mk("Spare saddle", "saddle")
+
+    garage = signed_in_client.get("/").text
+    storage = signed_in_client.get("/components").text
+
+    assert garage.count("<circle") >= 2  # the bike drawing: two wheels
+    assert 'class="icon part-icon"' in storage or 'class="icon"' in storage

@@ -111,3 +111,114 @@ def test_maintenance_for_unknown_bike_returns_404(client, monkeypatch):
     _login(client, monkeypatch)
 
     assert client.get("/bikes/999/maintenance").status_code == 404
+
+
+# ------------------------------------------------ date and time in the history (specs/006, M2)
+
+import re  # noqa: E402
+
+from app.services import component_service, maintenance_service  # noqa: E402
+
+
+def _rows(html):
+    return re.findall(r"<tr[^>]*>.*?</tr>", html.split("<tbody>")[1], re.S)
+
+
+def test_the_form_has_an_optional_time_field(signed_in_client):
+    bike = bike_service.create_bike(name="Road Bike")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/maintenance/new").text
+
+    assert re.search(r'<input id="performed_time" name="performed_time" type="time"', html)
+    assert not re.search(r'<input id="performed_time"[^>]*required', html)
+
+
+def test_a_typed_time_is_saved_and_shown_with_the_date(signed_in_client):
+    bike = bike_service.create_bike(name="Road Bike")
+
+    signed_in_client.post(
+        f"/bikes/{bike.id}/maintenance",
+        data={"description": "Lubed chain", "performed_at": "2026-05-01", "performed_time": "14:30"},
+    )
+
+    (entry,) = maintenance_service.list_for_bike(bike.id)
+    assert entry.performed_time == "14:30"
+    html = signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
+    assert "Date &amp; time" in html and "2026-05-01 14:30" in html
+
+
+def test_without_a_time_a_manual_entry_shows_just_the_date(signed_in_client):
+    bike = bike_service.create_bike(name="Road Bike")
+    signed_in_client.post(f"/bikes/{bike.id}/maintenance", data={"description": "Checked", "performed_at": "2026-05-01"})
+
+    (entry,) = maintenance_service.list_for_bike(bike.id)
+    row = _rows(signed_in_client.get(f"/bikes/{bike.id}/maintenance").text)[0]
+
+    assert entry.performed_time is None
+    assert "2026-05-01" in row and "<time" not in row
+
+
+@pytest.mark.parametrize("bad", ["25:00", "12:60", "noon", "1:5", "12:30:00", "<b>"])
+def test_a_malformed_time_is_rejected_beside_the_field(signed_in_client, bad):
+    bike = bike_service.create_bike(name="Road Bike")
+
+    response = signed_in_client.post(
+        f"/bikes/{bike.id}/maintenance",
+        data={"description": "x", "performed_at": "2026-05-01", "performed_time": bad},
+    )
+
+    assert response.status_code == 422 and 'id="performed_time-error"' in response.text
+    assert maintenance_service.list_for_bike(bike.id) == []
+
+
+def test_editing_an_entry_can_change_its_time(signed_in_client):
+    bike = bike_service.create_bike(name="Road Bike")
+    entry = maintenance_service.log_maintenance(bike_id=bike.id, description="x", performed_at="2026-05-01")
+
+    signed_in_client.post(
+        f"/maintenance/{entry.id}",
+        data={"description": "x", "performed_at": "2026-05-01", "performed_time": "09:05"},
+    )
+
+    assert maintenance_service.get_entry(entry.id).performed_time == "09:05"
+    assert 'value="09:05"' in signed_in_client.get(f"/maintenance/{entry.id}/edit").text
+
+
+def test_parts_events_show_with_a_local_time_and_a_parts_tag(signed_in_client):
+    bike = bike_service.create_bike(name="Road Bike")
+    component_service.create_component(name="Chain 1", component_type="chain", parent_bike_id=bike.id)
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
+
+    row = _rows(html)[0]
+    assert "Added Chain 1 (chain)" in row
+    assert re.search(r'<time data-local datetime="\d{4}-\d\d-\d\dT[\d:.]+Z">\d{4}-\d\d-\d\d \d\d:\d\d UTC</time>', row)
+    assert 'class="entry-event"' in row and "Parts" in row
+
+
+def test_completed_tasks_show_their_time_too(signed_in_client):
+    from app.services import schedule_service
+
+    bike = bike_service.create_bike(name="Road Bike")
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Annual service", interval_days=30)
+    schedule_service.complete_schedule(schedule.id)
+
+    row = _rows(signed_in_client.get(f"/bikes/{bike.id}/maintenance").text)[0]
+
+    assert "Annual service" in row and "<time data-local" in row and "entry-event" not in row
+
+
+def test_history_is_still_shown_in_time_order_with_events_between_manual_entries(signed_in_client):
+    bike = bike_service.create_bike(name="Road Bike")
+    maintenance_service.log_maintenance(bike_id=bike.id, description="Old job", performed_at="2000-01-01")
+    component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)
+
+    descriptions = [e.description for e in maintenance_service.list_for_bike(bike.id)]
+
+    assert descriptions == ["Old job", "Added Chain (chain)"]
+
+
+def test_the_history_page_loads_the_local_time_script(signed_in_client):
+    bike = bike_service.create_bike(name="Road Bike")
+
+    assert "localtime.js" in signed_in_client.get(f"/bikes/{bike.id}/maintenance").text

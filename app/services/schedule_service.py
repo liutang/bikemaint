@@ -18,6 +18,7 @@ from app.db import mileage as mileage_db
 from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models.rows import MaintenanceSchedule
+from app.db import maintenance as maintenance_db
 from app.services import maintenance_service
 
 logger = logging.getLogger(__name__)
@@ -347,13 +348,37 @@ def list_due_overview(
     )
 
 
+REPEAT_COMPLETION_SECONDS = 5  # a second "Mark done" this soon is a double click, not a new job
+
+
+def next_due_text(item: DueItem) -> str:
+    """"Next due 2026-11-25" or, with only a mileage interval, what it is waiting for."""
+    if item.projection.due_at is not None:
+        return f"Next due {item.projection.due_at.isoformat()}"
+    miles = item.schedule.interval_miles
+    if miles:
+        return f"Next due after {miles:.0f} more miles"
+    return "Next due date not available yet"
+
+
 def complete_schedule(schedule_id: int, *, today: date | None = None) -> MaintenanceSchedule:
-    """Check off a schedule: log the maintenance and start the next cycle (FR-016)."""
+    """Check off a schedule: log the maintenance and start the next cycle (FR-016).
+
+    A repeat within `REPEAT_COMPLETION_SECONDS` of the previous completion (a double click) is
+    ignored, so one burst of clicks logs one entry.
+    """
     day = _today(today)
     with get_connection() as conn:
         schedule = schedules_db.get_by_id(conn, schedule_id)
         if schedule is None:
             raise LookupError(f"No schedule with id {schedule_id}")
+        latest = maintenance_db.latest_for_schedule(conn, schedule_id)
+    if latest is not None:
+        logged = datetime.strptime(latest.created_at, "%Y-%m-%dT%H:%M:%S.%fZ").replace(
+            tzinfo=timezone.utc
+        )
+        if (datetime.now(timezone.utc) - logged).total_seconds() < REPEAT_COMPLETION_SECONDS:
+            return schedule
 
     entry = maintenance_service.log_maintenance(
         bike_id=schedule.bike_id,

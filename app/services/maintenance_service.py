@@ -38,6 +38,7 @@ def log_maintenance(
     performed_at: str,
     mileage_at_service: float | None = None,
     schedule_id: int | None = None,
+    performed_time: str | None = None,
 ) -> MaintenanceLogEntry:
     """Record completed maintenance; `mileage_at_service` defaults to the item's current total."""
     if (bike_id is None) == (component_id is None):
@@ -61,11 +62,17 @@ def log_maintenance(
             performed_at=performed_at,
             mileage_at_service=current_mileage if mileage_at_service is None else mileage_at_service,
             schedule_id=schedule_id,
+            performed_time=performed_time,
         )
 
 
 def update_entry(
-    entry_id: int, *, description: str, performed_at: str, mileage_at_service: float
+    entry_id: int,
+    *,
+    description: str,
+    performed_at: str,
+    mileage_at_service: float,
+    performed_time: str | None = None,
 ) -> MaintenanceLogEntry:
     with get_connection() as conn:
         if maintenance_db.get_by_id(conn, entry_id) is None:
@@ -76,6 +83,7 @@ def update_entry(
             description=description,
             performed_at=performed_at,
             mileage_at_service=mileage_at_service,
+            performed_time=performed_time,
         )
 
 

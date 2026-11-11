@@ -266,3 +266,54 @@ def test_deleting_component_with_active_schedule_requires_confirmation(db_path):
         component_service.delete_component(component.id)
 
     component_service.delete_component(component.id, confirmed=True)
+
+
+# ------------------------------------------------ mark done guard and notice (specs/006, M2)
+
+
+def test_a_repeat_completion_within_a_few_seconds_logs_only_once(db_path):
+    bike = _steady_bike(miles_per_day=1.0)
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Check tire pressure", interval_days=14)
+
+    first = schedule_service.complete_schedule(schedule.id)
+    second = schedule_service.complete_schedule(schedule.id)  # a double click
+
+    assert first.cycle_number == 2 and second.cycle_number == 2
+    entries = [e for e in maintenance_service.list_for_bike(bike.id) if e.schedule_id == schedule.id]
+    assert len(entries) == 1
+
+
+def test_completing_again_after_the_window_logs_a_second_entry(db_path):
+    bike = _steady_bike(miles_per_day=1.0)
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Check tire pressure", interval_days=14)
+    schedule_service.complete_schedule(schedule.id)
+    with connection.get_connection() as conn:  # pretend that was a minute ago
+        conn.execute("UPDATE maintenance_log_entry SET created_at = '2000-01-01T00:00:00.000000Z'")
+
+    again = schedule_service.complete_schedule(schedule.id)
+
+    assert again.cycle_number == 3
+    assert len([e for e in maintenance_service.list_for_bike(bike.id) if e.schedule_id == schedule.id]) == 2
+
+
+def test_completion_guard_is_per_schedule(db_path):
+    bike = _steady_bike(miles_per_day=1.0)
+    a = schedule_service.create_schedule(bike_id=bike.id, name="A", interval_days=14)
+    b = schedule_service.create_schedule(bike_id=bike.id, name="B", interval_days=14)
+
+    schedule_service.complete_schedule(a.id)
+    schedule_service.complete_schedule(b.id)
+
+    assert len([e for e in maintenance_service.list_for_bike(bike.id) if e.schedule_id])== 2
+
+
+def test_next_due_text_names_the_date_or_the_mileage(db_path):
+    bike = _steady_bike(miles_per_day=1.0)
+    dated = schedule_service.create_schedule(bike_id=bike.id, name="Dated", interval_days=14)
+    mileage_only = schedule_service.create_schedule(bike_id=bike.id, name="Miles", interval_miles=500)
+
+    dated_item = schedule_service.get_due_item(dated.id)
+    miles_item = schedule_service.get_due_item(mileage_only.id)
+
+    assert schedule_service.next_due_text(dated_item) == f"Next due {dated_item.projection.due_at.isoformat()}"
+    assert schedule_service.next_due_text(miles_item).startswith("Next due")

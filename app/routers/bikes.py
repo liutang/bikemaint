@@ -8,7 +8,7 @@ and `app/services/component_service.py`.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from pydantic import ValidationError
 
 from app.models.requests import BikeCreateRequest, BikeUpdateRequest
@@ -148,14 +148,18 @@ async def delete_bike(request: Request, bike_id: int, account=Depends(require_ac
     try:
         bike_service.delete_bike(bike_id, confirmed=confirmed)
     except bike_service.ConfirmationRequiredError as exc:
-        return _render(
-            request,
-            "partials/confirm_delete.html",
-            {"item_type": "bike", "message": str(exc), "action": f"/bikes/{bike_id}/delete"},
+        context = {
+            "item_type": "bike",
+            "message": str(exc),
+            "action": f"/bikes/{bike_id}/delete",
+            "cancel_url": f"/bikes/{bike_id}",
+        }
+        template = (
+            "partials/confirm_delete.html"
+            if request.headers.get("hx-request") == "true"
+            else "confirm_delete_page.html"
         )
+        return _render(request, template, context)
     if request.headers.get("hx-request") == "true":
-        return _render(request, "bikes/list.html", {
-            "bikes": bike_service.list_bikes(),
-            "in_storage_components": component_service.list_in_storage(),
-        })
+        return Response(status_code=200, headers={"HX-Redirect": "/"})
     return RedirectResponse(url="/", status_code=303)

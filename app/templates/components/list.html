@@ -1,18 +1,30 @@
 {% extends "layout.html" %}
+{% import "partials/icons.html" as ui_icons %}
 
 {% block title %}In Storage — Bike Maintenance Tracker{% endblock %}
 
 {% block content %}
-<h1>In Storage</h1>
-<p><a href="/components/new">Add a component</a></p>
-<ul>
+<div class="page-head">
+  <h1>In Storage</h1>
+  <a class="btn btn-primary" href="/components/new">{{ ui_icons.plus() }}Add a component</a>
+</div>
+{% if components %}
+<div class="card-grid">
   {% for component in components %}
-  <li>
-    <a href="/components/{{ component.id }}">{{ component.name }}</a>
-    ({{ component.component_type }}, {{ component.total_mileage }} mi)
-  </li>
-  {% else %}
-  <li>Nothing in storage.</li>
+  <article class="card">
+    <h3><a href="/components/{{ component.id }}">{{ component.name }}</a></h3>
+    <p class="meta">
+      <span>{{ component.component_type }}</span>
+      <span>{{ "%.1f"|format(component.total_mileage) }} mi</span>
+    </p>
+  </article>
   {% endfor %}
-</ul>
+</div>
+{% else %}
+<div class="empty-state">
+  <p class="empty-title">Nothing in storage</p>
+  <p>Components you remove from a bike will appear here.</p>
+  <a class="btn btn-primary" href="/components/new">Add a component</a>
+</div>
+{% endif %}
 {% endblock %}

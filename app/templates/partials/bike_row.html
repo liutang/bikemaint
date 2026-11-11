@@ -1,4 +1,12 @@
-<li id="bike-{{ bike.id }}">
-  <a href="/bikes/{{ bike.id }}">{{ bike.name }}</a>
-  — {{ bike.total_mileage }} mi
-</li>
+<article class="card" id="bike-{{ bike.id }}">
+  <h3><a href="/bikes/{{ bike.id }}">{{ bike.name }}</a></h3>
+  <p class="meta">
+    <span>{{ bike.bike_type or "bike" }}</span>
+    <span>{{ "%.1f"|format(bike.total_mileage) }} mi</span>
+  </p>
+  <div class="actions">
+    <a class="btn" href="/bikes/{{ bike.id }}">View</a>
+    <a class="btn" href="/components/new?parent_bike_id={{ bike.id }}">Add component</a>
+    <a class="btn" href="/bikes/{{ bike.id }}/maintenance">Maintenance history</a>
+  </div>
+</article>

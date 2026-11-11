@@ -7,7 +7,7 @@ queries — it only translates HTTP concerns to/from `app/services/component_ser
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from pydantic import ValidationError
 
 from app.models.requests import (
@@ -235,16 +235,18 @@ async def delete_component(request: Request, component_id: int, account=Depends(
     try:
         component_service.delete_component(component_id, confirmed=confirmed)
     except component_service.ConfirmationRequiredError as exc:
-        return _render(
-            request,
-            "partials/confirm_delete.html",
-            {
-                "item_type": "component",
-                "message": str(exc),
-                "action": f"/components/{component_id}/delete",
-            },
+        context = {
+            "item_type": "component",
+            "message": str(exc),
+            "action": f"/components/{component_id}/delete",
+            "cancel_url": f"/components/{component_id}",
+        }
+        template = (
+            "partials/confirm_delete.html"
+            if request.headers.get("hx-request") == "true"
+            else "confirm_delete_page.html"
         )
+        return _render(request, template, context)
     if request.headers.get("hx-request") == "true":
-        components = component_service.list_in_storage()
-        return _render(request, "components/list.html", {"components": components})
+        return Response(status_code=200, headers={"HX-Redirect": "/components"})
     return RedirectResponse(url="/components", status_code=303)

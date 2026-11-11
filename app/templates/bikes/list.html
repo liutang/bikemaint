@@ -1,28 +1,53 @@
 {% extends "layout.html" %}
+{% import "partials/icons.html" as ui_icons %}
 
 {% block title %}Garage — Bike Maintenance Tracker{% endblock %}
 
 {% block content %}
-<h1>Garage</h1>
-<p><a href="/bikes/new">Add a bike</a></p>
-<ul id="bike-list">
-  {% for bike in bikes %}
-  {% include "partials/bike_row.html" %}
-  {% else %}
-  <li>No bikes yet.</li>
-  {% endfor %}
-</ul>
+<div class="page-head">
+  <h1>Garage</h1>
+  <a class="btn btn-primary" href="/bikes/new">{{ ui_icons.plus() }}Add a bike</a>
+</div>
 
-<h2>In storage</h2>
-<ul>
-  {% for component in in_storage_components %}
-  <li>
-    <a href="/components/{{ component.id }}">{{ component.name }}</a>
-    ({{ component.component_type }})
-  </li>
+<section aria-labelledby="bikes-heading">
+  <h2 id="bikes-heading" class="visually-hidden">Bikes</h2>
+  <div class="card-grid" id="bike-list">
+    {% for bike in bikes %}
+    {% include "partials/bike_row.html" %}
+    {% endfor %}
+  </div>
+  {% if not bikes %}
+  <div class="empty-state">
+    <p class="empty-title">No bikes yet</p>
+    <p>Add your first bike to start tracking components, mileage and maintenance.</p>
+    <a class="btn btn-primary" href="/bikes/new">Add a bike</a>
+  </div>
+  {% endif %}
+</section>
+
+<section aria-labelledby="storage-heading">
+  <div class="page-head">
+    <h2 id="storage-heading">In storage</h2>
+    <a class="btn" href="/components/new">{{ ui_icons.plus() }}Add a component to storage</a>
+  </div>
+  {% if in_storage_components %}
+  <div class="card-grid">
+    {% for component in in_storage_components %}
+    <article class="card">
+      <h3><a href="/components/{{ component.id }}">{{ component.name }}</a></h3>
+      <p class="meta">
+        <span>{{ component.component_type }}</span>
+        <span>{{ "%.1f"|format(component.total_mileage) }} mi</span>
+      </p>
+    </article>
+    {% endfor %}
+  </div>
   {% else %}
-  <li>Nothing in storage.</li>
-  {% endfor %}
-</ul>
-<p><a href="/components/new">Add a component to storage</a></p>
+  <div class="empty-state">
+    <p class="empty-title">Nothing in storage</p>
+    <p>Components you remove from a bike will appear here.</p>
+    <a class="btn" href="/components/new">Add a component</a>
+  </div>
+  {% endif %}
+</section>
 {% endblock %}

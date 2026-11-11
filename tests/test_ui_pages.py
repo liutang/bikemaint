@@ -69,6 +69,9 @@ def test_component_tree_uses_collapsible_details_for_branches(signed_in_client):
     assert html.count("<details open>") == 2  # wheel and rim have children
     assert html.count("<summary") == 2
     assert html.index("Road Wheel") < html.index("Road Rim") < html.index("Road Tire")
+    # Interactive content must not nest inside <summary> (axe: nested-interactive).
+    assert not re.search(r"<summary[^>]*>(?:(?!</summary>).)*<(?:a|button)\b", html, re.S)
+    assert 'href="/components/1"' in html and 'href="/components/2"' in html
     start = html.rfind("<li", 0, html.index("Road Tire"))
     tire_item = html[start : html.index("</li>", start)]
     assert "<details" not in tire_item  # a leaf is a plain item, not a collapsible branch

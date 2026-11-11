@@ -1,33 +1,57 @@
-/* BikeMaint design system — plain CSS, design tokens, light/dark via the OS preference.
-   Sections: tokens · base · shell · buttons · (components appended per feature phase). */
+/* BikeMaint design system ("Cockpit") — plain CSS, design tokens, light/dark via the OS preference.
+   Sections: fonts · tokens · base · shell · buttons · (components appended per feature phase). */
+
+/* ---------- Fonts (self-hosted, variable weight, latin subset) ---------- */
+@font-face {
+  font-family: "Inter";
+  src: url("/static/fonts/inter-latin-wght.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/static/fonts/space-grotesk-latin-wght.woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 /* ---------- Tokens ---------- */
 :root {
   color-scheme: light dark;
 
-  --bg: #f6f7f9;
+  /* Light theme: cool grey page, white surfaces, amber accent with dark ink. */
+  --bg: #f2f4f8;
   --surface: #ffffff;
-  --surface-2: #eef0f4;
-  --text: #14171f;
-  --text-muted: #4b5563;
-  --border: #d7dbe3;
-  --primary: #1d4ed8;
-  --primary-text: #ffffff;
+  --surface-2: #eceff4;
+  --text: #1b1e25;
+  --text-muted: #5a6170;
+  --border: #dde1e8;
+  --primary: #ffa800; /* brand accent: button / active-pill fill */
+  --primary-text: #1b1e25;
+  --link: #b45309; /* darker amber for text-like uses on light surfaces */
   --danger: #b42318;
   --danger-text: #ffffff;
-  --success: #067647;
-  --warning: #b54708;
-  --info: #1d4ed8;
-  --focus: #1d4ed8;
+  --success: #0a5c39;
+  --warning: #6b5800;
+  --info: #b45309;
+  --focus: #b45309;
 
-  --badge-overdue-bg: #fde8e8;
-  --badge-overdue-fg: #9b1c1c;
-  --badge-soon-bg: #fff1d6;
-  --badge-soon-fg: #8a4b00;
-  --badge-ok-bg: #dcf5e7;
-  --badge-ok-fg: #0b6b3a;
-  --badge-low-bg: #e7ebf3;
-  --badge-low-fg: #374151;
+  --badge-overdue-bg: #fde8e6;
+  --badge-overdue-fg: #9b1c13;
+  --badge-soon-bg: #fff6c2;
+  --badge-soon-fg: #5c4a00;
+  --badge-ok-bg: #dcf5e8;
+  --badge-ok-fg: #0a5c39;
+  --badge-low-bg: #eceef3;
+  --badge-low-fg: #3d4350;
+
+  --ring-overdue: #e5483a;
+  --ring-soon: #a38b00; /* gold: hue clearly apart from the amber brand accent */
+  --ring-ok: #12875a;
+  --ring-track: #e3e7ee;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -35,44 +59,52 @@
   --space-4: 1rem;
   --space-5: 1.5rem;
   --space-6: 2rem;
-  --radius: 0.75rem;
-  --radius-sm: 0.5rem;
-  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 10%);
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --radius: 1.25rem;
+  --radius-sm: 0.75rem;
+  --shadow: 0 1px 2px rgb(27 30 37 / 6%);
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Space Grotesk", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
   --font-size-lg: 1.25rem;
-  --font-size-xl: 1.75rem;
+  --font-size-xl: 2rem;
   --tap-min: 2.75rem;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1218;
-    --surface: #181c25;
-    --surface-2: #212633;
-    --text: #e8ebf2;
-    --text-muted: #aab2c2;
-    --border: #2d3444;
-    --primary: #8ab4ff;
-    --primary-text: #0b1220;
+    /* Dark theme: softened charcoal (never near-black). */
+    --bg: #1b1e25;
+    --surface: #262a33;
+    --surface-2: #323742;
+    --text: #eceef2;
+    --text-muted: #b8bdc9;
+    --border: #363c48;
+    --primary: #ffa800;
+    --primary-text: #1b1e25;
+    --link: #ffa800;
     --danger: #ff8a80;
     --danger-text: #3b0a07;
-    --success: #7ddba4;
-    --warning: #f5b562;
-    --info: #8ab4ff;
-    --focus: #8ab4ff;
+    --success: #3ddc84;
+    --warning: #f4dc4a;
+    --info: #ffa800;
+    --focus: #ffa800;
 
-    --badge-overdue-bg: #4a1b1b;
+    --badge-overdue-bg: #4a2326;
     --badge-overdue-fg: #ffb4ab;
-    --badge-soon-bg: #4a3410;
-    --badge-soon-fg: #ffd599;
-    --badge-ok-bg: #14382a;
-    --badge-ok-fg: #9be5bd;
-    --badge-low-bg: #2a3142;
-    --badge-low-fg: #c9d1e3;
+    --badge-soon-bg: #4a4210;
+    --badge-soon-fg: #f4dc4a;
+    --badge-ok-bg: #163d2a;
+    --badge-ok-fg: #8be8b6;
+    --badge-low-bg: #3a404c;
+    --badge-low-fg: #d3d8e3;
 
-    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 50%);
+    --ring-overdue: #ff6b5e;
+    --ring-soon: #f4dc4a;
+    --ring-ok: #3ddc84;
+    --ring-track: #3d4350;
+
+    --shadow: 0 1px 2px rgb(0 0 0 / 30%);
   }
 }
 
@@ -101,6 +133,8 @@ body {
 h1,
 h2,
 h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
   line-height: 1.25;
   margin: 0 0 var(--space-3);
   min-width: 0;
@@ -129,7 +163,7 @@ small {
 }
 
 a {
-  color: var(--primary);
+  color: var(--link);
   text-underline-offset: 0.18em;
 }
 

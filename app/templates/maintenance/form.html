@@ -9,6 +9,7 @@
 <form class="panel form" method="post" action="{{ action }}">
   {{ field("description", "Description", entry.description if entry else "", values, field_errors, required=true) }}
   {{ field("performed_at", "Date performed", entry.performed_at if entry else "", values, field_errors, type="date", required=true) }}
+  {{ field("performed_time", "Time performed (optional)", entry.performed_time if entry and entry.performed_time else "", values, field_errors, type="time", hint="Leave blank if the time does not matter.") }}
   {{ field("mileage_at_service", "Mileage at service", entry.mileage_at_service if entry else "", values, field_errors, type="number", step="0.1", min=0, hint="Leave blank to use the current total: " ~ ("%.1f"|format(item.total_mileage)) ~ " mi.") }}
   <div class="actions">
     {{ submit("Save") }}

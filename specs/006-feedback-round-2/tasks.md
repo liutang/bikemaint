@@ -12,8 +12,8 @@ Tests first for every task. Each milestone ends: suite green, commit per phase, 
 - [X] T007 docs, PR, merge, cleanup, build, deploy
 
 ## M2
-- [ ] T008 migration 0008; event logging on add/move/remove/delete; delete-confirmation ignores events
-- [ ] T009 history shows date and time; manual time field; localtime.js
+- [X] T008 migration 0008; event logging on add/move/remove/delete; delete-confirmation ignores events
+- [X] T009 history shows date and time; manual time field; localtime.js
 - [ ] T010 mark-done feedback, highlight, double-click guard
 - [ ] T011 icons for bike and every part kind
 - [ ] T012 docs, PR, merge, cleanup, build, deploy

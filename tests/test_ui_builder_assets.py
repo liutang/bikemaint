@@ -91,3 +91,11 @@ def test_breadcrumb_markup_is_an_ordered_list_with_the_current_page_marked(signe
 
 def test_script_lets_palette_parts_be_dropped_on_the_storage_box():
     assert re.search(r'ref === "storage"\) return drag\.source !== "storage"', JS)
+
+
+def test_the_local_time_script_is_small_dependency_free_and_served(signed_in_client):
+    js = (STATIC / "localtime.js").read_text()
+
+    assert signed_in_client.get("/static/localtime.js").status_code == 200
+    assert len(js.encode()) <= 2 * 1024 and not re.search(r"https?://|eval\(|innerHTML", js)
+    assert "time[data-local]" in js and "toLocale" in js

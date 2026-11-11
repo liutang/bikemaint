@@ -37,6 +37,82 @@ class MoveTarget:
     label: str
 
 
+def _entity(conn, *, bike_id: int | None, component_id: int | None):
+    return (
+        bikes_db.get_by_id(conn, bike_id)
+        if bike_id is not None
+        else components_db.get_by_id(conn, component_id)
+    )
+
+
+def _log_event(
+    conn: sqlite3.Connection,
+    *,
+    bike_id: int | None = None,
+    component_id: int | None = None,
+    description: str,
+) -> None:
+    """Record an automatic parts event (added/removed) in the history of a bike or a part."""
+    entity = _entity(conn, bike_id=bike_id, component_id=component_id)
+    if entity is None:
+        return
+    now = _now()
+    maintenance_db.create(
+        conn,
+        bike_id=bike_id,
+        component_id=component_id,
+        description=description,
+        performed_at=now[:10],
+        mileage_at_service=entity.total_mileage,
+        kind="event",
+    )
+
+
+def _parent_name(
+    conn: sqlite3.Connection, parent_bike_id: int | None, parent_component_id: int | None
+) -> str | None:
+    parent = _entity(conn, bike_id=parent_bike_id, component_id=parent_component_id)
+    return parent.name if parent is not None else None
+
+
+def _log_added(
+    conn: sqlite3.Connection,
+    component: Component,
+    parent_bike_id: int | None,
+    parent_component_id: int | None,
+) -> None:
+    """"Added X (type)" on the parent and "Installed on P" on the part itself."""
+    name = _parent_name(conn, parent_bike_id, parent_component_id)
+    if name is None:
+        return
+    _log_event(
+        conn,
+        bike_id=parent_bike_id,
+        component_id=parent_component_id,
+        description=f"Added {component.name} ({component.component_type})",
+    )
+    _log_event(conn, component_id=component.id, description=f"Installed on {name}")
+
+
+def _log_removed(
+    conn: sqlite3.Connection,
+    component: Component,
+    parent_bike_id: int | None,
+    parent_component_id: int | None,
+) -> None:
+    """"Removed X (type)" on the old parent and "Removed from P" on the part itself."""
+    name = _parent_name(conn, parent_bike_id, parent_component_id)
+    if name is None:
+        return
+    _log_event(
+        conn,
+        bike_id=parent_bike_id,
+        component_id=parent_component_id,
+        description=f"Removed {component.name} ({component.component_type})",
+    )
+    _log_event(conn, component_id=component.id, description=f"Removed from {name}")
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
@@ -178,6 +254,7 @@ def create_component(
                 parent_component_id=parent_component_id,
                 installed_at=_now(),
             )
+            _log_added(conn, component, parent_bike_id, parent_component_id)
         return component
 
 
@@ -450,12 +527,15 @@ def move_component(
 
         now = _now()
         components_db.close_open_installation_period(conn, component_id, removed_at=now)
+        # Events use the part as it was before the move (its old parent) and as it is after.
+        _log_removed(conn, component, component.parent_bike_id, component.parent_component_id)
         components_db.set_parent(
             conn,
             component_id,
             parent_bike_id=parent_bike_id,
             parent_component_id=parent_component_id,
         )
+        _log_added(conn, component, parent_bike_id, parent_component_id)
 
         new_top_bike_id = _resolve_top_bike_id(
             conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
@@ -489,12 +569,24 @@ def move_component(
         return moved
 
 
-def detach_to_storage(conn: sqlite3.Connection, component_id: int, *, removed_at: str) -> None:
+def detach_to_storage(
+    conn: sqlite3.Connection,
+    component_id: int,
+    *,
+    removed_at: str,
+    deleted_parent_name: str | None = None,
+) -> None:
     """Move a component (with its own sub-tree) to storage on an open connection.
 
     Shared by `delete_component` and `bike_service.delete_bike`: what was installed in
     something that goes away is kept, not deleted. Rides stop accruing to it from now on.
     """
+    if deleted_parent_name is not None:
+        _log_event(
+            conn,
+            component_id=component_id,
+            description=f"Removed from {deleted_parent_name} (deleted)",
+        )
     components_db.close_open_installation_period(conn, component_id, removed_at=removed_at)
     components_db.set_parent(conn, component_id, parent_bike_id=None, parent_component_id=None)
     for descendant in components_db.get_descendants(conn, component_id):
@@ -532,6 +624,7 @@ def delete_component(component_id: int, *, confirmed: bool = False) -> None:
             )
         now = _now()
         for child in children:
-            detach_to_storage(conn, child.id, removed_at=now)
+            detach_to_storage(conn, child.id, removed_at=now, deleted_parent_name=component.name)
+        _log_removed(conn, component, component.parent_bike_id, component.parent_component_id)
         components_db.close_open_installation_period(conn, component_id, removed_at=now)
         components_db.soft_delete(conn, component_id)

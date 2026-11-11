@@ -841,6 +841,7 @@ th,
 td[data-label="Projected due"],
 td[data-label="Remaining"],
 td[data-label="Date"],
+td[data-label="Date & time"],
 td[data-label="Mileage at service"] {
   white-space: nowrap;
 }
@@ -1295,6 +1296,20 @@ input[type="radio"] {
 
 .part-actions form {
   margin: 0;
+}
+
+.entry-event td {
+  color: var(--text-muted);
+}
+
+.entry-tag {
+  display: inline-block;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
 }
 
 .owner-bike {

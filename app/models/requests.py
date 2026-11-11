@@ -185,7 +185,13 @@ class BuilderDeleteRequest(BaseModel):
 class MaintenanceLogRequest(BaseModel):
     description: str = Field(min_length=1)
     performed_at: date
+    performed_time: str | None = Field(default=None, pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
     mileage_at_service: float | None = Field(default=None, ge=0)
+
+    @field_validator("performed_time", mode="before")
+    @classmethod
+    def _blank_time(cls, value):
+        return None if isinstance(value, str) and not value.strip() else value
 
 
 class ScheduleRequest(BaseModel):

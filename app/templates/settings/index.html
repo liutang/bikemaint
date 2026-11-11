@@ -1,42 +1,40 @@
 {% extends "layout.html" %}
+{% from "partials/forms.html" import field, error_summary, submit %}
+{% import "partials/icons.html" as ui_icons %}
 
 {% block title %}Settings — Bike Maintenance Tracker{% endblock %}
 
 {% block content %}
 <h1>Settings</h1>
+{{ error_summary(errors) }}
 
-{% if errors %}
-<ul class="errors">
-  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
-</ul>
-{% endif %}
+<section class="panel" aria-labelledby="strava-heading">
+  <h2 id="strava-heading">Strava connection</h2>
+  {% if account.strava_connection_stale %}
+  <p><span class="badge badge-overdue">{{ ui_icons.warning() }}Stale</span> Mileage may not reflect recent rides.</p>
+  <form method="post" action="/settings/strava/reconnect">
+    <button class="btn btn-primary" type="submit">Reconnect</button>
+  </form>
+  {% else %}
+  <p><span class="badge badge-ok">{{ ui_icons.check() }}Connected</span> since {{ account.strava_connected_at }}.</p>
+  {% endif %}
+</section>
 
-<h2>Strava connection</h2>
-{% if account.strava_connection_stale %}
-<p>Status: <strong>stale</strong> — mileage may not reflect recent rides.</p>
-<form method="post" action="/settings/strava/reconnect">
-  <button type="submit">Reconnect</button>
-</form>
-{% else %}
-<p>Status: connected since {{ account.strava_connected_at }}.</p>
-{% endif %}
+<section class="panel" aria-labelledby="webhook-heading">
+  <h2 id="webhook-heading">Webhook</h2>
+  <p class="text-muted">Due-soon alerts are also posted to this URL (for example a Discord channel webhook). Currently: {{ account.notification_webhook_url or "not set" }}</p>
+  <form class="form" method="post" action="/settings/webhook">
+    {{ field("notification_webhook_url", "Webhook URL", account.notification_webhook_url or "", values, field_errors, type="url", hint="Leave blank to remove.") }}
+    {{ submit("Save webhook") }}
+  </form>
+</section>
 
-<h2>Notifications</h2>
-<p>Webhook URL: {{ account.notification_webhook_url or "not set" }}</p>
-<form method="post" action="/settings/webhook">
-  <label>Webhook URL (leave blank to remove)
-    <input type="url" name="notification_webhook_url"
-           value="{{ account.notification_webhook_url or '' }}">
-  </label>
-  <button type="submit">Save webhook</button>
-</form>
-
-<p>Lead time: {{ account.notification_lead_time_days }} days</p>
-<form method="post" action="/settings/notifications">
-  <label>Notify this many days before something is due
-    <input type="number" min="0" max="365" name="notification_lead_time_days"
-           value="{{ account.notification_lead_time_days }}" required>
-  </label>
-  <button type="submit">Save lead time</button>
-</form>
+<section class="panel" aria-labelledby="lead-heading">
+  <h2 id="lead-heading">Lead time</h2>
+  <p class="text-muted">Currently {{ account.notification_lead_time_days }} days.</p>
+  <form class="form" method="post" action="/settings/notifications">
+    {{ field("notification_lead_time_days", "Notify this many days before something is due", account.notification_lead_time_days, values, field_errors, type="number", min=0, required=true) }}
+    {{ submit("Save lead time") }}
+  </form>
+</section>
 {% endblock %}

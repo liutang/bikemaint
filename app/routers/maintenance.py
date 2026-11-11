@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from pydantic import ValidationError
 
+from app.models.form_errors import error_context
 from app.models.requests import MaintenanceLogRequest
 from app.services import bike_service, component_service, maintenance_service
 from app.services.auth_dependency import require_account
@@ -53,12 +54,16 @@ def _history(kind: str, item_id: int):
     return maintenance_service.list_for_component(item_id)
 
 
-def _form_context(kind: str, item, entry, errors: list[str]) -> dict:
+def _form_context(
+    kind: str, item, entry, errors=(), field_errors=None, values=None
+) -> dict:
     return {
         "item": item,
         "item_kind": kind,
         "entry": entry,
-        "errors": errors,
+        "errors": list(errors),
+        "field_errors": field_errors or {},
+        "values": values or {},
         "action": (
             f"/maintenance/{entry.id}" if entry else _history_url(kind, item.id)
         ),
@@ -94,7 +99,7 @@ async def _create(request: Request, kind: str, item_id: int):
         return _render(
             request,
             "maintenance/form.html",
-            _form_context(kind, item, None, [e["msg"] for e in exc.errors()]),
+            _form_context(kind, item, None, **error_context(form, exc)),
             status_code=422,
         )
     maintenance_service.log_maintenance(
@@ -172,7 +177,7 @@ async def update_maintenance(request: Request, entry_id: int, account=Depends(re
         return _render(
             request,
             "maintenance/form.html",
-            _form_context(kind, _owner(kind, item_id), entry, [e["msg"] for e in exc.errors()]),
+            _form_context(kind, _owner(kind, item_id), entry, **error_context(form, exc)),
             status_code=422,
         )
     maintenance_service.update_entry(

@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 
+from app.models.form_errors import message_context
 from app.services import bike_service, component_service, sync_service
 from app.services.auth_dependency import require_account
 
@@ -56,7 +57,13 @@ async def adjust_bike_mileage(request: Request, bike_id: int, account=Depends(re
         return _render(
             request,
             "mileage_adjust_form.html",
-            {"item": bike, "item_kind": "bike", "errors": ["Enter a numeric mileage adjustment."]},
+            {
+                "item": bike,
+                "item_kind": "bike",
+                **message_context(
+                    form, "Enter a numeric mileage adjustment.", field="delta_miles"
+                ),
+            },
             status_code=422,
         )
     sync_service.adjust_bike_mileage(bike_id, delta_miles=delta_miles, reason=form.get("reason") or None)
@@ -93,7 +100,9 @@ async def adjust_component_mileage(
             {
                 "item": component,
                 "item_kind": "component",
-                "errors": ["Enter a numeric mileage adjustment."],
+                **message_context(
+                    form, "Enter a numeric mileage adjustment.", field="delta_miles"
+                ),
             },
             status_code=422,
         )

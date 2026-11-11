@@ -1,0 +1,58 @@
+{# Form building blocks: label + control + hint + inline error, wired for assistive tech.
+   `values` (what the rider submitted) wins over `default`, so entries survive a failed submit. #}
+{% macro _value(name, default, values) -%}
+{%- if values and name in values -%}{{ values[name] }}{%- elif default is not none -%}{{ default }}{%- endif -%}
+{%- endmacro %}
+
+{% macro _describedby(name, hint, error) -%}
+{%- if error or hint %} aria-describedby="{% if hint %}{{ name }}-hint{% endif %}{% if hint and error %} {% endif %}{% if error %}{{ name }}-error{% endif %}"{% endif -%}
+{%- endmacro %}
+
+{% macro field(name, label, default="", values=none, field_errors=none, type="text", hint=none, required=false, step=none, min=none) -%}
+{% set error = field_errors[name] if field_errors and name in field_errors else none %}
+<div class="field{% if error %} has-error{% endif %}">
+  <label for="{{ name }}">{{ label }}</label>
+  <input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ _value(name, default, values) }}"
+         {%- if required %} required{% endif %}
+         {%- if step %} step="{{ step }}"{% endif %}
+         {%- if min is not none %} min="{{ min }}"{% endif %}
+         {%- if error %} aria-invalid="true"{% endif %}{{ _describedby(name, hint, error) }}>
+  {% if hint %}<small class="field-hint" id="{{ name }}-hint">{{ hint }}</small>{% endif %}
+  {% if error %}<p class="field-error" id="{{ name }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro select_field(name, label, options, selected="", values=none, field_errors=none, hint=none) -%}
+{% set error = field_errors[name] if field_errors and name in field_errors else none %}
+{% set current = values[name] if values and name in values else selected %}
+<div class="field{% if error %} has-error{% endif %}">
+  <label for="{{ name }}">{{ label }}</label>
+  <select id="{{ name }}" name="{{ name }}"
+          {%- if error %} aria-invalid="true"{% endif %}{{ _describedby(name, hint, error) }}>
+    {% for option in options %}
+    {% if option is mapping %}
+    <option value="{{ option.value }}"{% if option.value|string == current|string %} selected{% endif %}>{{ option.label }}</option>
+    {% else %}
+    <option value="{{ option }}"{% if option|string == current|string %} selected{% endif %}>{{ option }}</option>
+    {% endif %}
+    {% endfor %}
+  </select>
+  {% if hint %}<small class="field-hint" id="{{ name }}-hint">{{ hint }}</small>{% endif %}
+  {% if error %}<p class="field-error" id="{{ name }}-error">{{ error }}</p>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro error_summary(errors) -%}
+{% if errors %}
+<div class="error-summary" role="alert">
+  <p>Please fix the following:</p>
+  <ul>
+    {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+{%- endmacro %}
+
+{% macro submit(label, danger=false) -%}
+<button class="btn {{ 'btn-danger' if danger else 'btn-primary' }}" type="submit">{{ label }}</button>
+{%- endmacro %}

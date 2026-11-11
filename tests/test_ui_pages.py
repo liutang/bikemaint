@@ -280,3 +280,164 @@ def test_mark_done_with_htmx_returns_only_the_updated_row(signed_in_client):
     assert "<html" not in html
     # Completing the overdue 10-day job restarts its cycle, so it is no longer overdue.
     assert "badge-ok" in html and "badge-overdue" not in html
+
+
+# ------------------------------------------------------------ User Story 4: forms
+
+import pytest  # noqa: E402
+
+BAD_SUBMISSIONS = [
+    # (id, path, form data, field with the error, entered value that must be preserved, preserved field)
+    ("bike", "/bikes", {"name": "", "bike_type": "gravel", "manual_baseline_mileage": "5"},
+     "name", "gravel", "bike_type"),
+    ("bike-edit", "/bikes/1", {"name": "", "bike_type": "gravel", "manual_baseline_mileage": "5"},
+     "name", "gravel", "bike_type"),
+    ("component", "/components", {"name": "", "component_type": "chain", "manual_baseline_mileage": "9"},
+     "name", "9", "manual_baseline_mileage"),
+    ("maintenance", "/bikes/1/maintenance",
+     {"description": "", "performed_at": "2026-05-01", "mileage_at_service": "7"},
+     "description", "2026-05-01", "performed_at"),
+    ("maintenance-date", "/bikes/1/maintenance",
+     {"description": "Lube", "performed_at": "not-a-date"}, "performed_at", "Lube", "description"),
+    ("schedule", "/bikes/1/schedules", {"name": "", "interval_days": "30"},
+     "name", "30", "interval_days"),
+    ("mileage", "/bikes/1/mileage/adjust", {"delta_miles": "abc", "reason": "typo"},
+     "delta_miles", "typo", "reason"),
+    ("webhook", "/settings/webhook", {"notification_webhook_url": "ftp://nope"},
+     "notification_webhook_url", "ftp://nope", "notification_webhook_url"),
+    ("lead-time", "/settings/notifications", {"notification_lead_time_days": "abc"},
+     "notification_lead_time_days", "abc", "notification_lead_time_days"),
+]
+
+
+@pytest.mark.parametrize(
+    "path,data,field,kept,kept_field",
+    [pytest.param(*row[1:], id=row[0]) for row in BAD_SUBMISSIONS],
+)
+def test_invalid_form_shows_error_beside_the_field_and_keeps_entries(
+    signed_in_client, path, data, field, kept, kept_field
+):
+    _add_bike(signed_in_client)
+
+    response = signed_in_client.post(path, data=data)
+    html = response.text
+
+    assert response.status_code == 422
+    assert f'<p class="field-error" id="{field}-error">' in html
+    control = re.search(rf'<(?:input|select|textarea)[^>]*\bid="{field}"[^>]*>', html)
+    assert control, f"no control with id={field}"
+    assert 'aria-invalid="true"' in control.group(0)
+    assert f"{field}-error" in control.group(0)  # via aria-describedby
+    assert 'role="alert"' in html and 'class="error-summary"' in html
+    assert re.search(rf'id="{kept_field}"[^>]*value="{re.escape(kept)}"', html) or re.search(
+        rf'value="{re.escape(kept)}"[^>]*id="{kept_field}"', html
+    ), f"{kept_field} should keep {kept!r}"
+
+
+def test_model_level_errors_appear_only_in_the_summary(signed_in_client):
+    _add_bike(signed_in_client)
+
+    html = signed_in_client.post("/bikes/1/schedules", data={"name": "No interval"}).text
+
+    # Unchanged message from feature 001, shown in the summary, not tied to one field.
+    assert "Set a mileage interval, a time interval, or both." in html
+    assert 'class="error-summary"' in html
+
+
+FORM_PAGES = ["/bikes/new", "/bikes/1/edit", "/components/new", "/components/1/edit",
+              "/bikes/1/maintenance/new", "/bikes/1/schedules/new", "/bikes/1/mileage/adjust",
+              "/settings"]
+
+
+@pytest.mark.parametrize("path", FORM_PAGES)
+def test_every_control_has_an_associated_label(signed_in_client, path):
+    _add_bike(signed_in_client)
+    _add_component(signed_in_client, "Chain", "chain")
+
+    html = signed_in_client.get(path).text
+
+    controls = re.findall(r'<(?:input|select|textarea)\b([^>]*)>', html)
+    visible = [c for c in controls if 'type="hidden"' not in c and 'type="submit"' not in c
+               and 'type="checkbox"' not in c]
+    assert visible, "page should contain form controls"
+    for attrs in visible:
+        control_id = re.search(r'\bid="([^"]+)"', attrs)
+        assert control_id, f"control without id: {attrs}"
+        assert f'<label for="{control_id.group(1)}"' in html
+
+
+@pytest.mark.parametrize("path", FORM_PAGES + ["/components/1"])
+def test_each_data_entry_form_has_exactly_one_primary_button(signed_in_client, path):
+    _add_bike(signed_in_client)
+    _add_component(signed_in_client, "Chain", "chain")
+
+    html = signed_in_client.get(path).text
+
+    for form in re.findall(r"<form\b.*?</form>", html, re.S):
+        has_entry = re.search(r'<(?:input|select|textarea)\b(?![^>]*type="hidden")', form)
+        if has_entry and 'action="/logout"' not in form:
+            assert form.count("btn-primary") == 1, form[:200]
+
+
+def test_destructive_actions_use_the_danger_style(signed_in_client):
+    _add_bike(signed_in_client)
+
+    html = signed_in_client.get("/bikes/1").text
+
+    delete_form = re.search(r'<form[^>]*action="/bikes/1/delete".*?</form>', html, re.S).group(0)
+    assert "btn-danger" in delete_form and "btn-primary" not in delete_form
+
+
+# --------------------------------------------------------------------- Polish
+
+SEEDED_PAGES = [
+    "/", "/components", "/maintenance/due", "/settings", "/bikes/new", "/bikes/1", "/bikes/1/edit",
+    "/components/new", "/components/1", "/components/1/edit", "/bikes/1/maintenance",
+    "/bikes/1/maintenance/new", "/components/1/maintenance", "/bikes/1/schedules/new",
+    "/components/1/schedules/new", "/bikes/1/mileage/adjust", "/bikes/1/strava-pairing",
+    "/schedules/1/edit", "/maintenance/1/edit",
+]
+
+
+def _seed_everything(client):
+    _add_bike(client)
+    _add_component(client, "Chain", "chain", parent_bike_id="1")
+    client.post("/bikes/1/schedules", data={"name": "Service", "interval_days": "30"})
+    client.post(
+        "/bikes/1/maintenance", data={"description": "Lube", "performed_at": "2026-05-01"}
+    )
+    client.post(
+        "/components/1/maintenance", data={"description": "Wax", "performed_at": "2026-05-02"}
+    )
+
+
+@pytest.mark.parametrize("path", SEEDED_PAGES)
+def test_pages_have_clean_semantic_markup(signed_in_client, monkeypatch, path):
+    from app.services import strava_client
+
+    monkeypatch.setattr(strava_client, "get_athlete_gear", lambda token: [])
+    _seed_everything(signed_in_client)
+
+    response = signed_in_client.get(path)
+    html = response.text
+
+    assert response.status_code == 200, path
+    assert re.search(r"<title>[^<]+</title>", html)
+    assert html.count("<h1") == 1
+    assert "<main" in html
+    assert ' style="' not in html, "inline style attributes are not allowed"
+    assert not re.search(r"<script(?![^>]*\bsrc=)", html), "inline scripts are not allowed"
+    assert " onclick=" not in html
+
+
+def test_maintenance_history_shows_a_table_and_an_empty_state(signed_in_client):
+    _add_bike(signed_in_client)
+    empty = signed_in_client.get("/bikes/1/maintenance").text
+    assert 'class="empty-state"' in empty
+
+    signed_in_client.post(
+        "/bikes/1/maintenance", data={"description": "Lube chain", "performed_at": "2026-05-01"}
+    )
+    populated = signed_in_client.get("/bikes/1/maintenance").text
+    assert '<th scope="col"' in populated and "Lube chain" in populated
+    assert 'class="table-responsive"' in populated

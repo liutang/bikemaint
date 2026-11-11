@@ -10,6 +10,8 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from pydantic import ValidationError
 
+from app.models.form_errors import error_context, message_context
+
 from app.models.requests import (
     COMPONENT_TYPES,
     ComponentCreateRequest,
@@ -93,7 +95,7 @@ async def create_component(request: Request, account=Depends(require_account)):
                 "component_types": COMPONENT_TYPES,
                 "parent_bike_id": parent_bike_id,
                 "parent_component_id": parent_component_id,
-                "errors": [error["msg"] for error in exc.errors()],
+                **error_context(form, exc),
             },
             status_code=422,
         )
@@ -108,7 +110,7 @@ async def create_component(request: Request, account=Depends(require_account)):
                 "component_types": COMPONENT_TYPES,
                 "parent_bike_id": parent_bike_id,
                 "parent_component_id": parent_component_id,
-                "errors": [str(exc)],
+                **message_context(form, str(exc)),
             },
             status_code=422,
         )
@@ -168,7 +170,7 @@ async def update_component(request: Request, component_id: int, account=Depends(
                 "component_types": COMPONENT_TYPES,
                 "parent_bike_id": existing.parent_bike_id,
                 "parent_component_id": existing.parent_component_id,
-                "errors": [error["msg"] for error in exc.errors()],
+                **error_context(form, exc),
             },
             status_code=422,
         )
@@ -183,7 +185,7 @@ async def update_component(request: Request, component_id: int, account=Depends(
                 "component_types": COMPONENT_TYPES,
                 "parent_bike_id": existing.parent_bike_id,
                 "parent_component_id": existing.parent_component_id,
-                "errors": [str(exc)],
+                **message_context(form, str(exc)),
             },
             status_code=422,
         )
@@ -208,7 +210,7 @@ async def move_component(request: Request, component_id: int, account=Depends(re
             {
                 "component": existing,
                 "tree": _subtree(existing),
-                "errors": [error["msg"] for error in exc.errors()],
+                **error_context(form, exc),
             },
             status_code=422,
         )
@@ -218,7 +220,7 @@ async def move_component(request: Request, component_id: int, account=Depends(re
         return _render(
             request,
             "components/detail.html",
-            {"component": existing, "tree": _subtree(existing), "errors": [str(exc)]},
+            {"component": existing, "tree": _subtree(existing), **message_context(form, str(exc))},
             status_code=422,
         )
     if request.headers.get("hx-request") == "true":

@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from pydantic import ValidationError
 
+from app.models.form_errors import error_context
 from app.models.requests import ScheduleRequest
 from app.services import (
     bike_service,
@@ -45,12 +46,16 @@ def _owner(kind: str, item_id: int):
     return bike_service.get_bike(item_id) if kind == "bike" else component_service.get_component(item_id)
 
 
-def _form_context(kind: str, owner, schedule, errors: list[str]) -> dict:
+def _form_context(
+    kind: str, owner, schedule, errors=(), field_errors=None, values=None
+) -> dict:
     return {
         "owner": owner,
         "owner_kind": kind,
         "schedule": schedule,
-        "errors": errors,
+        "errors": list(errors),
+        "field_errors": field_errors or {},
+        "values": values or {},
         "action": f"/schedules/{schedule.id}" if schedule else f"/{kind}s/{owner.id}/schedules",
     }
 
@@ -99,7 +104,7 @@ async def _create(request: Request, kind: str, item_id: int):
         return _render(
             request,
             "schedules/form.html",
-            _form_context(kind, owner, None, [e["msg"] for e in exc.errors()]),
+            _form_context(kind, owner, None, **error_context(form, exc)),
             status_code=422,
         )
     schedule_service.create_schedule(
@@ -157,7 +162,7 @@ async def update_schedule(request: Request, schedule_id: int, account=Depends(re
         return _render(
             request,
             "schedules/form.html",
-            _form_context(kind, owner, schedule, [e["msg"] for e in exc.errors()]),
+            _form_context(kind, owner, schedule, **error_context(form, exc)),
             status_code=422,
         )
     schedule_service.update_schedule(schedule_id, **payload.model_dump())

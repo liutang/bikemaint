@@ -50,6 +50,8 @@ TEXT_PAIRS = [
     ("--text-muted", "--bg"),
     ("--primary-text", "--primary"),
     ("--danger-text", "--danger"),
+    ("--danger", "--surface"),
+    ("--primary", "--surface"),
     ("--badge-overdue-fg", "--badge-overdue-bg"),
     ("--badge-soon-fg", "--badge-soon-bg"),
     ("--badge-ok-fg", "--badge-ok-bg"),

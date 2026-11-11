@@ -1,27 +1,18 @@
 {% extends "layout.html" %}
+{% from "partials/forms.html" import field, error_summary, submit %}
 
 {% block title %}{{ "Edit" if entry else "Log" }} maintenance — {{ item.name }}{% endblock %}
 
 {% block content %}
 <h1>{{ "Edit maintenance entry" if entry else "Log maintenance" }} for "{{ item.name }}"</h1>
-
-{% if errors %}
-<ul class="errors">
-  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
-</ul>
-{% endif %}
-
-<form method="post" action="{{ action }}">
-  <label>Description
-    <input type="text" name="description" value="{{ entry.description if entry else '' }}" required>
-  </label>
-  <label>Date performed
-    <input type="date" name="performed_at" value="{{ entry.performed_at if entry else '' }}" required>
-  </label>
-  <label>Mileage at service (leave blank to use current total: {{ item.total_mileage }} mi)
-    <input type="number" step="0.1" min="0" name="mileage_at_service"
-           value="{{ entry.mileage_at_service if entry else '' }}">
-  </label>
-  <button type="submit">Save</button>
+{{ error_summary(errors) }}
+<form class="panel form" method="post" action="{{ action }}">
+  {{ field("description", "Description", entry.description if entry else "", values, field_errors, required=true) }}
+  {{ field("performed_at", "Date performed", entry.performed_at if entry else "", values, field_errors, type="date", required=true) }}
+  {{ field("mileage_at_service", "Mileage at service", entry.mileage_at_service if entry else "", values, field_errors, type="number", step="0.1", min=0, hint="Leave blank to use the current total: " ~ ("%.1f"|format(item.total_mileage)) ~ " mi.") }}
+  <div class="actions">
+    {{ submit("Save") }}
+    <a class="btn" href="/{{ item_kind }}s/{{ item.id }}/maintenance">Cancel</a>
+  </div>
 </form>
 {% endblock %}

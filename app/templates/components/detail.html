@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% from "partials/component_tree.html" import render_tree %}
 {% import "partials/icons.html" as ui_icons %}
+{% from "partials/forms.html" import field, error_summary, submit %}
 
 {% block title %}{{ component.name }} — Bike Maintenance Tracker{% endblock %}
 
@@ -20,22 +21,13 @@
   <a class="btn" href="/components/{{ component.id }}/mileage/adjust">Adjust mileage</a>
 </div>
 
-{% if errors %}
-<ul class="errors">
-  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
-</ul>
-{% endif %}
+{{ error_summary(errors) }}
 
 <h2>Move</h2>
-<form class="panel" method="post" action="/components/{{ component.id }}/move">
-  <label>Parent bike ID
-    <input type="number" name="parent_bike_id" value="{{ component.parent_bike_id or '' }}">
-  </label>
-  <label>Parent component ID
-    <input type="number" name="parent_component_id" value="{{ component.parent_component_id or '' }}">
-  </label>
-  <p><small>Leave both blank to move this component into storage.</small></p>
-  <button class="btn" type="submit">Move</button>
+<form class="panel form" method="post" action="/components/{{ component.id }}/move">
+  {{ field("parent_bike_id", "Parent bike ID", component.parent_bike_id, values, field_errors, type="number") }}
+  {{ field("parent_component_id", "Parent component ID", component.parent_component_id, values, field_errors, type="number", hint="Leave both blank to move this component into storage.") }}
+  {{ submit("Move") }}
 </form>
 
 <h2>Sub-components</h2>

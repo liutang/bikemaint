@@ -1,24 +1,18 @@
 {% extends "layout.html" %}
+{% from "partials/forms.html" import field, error_summary, submit %}
 
 {% block title %}Adjust mileage — {{ item.name }}{% endblock %}
 
 {% block content %}
 <h1>Adjust mileage for "{{ item.name }}"</h1>
-<p>Current total: {{ item.total_mileage }} mi</p>
-
-<form method="post" action="{{ ('/bikes/' if item_kind == 'bike' else '/components/') ~ item.id ~ '/mileage/adjust' }}">
-  <label>Delta miles (use a negative number to subtract)
-    <input type="number" step="0.1" name="delta_miles" required>
-  </label>
-  <label>Reason (optional)
-    <input type="text" name="reason">
-  </label>
-  <button type="submit">Save adjustment</button>
+<p>Current total: <strong>{{ "%.1f"|format(item.total_mileage) }} mi</strong></p>
+{{ error_summary(errors) }}
+<form class="panel form" method="post" action="{{ ('/bikes/' if item_kind == 'bike' else '/components/') ~ item.id ~ '/mileage/adjust' }}">
+  {{ field("delta_miles", "Delta miles", "", values, field_errors, type="number", step="0.1", required=true, hint="Use a negative number to subtract.") }}
+  {{ field("reason", "Reason (optional)", "", values, field_errors) }}
+  <div class="actions">
+    {{ submit("Save adjustment") }}
+    <a class="btn" href="{{ ('/bikes/' if item_kind == 'bike' else '/components/') ~ item.id }}">Cancel</a>
+  </div>
 </form>
-
-{% if errors %}
-<ul class="errors">
-  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
-</ul>
-{% endif %}
 {% endblock %}

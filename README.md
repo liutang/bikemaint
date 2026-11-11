@@ -86,16 +86,23 @@ stylesheet, `app/static/styles.css`, with no framework and no build step (consti
 | `app/templates/`, `app/static/` | Jinja2 templates and static assets |
 | `tests/` | Mirrors `app/` one-to-one |
 
-## Bikes and the component builder
+## Bikes, parts and the unified screen
 
-- **Add a bike** from a catalog of common models (`app/services/bike_catalog.py`); the name is
-  "Make Model" (a numeric suffix for duplicates) and the type comes from the catalog.
-- **Placement rules** live in one place, `app/models/component_kinds.py`: which part types exist and
-  which parents each may be mounted on (pedal on a crankset, tire on a rim, and so on). Every path
-  that creates or moves a component enforces them on the server.
-- **Builder** (`/bikes/{id}/build`): bike tree on the left, storage and a part palette on the right.
-  Drag to mount, move, re-order or unmount (`app/static/builder.js`, plain JavaScript, no library);
-  every drag has a keyboard/no-JS form equivalent ("Move to…", "Add to…", up/down buttons).
+- **Add a bike** by typing Year, Make and Model and choosing a Category (road, gravel, mountain,
+  hybrid, e-bike, other). The name is "Year Make Model" (a numeric suffix for duplicates). Bikes
+  from before keep their single name; edit one and leave the three blank to keep it.
+- **One screen per bike and per part.** Open a bike from the garage and you get breadcrumbs
+  (Garage > bike > part), the actions (Edit, Maintenance history, Add schedule, Adjust mileage,
+  Pair with Strava for bikes), the part tree, storage, and a palette of new parts, all on one page.
+  Click a part to drill in: same layout scoped to that part, with its own actions, a Garage button
+  (move to storage) and a Trash button (delete, with an in-place confirmation when needed).
+- **Part categories** are deliberately few: frame, fork, wheel, tire, brake, drivetrain, chain,
+  pedal, saddle, handlebar, other. Older finer kinds (rim, hub, spoke...) still work on existing
+  parts but are never offered. Placement rules live in `app/models/component_kinds.py` and are
+  enforced on the server for every action.
+- **Drag and drop** (`app/static/builder.js`, plain JavaScript, no library) mounts, moves,
+  re-orders and unmounts parts; every drag has a keyboard/no-JS form equivalent ("Move to…",
+  "Add to…", up/down, Garage, Trash). Actions post to `/builder/add|move|delete` with a `root`.
 
 ## Running in Docker
 

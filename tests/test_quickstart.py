@@ -6,6 +6,7 @@ real credentials, so the login step stubs the token exchange.
 """
 
 import json
+import re
 from datetime import date
 
 import httpx
@@ -51,6 +52,12 @@ def _add_component(client, name, component_type, **parent):
     )
 
 
+def _tree_names(html):
+    """Parts shown in the tree (not storage) on a bike or part screen."""
+    tree = html[html.index('class="builder-tree"') : html.index('class="builder-side"')]
+    return re.findall(r'class="node-name"[^>]*>([^<]+)<', tree)
+
+
 def test_scenario_1_garage_inventory(signed_in):
     client = signed_in
     _add_bike(client, "Gravel Bike")
@@ -58,23 +65,20 @@ def test_scenario_1_garage_inventory(signed_in):
     assert "Gravel Bike" in client.get("/").text
 
     _add_component(client, "Gravel Wheel", "wheel", parent_bike_id="1")
-    _add_component(client, "Gravel Rim", "rim", parent_component_id="1")
-    _add_component(client, "Gravel Tire", "tire", parent_component_id="2")
-    detail = client.get("/bikes/1").text
-    assert detail.index("Gravel Wheel") < detail.index("Gravel Rim") < detail.index("Gravel Tire")
+    _add_component(client, "Gravel Tire", "tire", parent_component_id="1")
+    assert _tree_names(client.get("/bikes/1").text) == ["Gravel Wheel", "Gravel Tire"]
 
-    client.post("/components/3/move", data={})
+    client.post("/components/2/move", data={})
     assert "Gravel Tire" in client.get("/components").text
-    assert "Gravel Tire" not in client.get("/bikes/1").text
+    assert _tree_names(client.get("/bikes/1").text) == ["Gravel Wheel"]
 
     _add_component(client, "Road Wheel", "wheel", parent_bike_id="2")
-    _add_component(client, "Road Rim", "rim", parent_component_id="4")
-    client.post("/components/3/move", data={"parent_component_id": "5"})
-    assert "Gravel Tire" in client.get("/bikes/2").text
+    client.post("/components/2/move", data={"parent_component_id": "3"})
+    assert _tree_names(client.get("/bikes/2").text) == ["Road Wheel", "Gravel Tire"]
     assert "Gravel Tire" not in client.get("/components").text
 
-    # Cross-cutting: a second single-instance tire on an occupied rim is rejected (FR-024).
-    duplicate = _add_component(client, "Second Tire", "tire", parent_component_id="5")
+    # Cross-cutting: a second single-instance tire on an occupied wheel is rejected (FR-024).
+    duplicate = _add_component(client, "Second Tire", "tire", parent_component_id="3")
     assert duplicate.status_code == 422
 
 

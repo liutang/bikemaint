@@ -14,15 +14,15 @@ from app.db import maintenance as maintenance_db
 from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models.rows import Bike
-from app.services import bike_catalog, sync_service
+from app.models.requests import BIKE_CATEGORIES
+from app.services import sync_service
 from app.services.component_service import ConfirmationRequiredError, soft_delete_recursive
 
 __all__ = [
     "ConfirmationRequiredError",
-    "KEEP_CURRENT",
     "create_bike",
-    "create_bike_from_catalog",
-    "update_bike_from_catalog",
+    "create_bike_from_details",
+    "update_bike_from_details",
     "get_bike",
     "list_bikes",
     "update_bike",
@@ -55,9 +55,6 @@ def create_bike(
         )
 
 
-KEEP_CURRENT = "__keep__"  # form value: a legacy bike keeps the name and type it already has
-
-
 def _unique_name(conn, base: str, *, exclude_bike_id: int | None = None) -> str:
     taken = {b.name for b in bikes_db.list_active(conn) if b.id != exclude_bike_id}
     if base not in taken:
@@ -68,52 +65,67 @@ def _unique_name(conn, base: str, *, exclude_bike_id: int | None = None) -> str:
     return f"{base} ({number})"
 
 
-def create_bike_from_catalog(catalog_id: str | None, *, manual_baseline_mileage: float = 0.0) -> Bike:
-    """Add a bike from the common-bike catalog: name is "Make Model", type is the category."""
-    entry = bike_catalog.get(catalog_id)
-    if entry is None:
-        raise ValueError("Choose a bike from the list.")
+def _check_category(category: str) -> None:
+    if category not in BIKE_CATEGORIES:
+        raise ValueError("Choose a category from the list.")
+
+
+def create_bike_from_details(
+    *, year: int, make: str, model: str, category: str, manual_baseline_mileage: float = 0.0
+) -> Bike:
+    """Add a bike by year, make, model and category; its name is "Year Make Model"."""
+    _check_category(category)
     with get_connection() as conn:
         return bikes_db.create(
             conn,
-            name=_unique_name(conn, bike_catalog.display_name(entry)),
-            bike_type=entry.category,
+            name=_unique_name(conn, f"{year} {make} {model}"),
+            bike_type=category,
             manual_baseline_mileage=manual_baseline_mileage,
-            catalog_id=entry.id,
+            year=year,
+            make=make,
+            model=model,
         )
 
 
-def update_bike_from_catalog(
-    bike_id: int, catalog_id: str | None, *, manual_baseline_mileage: float
+def update_bike_from_details(
+    bike_id: int,
+    *,
+    year: int | None,
+    make: str | None,
+    model: str | None,
+    category: str,
+    manual_baseline_mileage: float,
 ) -> Bike:
-    """Edit a bike by catalog entry. A legacy bike (no catalog entry) may pass `KEEP_CURRENT`."""
+    """Edit a bike. A bike with a single legacy name may leave year, make and model all blank to
+    keep that name; any other mix of blank and filled details is refused."""
+    _check_category(category)
+    given = [bool(year), bool(make), bool(model)]
     with get_connection() as conn:
         bike = bikes_db.get_by_id(conn, bike_id)
         if bike is None:
             raise LookupError(f"No bike with id {bike_id}")
-        if catalog_id == KEEP_CURRENT:
-            if bike.catalog_id is not None:
-                raise ValueError("Choose a bike from the list.")
-            name, bike_type, new_catalog_id = bike.name, bike.bike_type, None
+        legacy = bike.year is None and bike.make is None and bike.model is None
+        if not any(given):
+            if not legacy:
+                raise ValueError("Enter the year, make and model.")
+            name, year, make, model = bike.name, None, None, None
+        elif not all(given):
+            raise ValueError("Enter the year, make and model, or leave all three blank to keep the name.")
         else:
-            entry = bike_catalog.get(catalog_id)
-            if entry is None:
-                raise ValueError("Choose a bike from the list.")
-            new_catalog_id, bike_type = entry.id, entry.category
-            name = (
-                bike.name
-                if bike.catalog_id == entry.id
-                else _unique_name(conn, bike_catalog.display_name(entry), exclude_bike_id=bike_id)
-            )
+            wanted = f"{year} {make} {model}"
+            same = (bike.year, bike.make, bike.model) == (year, make, model)
+            name = bike.name if same else _unique_name(conn, wanted, exclude_bike_id=bike_id)
         earned_beyond_baseline = bike.total_mileage - bike.manual_baseline_mileage
         return bikes_db.update(
             conn,
             bike_id,
             name=name,
-            bike_type=bike_type,
+            bike_type=category,
             manual_baseline_mileage=manual_baseline_mileage,
             total_mileage=earned_beyond_baseline + manual_baseline_mileage,
-            catalog_id=new_catalog_id,
+            year=year,
+            make=make,
+            model=model,
         )
 
 

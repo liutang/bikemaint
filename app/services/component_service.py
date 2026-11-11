@@ -189,6 +189,8 @@ def update_component(
         if component is None:
             raise LookupError(f"No component with id {component_id}")
         if component_type != component.component_type:
+            if not component_kinds.is_offered(component_type):
+                raise ComponentPlacementError(f"{component_type} is not an available part type.")
             for child in components_db.list_children(conn, parent_component_id=component_id):
                 message = component_kinds.placement_error(child.component_type, component_type)
                 if message:
@@ -229,29 +231,22 @@ def valid_types_for_parent(
         return component_kinds.child_types_for(kind)
 
 
-def _candidate_targets(
-    conn: sqlite3.Connection,
-    component_type: str,
-    *,
-    exclude_id: int | None = None,
-    blocked: frozenset[int] = frozenset(),
-    skip_parent: tuple[int | None, int | None] = (None, None),
-    only_bike_id: int | None = None,
-) -> list[MoveTarget]:
-    """Bikes and components where a part of `component_type` could be mounted right now."""
-    multi = component_type in MULTI_INSTANCE_COMPONENT_TYPES
+@dataclass(frozen=True)
+class _Slot:
+    """A parent a part could be mounted on: the bike itself or one of its components."""
 
-    def _slot_free(children: list[Component]) -> bool:
-        return multi or all(
-            c.id == exclude_id or c.component_type != component_type for c in children
-        )
+    value: str  # "bike:ID" | "component:ID"
+    label: str
+    kind: str  # BIKE or a component type
+    children: list[Component]
+    component_id: int | None = None
 
-    skip_bike_id, skip_component_id = skip_parent
-    targets: list[MoveTarget] = []
-    for bike in bikes_db.list_active(conn):
-        if only_bike_id is not None and bike.id != only_bike_id:
-            continue
-        tree = components_db.get_tree_for_bike(conn, bike.id)
+
+def _scope_slots(conn: sqlite3.Connection, root: str | None) -> list[_Slot]:
+    """Every parent inside `root` (`bike:ID` or `component:ID`); all bikes when root is None."""
+    slots: list[_Slot] = []
+
+    def _tree_slots(prefix: str, tree: list[Component], top: list[Component]) -> list[_Slot]:
         by_id = {c.id: c for c in tree}
         children_of: dict[int | None, list[Component]] = {}
         for c in tree:
@@ -260,35 +255,83 @@ def _candidate_targets(
         def _path(c: Component) -> str:
             names = []
             node: Component | None = c
-            while node is not None:
+            while node is not None and node.id in by_id:
                 names.append(node.name)
                 node = by_id.get(node.parent_component_id)
-            return " › ".join([bike.name, *reversed(names)])
+            return " › ".join([prefix, *reversed(names)]) if prefix else " › ".join(reversed(names))
 
-        if (
-            skip_bike_id != bike.id
-            and component_kinds.can_mount(component_type, BIKE)
-            and _slot_free(components_db.list_children(conn, parent_bike_id=bike.id))
-        ):
-            targets.append(MoveTarget(f"bike:{bike.id}", bike.name))
-        for c in tree:
-            if c.id in blocked or skip_component_id == c.id:
+        return [
+            _Slot(f"component:{c.id}", _path(c), c.component_type, children_of.get(c.id, []), c.id)
+            for c in tree
+        ]
+
+    kind, _, raw = (root or "").partition(":")
+    if root is None or kind == "bike":
+        for bike in bikes_db.list_active(conn):
+            if root is not None and bike.id != int(raw):
                 continue
-            if component_kinds.can_mount(component_type, c.component_type) and _slot_free(
-                children_of.get(c.id, [])
-            ):
-                targets.append(MoveTarget(f"component:{c.id}", _path(c)))
+            tree = components_db.get_tree_for_bike(conn, bike.id)
+            slots.append(
+                _Slot(
+                    f"bike:{bike.id}",
+                    bike.name,
+                    BIKE,
+                    components_db.list_children(conn, parent_bike_id=bike.id),
+                )
+            )
+            slots.extend(_tree_slots(bike.name, tree, []))
+    elif kind == "component":
+        top = components_db.get_by_id(conn, int(raw))
+        if top is not None:
+            tree = [top, *components_db.get_descendants(conn, top.id)]
+            slots.extend(_tree_slots("", tree, [top]))
+    return slots
+
+
+def _candidate_targets(
+    conn: sqlite3.Connection,
+    component_type: str,
+    *,
+    exclude_id: int | None = None,
+    blocked: frozenset[int] = frozenset(),
+    skip_parent: tuple[int | None, int | None] = (None, None),
+    root: str | None = None,
+) -> list[MoveTarget]:
+    """Bikes and components inside `root` where a part of `component_type` could be mounted now."""
+    multi = component_type in MULTI_INSTANCE_COMPONENT_TYPES
+    skip_bike_id, skip_component_id = skip_parent
+    targets: list[MoveTarget] = []
+    for slot in _scope_slots(conn, root):
+        if slot.component_id is not None and slot.component_id in blocked:
+            continue
+        if slot.value == f"bike:{skip_bike_id}" and skip_bike_id is not None:
+            continue
+        if slot.component_id is not None and slot.component_id == skip_component_id:
+            continue
+        if not component_kinds.can_mount(component_type, slot.kind):
+            continue
+        if not multi and any(
+            c.id != exclude_id and c.component_type == component_type for c in slot.children
+        ):
+            continue
+        targets.append(MoveTarget(slot.value, slot.label))
     return targets
 
 
-def list_type_targets(component_type: str, *, bike_id: int) -> list[MoveTarget]:
-    """Places on one bike where a *new* part of `component_type` could be mounted."""
+def list_type_targets(
+    component_type: str, *, bike_id: int | None = None, root: str | None = None
+) -> list[MoveTarget]:
+    """Places inside a bike (or `root`) where a *new* part of `component_type` could be mounted."""
+    scope = root if root is not None else (f"bike:{bike_id}" if bike_id is not None else None)
     with get_connection() as conn:
-        return _candidate_targets(conn, component_type, only_bike_id=bike_id)
+        return _candidate_targets(conn, component_type, root=scope)
 
 
-def list_move_targets(component_id: int, *, only_bike_id: int | None = None) -> list[MoveTarget]:
+def list_move_targets(
+    component_id: int, *, only_bike_id: int | None = None, root: str | None = None
+) -> list[MoveTarget]:
     """Every place `component_id` could be moved right now, and only those (specs/004, FR-014)."""
+    scope = root if root is not None else (f"bike:{only_bike_id}" if only_bike_id is not None else None)
     with get_connection() as conn:
         component = components_db.get_by_id(conn, component_id)
         if component is None:
@@ -302,7 +345,7 @@ def list_move_targets(component_id: int, *, only_bike_id: int | None = None) -> 
             exclude_id=component_id,
             blocked=blocked,
             skip_parent=(component.parent_bike_id, component.parent_component_id),
-            only_bike_id=only_bike_id,
+            root=scope,
         )
         if component.parent_bike_id is not None or component.parent_component_id is not None:
             targets.append(MoveTarget("storage", "Storage"))
@@ -334,8 +377,8 @@ def mount_new_component(
 ) -> Component:
     """Create a part of `component_type` (default name) mounted on a parent, optionally ordered."""
     kind = component_kinds.COMPONENT_KINDS.get(component_type)
-    if kind is None:
-        raise ComponentPlacementError(f"Unknown component type: {component_type}.")
+    if kind is None or not kind.offered:
+        raise ComponentPlacementError(f"{component_type} is not an available part type.")
     with get_connection() as conn:
         _check_before(
             conn,

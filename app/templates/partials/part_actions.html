@@ -1,0 +1,31 @@
+{# The action buttons follow the rider as they drill down: a bike or a part gets the same row.
+   Pair with Strava only makes sense for a bike. Garage and Trash only for a part. #}
+{% import "partials/icons.html" as ui_icons %}
+{% if bike %}
+{% set base = "/bikes/" ~ bike.id %}
+{% else %}
+{% set base = "/components/" ~ component.id %}
+{% endif %}
+<div class="actions panel part-actions">
+  <a class="btn" href="{{ base }}/edit">Edit</a>
+  <a class="btn" href="{{ base }}/maintenance">Maintenance history</a>
+  <a class="btn" href="{{ base }}/schedules/new">Add schedule</a>
+  <a class="btn" href="{{ base }}/mileage/adjust">Adjust mileage</a>
+  {% if bike and not bike.strava_gear_id %}<a class="btn" href="{{ base }}/strava-pairing">Pair with Strava</a>{% endif %}
+  {% if component %}
+  {% set mounted = component.parent_bike_id is not none or component.parent_component_id is not none %}
+  {% if mounted %}
+  <form method="post" action="/builder/move" hx-post="/builder/move" hx-target="#builder" hx-swap="outerHTML">
+    <input type="hidden" name="root" value="component:{{ component.id }}">
+    <input type="hidden" name="component_id" value="{{ component.id }}">
+    <input type="hidden" name="target" value="storage">
+    <button class="btn" type="submit">{{ ui_icons.garage() }}Garage</button>
+  </form>
+  {% endif %}
+  <form method="post" action="/builder/delete" hx-post="/builder/delete" hx-target="#builder" hx-swap="outerHTML">
+    <input type="hidden" name="root" value="component:{{ component.id }}">
+    <input type="hidden" name="component_id" value="{{ component.id }}">
+    <button class="btn btn-quiet" type="submit">{{ ui_icons.trash() }}Trash</button>
+  </form>
+  {% endif %}
+</div>

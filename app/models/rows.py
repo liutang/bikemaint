@@ -53,7 +53,9 @@ class Bike:
     is_deleted: bool
     created_at: str
     updated_at: str
-    catalog_id: str | None = None
+    year: int | None = None
+    make: str | None = None
+    model: str | None = None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Bike:
@@ -68,7 +70,9 @@ class Bike:
             is_deleted=bool(row["is_deleted"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
-            catalog_id=row["catalog_id"],
+            year=row["year"],
+            make=row["make"],
+            model=row["model"],
         )
 
 

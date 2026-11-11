@@ -1,10 +1,12 @@
 {% extends "layout.html" %}
-{% from "partials/component_tree.html" import render_tree %}
 {% import "partials/icons.html" as ui_icons %}
 
 {% block title %}{{ bike.name }} — Bike Maintenance Tracker{% endblock %}
 
+{% block head_extra %}<script src="{{ url_for('static', path='builder.js') }}" defer></script>{% endblock %}
+
 {% block content %}
+{% include "partials/breadcrumb.html" %}
 <div class="page-head">
   <div>
     <h1>{{ bike.name }}</h1>
@@ -13,26 +15,8 @@
   <div class="stat"><small>Total mileage</small><strong>{{ "%.1f"|format(bike.total_mileage) }} mi</strong></div>
 </div>
 
-<div class="actions panel">
-  <a class="btn" href="/bikes/{{ bike.id }}/edit">Edit</a>
-  <a class="btn btn-primary" href="/bikes/{{ bike.id }}/build">{{ ui_icons.wrench() }}Build</a>
-  <a class="btn" href="/components/new?parent_bike_id={{ bike.id }}">{{ ui_icons.plus() }}Add component</a>
-  <a class="btn" href="/bikes/{{ bike.id }}/maintenance">Maintenance history</a>
-  <a class="btn" href="/bikes/{{ bike.id }}/schedules/new">Add schedule</a>
-  <a class="btn" href="/bikes/{{ bike.id }}/mileage/adjust">Adjust mileage</a>
-  {% if not bike.strava_gear_id %}<a class="btn" href="/bikes/{{ bike.id }}/strava-pairing">Pair with Strava</a>{% endif %}
-</div>
-
-<h2>Installed components</h2>
-{% if tree %}
-  {{ render_tree(tree) }}
-{% else %}
-<div class="empty-state">
-  <p class="empty-title">Nothing installed yet</p>
-  <p>Add a wheel, drivetrain or any part to build up this bike.</p>
-  <a class="btn btn-primary" href="/bikes/{{ bike.id }}/build">Start building</a>
-</div>
-{% endif %}
+{% include "partials/part_actions.html" %}
+{% include "partials/builder.html" %}
 
 <h2>Delete this bike</h2>
 <div class="panel danger-zone">

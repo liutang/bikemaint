@@ -11,9 +11,10 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from pydantic import ValidationError
 
-from app.models.requests import BikeCatalogRequest
+from app.models.requests import BIKE_CATEGORIES, BikeDetailsRequest
 from app.models.form_errors import error_context, message_context
-from app.services import bike_catalog, bike_service, component_service, strava_client
+from app.services import bike_service, component_service, strava_client
+from app.routers.screen import render_screen
 from app.services.auth_dependency import require_account
 
 router = APIRouter()
@@ -45,15 +46,20 @@ def _form_context(bike, extra: dict | None = None) -> dict:
     return {
         "bike": bike,
         "errors": [],
-        "catalog_groups": bike_catalog.grouped(),
-        "keep_marker": bike_service.KEEP_CURRENT,
+        "categories": BIKE_CATEGORIES,
+        "crumbs": [("Garage", "/")]
+        + ([(bike.name, f"/bikes/{bike.id}"), ("Edit", None)] if bike else [("Add a bike", None)]),
+        "legacy": bike is not None and bike.make is None and bike.model is None and bike.year is None,
         **(extra or {}),
     }
 
 
-def _parse_catalog_form(form) -> BikeCatalogRequest:
-    return BikeCatalogRequest(
-        catalog_id=form.get("catalog_id", ""),
+def _parse_details_form(form) -> BikeDetailsRequest:
+    return BikeDetailsRequest(
+        year=form.get("year", ""),
+        make=form.get("make", ""),
+        model=form.get("model", ""),
+        category=form.get("category", ""),
         manual_baseline_mileage=_optional_float(form.get("manual_baseline_mileage")),
     )
 
@@ -67,9 +73,29 @@ def new_bike_form(request: Request, account=Depends(require_account)):
 async def create_bike(request: Request, account=Depends(require_account)):
     form = await request.form()
     try:
-        payload = _parse_catalog_form(form)
-        bike = bike_service.create_bike_from_catalog(
-            payload.catalog_id, manual_baseline_mileage=payload.manual_baseline_mileage
+        payload = _parse_details_form(form)
+        missing = {
+            name: f"Enter the {name}."
+            for name in ("year", "make", "model")
+            if not getattr(payload, name)
+        }
+        if missing:
+            return _render(
+                request,
+                "bikes/form.html",
+                _form_context(None, {
+                    "errors": list(missing.values()),
+                    "field_errors": missing,
+                    "values": dict(form),
+                }),
+                status_code=422,
+            )
+        bike = bike_service.create_bike_from_details(
+            year=payload.year,
+            make=payload.make,
+            model=payload.model,
+            category=payload.category,
+            manual_baseline_mileage=payload.manual_baseline_mileage,
         )
     except ValidationError as exc:
         return _render(
@@ -77,9 +103,7 @@ async def create_bike(request: Request, account=Depends(require_account)):
         )
     except ValueError as exc:
         return _render(
-            request,
-            "bikes/form.html",
-            _form_context(None, message_context(form, str(exc), field="catalog_id")),
+            request, "bikes/form.html", _form_context(None, message_context(form, str(exc))),
             status_code=422,
         )
     if request.headers.get("hx-request") == "true":
@@ -92,13 +116,13 @@ async def create_bike(request: Request, account=Depends(require_account)):
 
 @router.get("/bikes/{bike_id}", name="bike_detail")
 def bike_detail(request: Request, bike_id: int, account=Depends(require_account)):
-    bike = bike_service.get_bike(bike_id)
-    if bike is None:
-        return PlainTextResponse("Bike not found", status_code=404)
-    all_components = component_service.get_tree_for_bike(bike_id)
-    top_level = [c for c in all_components if c.parent_bike_id == bike_id]
-    tree = component_service.build_tree(top_level, all_components)
-    return _render(request, "bikes/detail.html", {"bike": bike, "tree": tree})
+    return render_screen(request, f"bike:{bike_id}")
+
+
+@router.get("/bikes/{bike_id}/build", name="bike_builder_redirect")
+def bike_builder_redirect(bike_id: int, account=Depends(require_account)):
+    """The separate build screen is gone; old links land on the unified bike screen."""
+    return RedirectResponse(url=f"/bikes/{bike_id}", status_code=303)
 
 
 @router.get("/bikes/{bike_id}/edit", name="edit_bike_form")
@@ -116,9 +140,14 @@ async def update_bike(request: Request, bike_id: int, account=Depends(require_ac
         return PlainTextResponse("Bike not found", status_code=404)
     form = await request.form()
     try:
-        payload = _parse_catalog_form(form)
-        bike = bike_service.update_bike_from_catalog(
-            bike_id, payload.catalog_id, manual_baseline_mileage=payload.manual_baseline_mileage
+        payload = _parse_details_form(form)
+        bike = bike_service.update_bike_from_details(
+            bike_id,
+            year=payload.year,
+            make=payload.make,
+            model=payload.model,
+            category=payload.category,
+            manual_baseline_mileage=payload.manual_baseline_mileage,
         )
     except ValidationError as exc:
         return _render(
@@ -126,9 +155,7 @@ async def update_bike(request: Request, bike_id: int, account=Depends(require_ac
         )
     except ValueError as exc:
         return _render(
-            request,
-            "bikes/form.html",
-            _form_context(bike, message_context(form, str(exc), field="catalog_id")),
+            request, "bikes/form.html", _form_context(bike, message_context(form, str(exc))),
             status_code=422,
         )
     return RedirectResponse(url=f"/bikes/{bike.id}", status_code=303)

@@ -1,12 +1,22 @@
 {% import "partials/icons.html" as ui_icons %}
-{% set bike_id = view.bike.id %}
-{% macro move_form(bike_id, component, target, before="", label="Move", aria="", css="node-form", icon="") -%}
-<form class="{{ css }}" method="post" action="/bikes/{{ bike_id }}/build/move"
-      hx-post="/bikes/{{ bike_id }}/build/move" hx-target="#builder" hx-swap="outerHTML">
+{% set root = view.root_ref %}
+{% macro move_form(root, component, target, before="", aria="", icon="", label="") -%}
+<form class="node-form" method="post" action="/builder/move"
+      hx-post="/builder/move" hx-target="#builder" hx-swap="outerHTML">
+  <input type="hidden" name="root" value="{{ root }}">
   <input type="hidden" name="component_id" value="{{ component.id }}">
   <input type="hidden" name="target" value="{{ target }}">
   <input type="hidden" name="before_component_id" value="{{ before }}">
-  <button class="btn btn-quiet btn-icon" type="submit" aria-label="{{ aria }}" title="{{ aria }}">{{ icon|safe }}</button>
+  <button class="btn btn-quiet btn-icon" type="submit" aria-label="{{ aria }}" title="{{ aria }}">{{ icon|safe }}{{ label }}</button>
+</form>
+{%- endmacro %}
+
+{% macro trash_form(root, component) -%}
+<form class="node-form" method="post" action="/builder/delete"
+      hx-post="/builder/delete" hx-target="#builder" hx-swap="outerHTML">
+  <input type="hidden" name="root" value="{{ root }}">
+  <input type="hidden" name="component_id" value="{{ component.id }}">
+  <button class="btn btn-quiet btn-icon" type="submit" aria-label="Trash {{ component.name }}" title="Trash {{ component.name }}">{{ ui_icons.trash() }}</button>
 </form>
 {%- endmacro %}
 
@@ -22,13 +32,14 @@
       <a class="node-name" href="/components/{{ c.id }}">{{ c.name }}</a>
       <span class="chip">{{ c.component_type }}</span>
       <span class="node-actions">
-        {% if node.can_up %}{{ move_form(bike_id, c, node.parent_ref, node.up_before, aria="Move " ~ c.name ~ " up", icon=ui_icons.arrow_up()) }}{% endif %}
-        {% if node.can_down %}{{ move_form(bike_id, c, node.parent_ref, node.down_before if node.down_before else "", aria="Move " ~ c.name ~ " down", icon=ui_icons.arrow_down()) }}{% endif %}
+        {% if node.can_up %}{{ move_form(root, c, node.parent_ref, node.up_before, aria="Move " ~ c.name ~ " up", icon=ui_icons.arrow_up()) }}{% endif %}
+        {% if node.can_down %}{{ move_form(root, c, node.parent_ref, node.down_before if node.down_before else "", aria="Move " ~ c.name ~ " down", icon=ui_icons.arrow_down()) }}{% endif %}
         {% if node.targets %}
         <details class="node-more">
           <summary class="btn btn-quiet">Move to…</summary>
-          <form class="node-moveto" method="post" action="/bikes/{{ bike_id }}/build/move"
-                hx-post="/bikes/{{ bike_id }}/build/move" hx-target="#builder" hx-swap="outerHTML">
+          <form class="node-moveto" method="post" action="/builder/move"
+                hx-post="/builder/move" hx-target="#builder" hx-swap="outerHTML">
+            <input type="hidden" name="root" value="{{ root }}">
             <input type="hidden" name="component_id" value="{{ c.id }}">
             <label class="visually-hidden" for="moveto-{{ c.id }}">Move {{ c.name }} to</label>
             <select id="moveto-{{ c.id }}" name="target">
@@ -38,6 +49,8 @@
           </form>
         </details>
         {% endif %}
+        {{ move_form(root, c, "storage", aria="Garage " ~ c.name ~ " (move to storage)", icon=ui_icons.garage()) }}
+        {{ trash_form(root, c) }}
       </span>
     </div>
     {% if node.children %}{{ render_nodes(node.children) }}{% endif %}
@@ -46,18 +59,32 @@
 </ul>
 {% endmacro %}
 
-<div id="builder" class="builder" data-bike-id="{{ bike_id }}">
+<div id="builder" class="builder" data-root="{{ root }}">
   <p id="builder-message" class="builder-message{% if message %} is-error{% endif %}"
      {% if message %}role="alert"{% else %}role="status" aria-live="polite"{% endif %}>{{ message or "" }}</p>
 
+  {% if confirm %}
+  <div class="confirm" role="alertdialog" aria-labelledby="confirm-title">
+    <p id="confirm-title">Delete {{ confirm.component.name }}? {{ confirm.message }}</p>
+    <form class="actions" method="post" action="/builder/delete"
+          hx-post="/builder/delete" hx-target="#builder" hx-swap="outerHTML">
+      <input type="hidden" name="root" value="{{ confirm.root }}">
+      <input type="hidden" name="component_id" value="{{ confirm.component.id }}">
+      <input type="hidden" name="confirmed" value="true">
+      <button class="btn btn-danger" type="submit">{{ ui_icons.trash() }}Yes, delete</button>
+      <a class="btn" href="{{ '/bikes/' ~ view.bike.id if view.bike else '/components/' ~ view.component.id }}">Cancel</a>
+    </form>
+  </div>
+  {% endif %}
+
   <div class="builder-panes">
     <section class="builder-tree" aria-labelledby="tree-heading">
-      <h2 id="tree-heading">{{ view.bike.name }}</h2>
+      <h2 id="tree-heading">{{ "Parts" if view.component else "Parts on this bike" }}</h2>
       <div class="builder-root drop-target" data-ref="{{ view.root_ref }}" data-accepts="{{ view.root_accepts|join(' ') }}">
         {% if view.nodes %}
         {{ render_nodes(view.nodes) }}
         {% else %}
-        <p class="builder-empty">Drag a frame here to start.</p>
+        <p class="builder-empty">{{ "Drag a frame here to start." if view.bike else "Nothing mounted on this part yet." }}</p>
         {% endif %}
       </div>
     </section>
@@ -74,8 +101,9 @@
             {% if item.targets %}
             <details class="side-more">
               <summary class="btn btn-quiet">Add to…</summary>
-              <form class="side-form" method="post" action="/bikes/{{ bike_id }}/build/move"
-                    hx-post="/bikes/{{ bike_id }}/build/move" hx-target="#builder" hx-swap="outerHTML">
+              <form class="side-form" method="post" action="/builder/move"
+                    hx-post="/builder/move" hx-target="#builder" hx-swap="outerHTML">
+                <input type="hidden" name="root" value="{{ root }}">
                 <input type="hidden" name="component_id" value="{{ item.component.id }}">
                 <label class="visually-hidden" for="addto-{{ item.component.id }}">Add {{ item.component.name }} to</label>
                 <select id="addto-{{ item.component.id }}" name="target">
@@ -85,13 +113,13 @@
               </form>
             </details>
             {% else %}
-            <small class="text-muted">No place for it on this bike yet</small>
+            <small class="text-muted">No place for it here yet</small>
             {% endif %}
           </li>
           {% endfor %}
         </ul>
         {% else %}
-        <p class="text-muted">Nothing in storage. Drag a part here to take it off the bike.</p>
+        <p class="text-muted">Nothing in storage. Drag a part here to take it off.</p>
         {% endif %}
       </section>
 
@@ -105,8 +133,9 @@
             {% if item.targets %}
             <details class="side-more">
               <summary class="btn btn-quiet">Add to…</summary>
-              <form class="side-form" method="post" action="/bikes/{{ bike_id }}/build/add"
-                    hx-post="/bikes/{{ bike_id }}/build/add" hx-target="#builder" hx-swap="outerHTML">
+              <form class="side-form" method="post" action="/builder/add"
+                    hx-post="/builder/add" hx-target="#builder" hx-swap="outerHTML">
+                <input type="hidden" name="root" value="{{ root }}">
                 <input type="hidden" name="component_type" value="{{ item.type }}">
                 <label class="visually-hidden" for="add-{{ item.type }}">Add {{ item.label }} to</label>
                 <select id="add-{{ item.type }}" name="target">

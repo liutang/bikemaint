@@ -1,11 +1,11 @@
 {% extends "layout.html" %}
-{% from "partials/component_tree.html" import render_tree %}
-{% import "partials/icons.html" as ui_icons %}
-{% from "partials/forms.html" import field, error_summary, submit %}
 
 {% block title %}{{ component.name }} — Bike Maintenance Tracker{% endblock %}
 
+{% block head_extra %}<script src="{{ url_for('static', path='builder.js') }}" defer></script>{% endblock %}
+
 {% block content %}
+{% include "partials/breadcrumb.html" %}
 <div class="page-head">
   <div>
     <h1>{{ component.name }}</h1>
@@ -14,50 +14,6 @@
   <div class="stat"><small>Total mileage</small><strong>{{ "%.1f"|format(component.total_mileage) }} mi</strong></div>
 </div>
 
-<div class="actions panel">
-  <a class="btn" href="/components/{{ component.id }}/edit">Edit</a>
-  <a class="btn" href="/components/{{ component.id }}/maintenance">Maintenance history</a>
-  <a class="btn" href="/components/{{ component.id }}/schedules/new">Add schedule</a>
-  <a class="btn" href="/components/{{ component.id }}/mileage/adjust">Adjust mileage</a>
-</div>
-
-{{ error_summary(errors) }}
-
-<h2>Move</h2>
-{% if move_targets %}
-<form class="panel form" method="post" action="/components/{{ component.id }}/move">
-  <div class="field{% if field_errors and "target" in field_errors %} has-error{% endif %}">
-    <label for="target">Move to</label>
-    <select id="target" name="target">
-      {% for target in move_targets %}
-      <option value="{{ target.value }}">{{ target.label }}</option>
-      {% endfor %}
-    </select>
-    <small class="field-hint">Only places this part can be mounted are listed.</small>
-    {% if field_errors and "target" in field_errors %}<p class="field-error">{{ field_errors.target }}</p>{% endif %}
-  </div>
-  {{ submit("Move") }}
-</form>
-{% else %}
-<p class="panel text-muted">No valid place to move this to right now.</p>
-{% endif %}
-
-<h2>Sub-components</h2>
-{% if tree %}
-  {{ render_tree(tree) }}
-{% else %}
-<div class="empty-state">
-  <p class="empty-title">Nothing nested here</p>
-  <p>Components installed inside this one will appear here.</p>
-</div>
-{% endif %}
-
-<h2>Delete</h2>
-<div class="panel danger-zone">
-  <form method="post" action="/components/{{ component.id }}/delete"
-        hx-post="/components/{{ component.id }}/delete" hx-target="#delete-area" hx-swap="innerHTML">
-    <button class="btn btn-danger" type="submit">{{ ui_icons.trash() }}Delete component</button>
-  </form>
-  <div id="delete-area" aria-live="polite"></div>
-</div>
+{% include "partials/part_actions.html" %}
+{% include "partials/builder.html" %}
 {% endblock %}

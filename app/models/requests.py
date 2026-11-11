@@ -141,9 +141,13 @@ class MoveTargetRequest(BaseModel):
         }
 
 
-class BuilderAddRequest(BaseModel):
-    """Palette drop / Add control: create a new part of a type on a bike or component."""
+_ROOT_PATTERN = r"^(bike|component):[0-9]{1,9}$"
 
+
+class BuilderAddRequest(BaseModel):
+    """Palette drop / Add control: create a new part of a type inside a screen's scope."""
+
+    root: str = Field(pattern=_ROOT_PATTERN)
     component_type: str
     target: str = Field(pattern=r"^(bike|component):[0-9]{1,9}$")
     before_component_id: int | None = Field(default=None, ge=1)
@@ -158,14 +162,24 @@ class BuilderAddRequest(BaseModel):
 
 
 class BuilderMoveRequest(BaseModel):
-    """Drag / Move-to / reorder: put a part on a parent (or storage), optionally before a sibling."""
+    """Drag / Move-to / Garage / re-order: put a part on a parent (or storage), optionally before
+    a sibling."""
 
+    root: str = Field(pattern=_ROOT_PATTERN)
     component_id: int = Field(ge=1)
     target: str = Field(pattern=r"^(storage|bike:[0-9]{1,9}|component:[0-9]{1,9})$")
     before_component_id: int | None = Field(default=None, ge=1)
 
     def parents(self) -> dict[str, int | None]:
         return MoveTargetRequest(target=self.target).parents()
+
+
+class BuilderDeleteRequest(BaseModel):
+    """Trash: delete a part inside a screen's scope; `confirmed` answers the in-place question."""
+
+    root: str = Field(pattern=_ROOT_PATTERN)
+    component_id: int = Field(ge=1)
+    confirmed: bool = False
 
 
 class MaintenanceLogRequest(BaseModel):

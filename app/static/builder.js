@@ -60,12 +60,9 @@
     const values = isNew
       ? { component_type: drag.type, target: drop.target, before_component_id: drop.before }
       : { component_id: drag.id, target: drop.target, before_component_id: drop.before };
-    const path = isNew ? "/build/add" : "/build/move";
-    htmx.ajax("POST", `/bikes/${builder().dataset.bikeId}${path}`, {
-      target: "#builder",
-      swap: "outerHTML",
-      values,
-    });
+    const path = isNew ? "/add" : "/move";
+    values.root = builder().dataset.root;
+    htmx.ajax("POST", `/builder${path}`, { target: "#builder", swap: "outerHTML", values });
   }
 
   document.addEventListener("dragstart", (event) => {

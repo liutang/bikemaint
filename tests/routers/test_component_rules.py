@@ -108,32 +108,6 @@ def test_changing_a_type_to_one_that_does_not_fit_is_refused(signed_in_client):
 # --- move control (the no-JS "Move to..." alternative)
 
 
-def test_component_page_has_a_move_select_with_only_valid_targets(signed_in_client):
-    bike = _bike("Road Bike")
-    wheel = _mk("Front wheel", "wheel", parent_bike_id=bike.id)
-    rim = _mk("Rim", "rim", parent_component_id=wheel.id)
-    tire = _mk("Tire", "tire")
-    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
-
-    html = signed_in_client.get(f"/components/{tire.id}").text
-
-    assert 'action="/components/%d/move"' % tire.id in html
-    assert 'name="target"' in html and "Parent bike ID" not in html
-    targets = _options(html, "target")
-    assert f"component:{rim.id}" in targets
-    assert f"component:{crank.id}" not in targets and f"bike:{bike.id}" not in targets
-    assert re.search(rf'<option value="component:{rim.id}">Road Bike › Front wheel › Rim</option>', html)
-
-
-def test_component_page_without_any_valid_target_says_so(signed_in_client):
-    pedal = _mk("Pedal", "pedal")
-
-    html = signed_in_client.get(f"/components/{pedal.id}").text
-
-    assert "No valid place to move this to" in html
-    assert 'name="target"' not in html
-
-
 def test_moving_with_the_target_field_works(signed_in_client):
     bike = _bike()
     crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)

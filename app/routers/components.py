@@ -18,6 +18,7 @@ from app.models.requests import (
     ComponentUpdateRequest,
     MoveTargetRequest,
 )
+from app.routers.screen import render_screen
 from app.services import component_service
 from app.services.auth_dependency import require_account
 from app.services.component_service import ComponentNestingConflictError
@@ -63,23 +64,8 @@ def _form_context(component, parent_bike_id, parent_component_id, extra: dict | 
     }
 
 
-def _detail_context(component, tree, extra: dict | None = None) -> dict:
-    return {
-        "component": component,
-        "tree": tree,
-        "move_targets": component_service.list_move_targets(component.id),
-        "errors": [],
-        **(extra or {}),
-    }
-
-
 def _message(exc: Exception) -> str:
     return "That place no longer exists." if isinstance(exc, LookupError) else str(exc)
-
-
-def _subtree(component) -> list[dict]:
-    descendants = component_service.get_descendants(component.id)
-    return component_service.build_tree([component], [component, *descendants])[0]["children"]
 
 
 @router.get("/components", name="components_in_storage")
@@ -140,12 +126,7 @@ async def create_component(request: Request, account=Depends(require_account)):
 
 @router.get("/components/{component_id}", name="component_detail")
 def component_detail(request: Request, component_id: int, account=Depends(require_account)):
-    component = component_service.get_component(component_id)
-    if component is None:
-        return PlainTextResponse("Component not found", status_code=404)
-    return _render(
-        request, "components/detail.html", _detail_context(component, _subtree(component))
-    )
+    return render_screen(request, f"component:{component_id}")
 
 
 @router.get("/components/{component_id}/edit", name="edit_component_form")
@@ -200,10 +181,12 @@ async def update_component(request: Request, component_id: int, account=Depends(
 
 @router.post("/components/{component_id}/move", name="move_component")
 async def move_component(request: Request, component_id: int, account=Depends(require_account)):
+    """Kept for compatibility (and plain forms); the unified screen uses `/builder/move`."""
     form = await request.form()
     existing = component_service.get_component(component_id)
     if existing is None:
         return PlainTextResponse("Component not found", status_code=404)
+    root = f"component:{component_id}"
     try:
         if "target" in form:  # the "Move to..." select
             parents = MoveTargetRequest(target=form.get("target", "")).parents()
@@ -213,27 +196,15 @@ async def move_component(request: Request, component_id: int, account=Depends(re
                 parent_component_id=_optional_int(form.get("parent_component_id")),
             ).model_dump()
     except ValidationError as exc:
-        return _render(
-            request,
-            "components/detail.html",
-            _detail_context(existing, _subtree(existing), error_context(form, exc)),
-            status_code=422,
+        return render_screen(
+            request, root, message="; ".join(e["msg"] for e in exc.errors()), status_code=422
         )
     try:
         component = component_service.move_component(component_id, **parents)
     except (ComponentNestingConflictError, ValueError, LookupError) as exc:
-        return _render(
-            request,
-            "components/detail.html",
-            _detail_context(
-                existing, _subtree(existing), message_context(form, _message(exc))
-            ),
-            status_code=422,
-        )
+        return render_screen(request, root, message=_message(exc), status_code=422)
     if request.headers.get("hx-request") == "true":
-        return _render(
-            request, "components/detail.html", _detail_context(component, _subtree(component))
-        )
+        return render_screen(request, f"component:{component.id}")
     return RedirectResponse(url=f"/components/{component.id}", status_code=303)
 
 

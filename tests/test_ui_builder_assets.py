@@ -27,7 +27,7 @@ def test_script_is_small_hand_written_and_dependency_free():
 
 
 def test_script_talks_only_to_the_builder_endpoints_through_htmx():
-    assert "/build/move" in JS and "/build/add" in JS
+    assert "/builder" in JS and "/move" in JS and "/add" in JS
     assert "htmx.ajax" in JS
     assert "htmx:beforeSwap" in JS  # lets 422 reasons replace the builder instead of being dropped
     assert "fetch(" not in JS and "XMLHttpRequest" not in JS
@@ -36,16 +36,16 @@ def test_script_talks_only_to_the_builder_endpoints_through_htmx():
 def test_every_data_attribute_the_script_reads_is_emitted_by_the_builder_markup(signed_in_client):
     bike = bike_service.create_bike(name="Road")
     wheel = component_service.create_component(name="W", component_type="wheel", parent_bike_id=bike.id)
-    component_service.create_component(name="S", component_type="spoke", parent_component_id=wheel.id)
+    component_service.create_component(name="T", component_type="tire", parent_component_id=wheel.id)
     component_service.create_component(name="Spare", component_type="saddle")
-    html = signed_in_client.get(f"/bikes/{bike.id}/build").text
+    html = signed_in_client.get(f"/bikes/{bike.id}").text
 
     def attr(name):  # dataset.fooBar -> data-foo-bar
         return "data-" + re.sub(r"([A-Z])", lambda m: "-" + m.group(1).lower(), name)
 
     read = {attr(n) for n in re.findall(r"dataset\.([A-Za-z]+)", JS)}
     assert {"data-source", "data-id", "data-type", "data-ref", "data-parent-ref", "data-accepts",
-            "data-bike-id"} <= read
+            "data-root"} <= read
     for name in read:
         assert f'{name}="' in html, f"markup never emits {name}"
 
@@ -69,3 +69,21 @@ def test_drag_handles_and_controls_meet_the_tap_target_size():
     css = (STATIC / "styles.css").read_text()
     rule = re.search(r"\.btn-icon\s*\{([^}]*)\}", css)
     assert rule and "min-width: var(--tap-min)" in rule.group(1)
+
+
+def test_breadcrumb_and_part_action_styles_exist_and_wrap_on_small_screens():
+    css = (STATIC / "styles.css").read_text()
+    assert ".breadcrumb" in css and ".breadcrumb li[aria-current" in css
+    assert re.search(r"\.breadcrumb ol\s*\{[^}]*flex-wrap: wrap", css, re.S)
+    assert ".part-actions" in css
+
+
+def test_breadcrumb_markup_is_an_ordered_list_with_the_current_page_marked(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="W", component_type="wheel", parent_bike_id=bike.id)
+
+    html = signed_in_client.get(f"/components/{wheel.id}").text
+
+    nav = re.search(r'<nav class="breadcrumb" aria-label="Breadcrumb">\s*<ol>.*?</ol>\s*</nav>', html, re.S).group(0)
+    assert nav.count("<li") == 3 and nav.count('aria-current="page"') == 1
+    assert nav.rstrip().endswith("</nav>")

@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from app.models.requests import BIKE_CATEGORIES, BikeDetailsRequest
 from app.models.form_errors import error_context, message_context
 from app.services import bike_service, component_service, strava_client
+from app.routers.screen import render_screen
 from app.services.auth_dependency import require_account
 
 router = APIRouter()
@@ -115,13 +116,13 @@ async def create_bike(request: Request, account=Depends(require_account)):
 
 @router.get("/bikes/{bike_id}", name="bike_detail")
 def bike_detail(request: Request, bike_id: int, account=Depends(require_account)):
-    bike = bike_service.get_bike(bike_id)
-    if bike is None:
-        return PlainTextResponse("Bike not found", status_code=404)
-    all_components = component_service.get_tree_for_bike(bike_id)
-    top_level = [c for c in all_components if c.parent_bike_id == bike_id]
-    tree = component_service.build_tree(top_level, all_components)
-    return _render(request, "bikes/detail.html", {"bike": bike, "tree": tree})
+    return render_screen(request, f"bike:{bike_id}")
+
+
+@router.get("/bikes/{bike_id}/build", name="bike_builder_redirect")
+def bike_builder_redirect(bike_id: int, account=Depends(require_account)):
+    """The separate build screen is gone; old links land on the unified bike screen."""
+    return RedirectResponse(url=f"/bikes/{bike_id}", status_code=303)
 
 
 @router.get("/bikes/{bike_id}/edit", name="edit_bike_form")

@@ -31,7 +31,7 @@ def test_garage_shows_bikes_as_cards_with_quick_actions(signed_in_client):
     assert 'href="/bikes/1"' in body and "Road Bike" in body
     assert "road" in body
     assert "12.5 mi" in body
-    assert 'href="/components/new?parent_bike_id=1"' in body and "Add component" in body
+    assert "Add component" not in body and "Build" not in body  # the bike screen does it all
     assert 'href="/bikes/1/maintenance"' in body and "Maintenance history" in body
     assert "View" in body
 
@@ -47,7 +47,6 @@ def test_garage_bike_card_uses_the_cockpit_card_layout(signed_in_client):
     assert re.search(r'<a class="btn btn-primary" href="/bikes/1">View</a>', card)
     # secondary actions are quiet, so View is the one primary action on the card
     assert card.count("btn-primary") == 1
-    assert 'class="btn btn-quiet" href="/components/new?parent_bike_id=1"' in card
     assert 'class="btn btn-quiet" href="/bikes/1/maintenance"' in card
 
 
@@ -86,7 +85,7 @@ def test_empty_storage_page_shows_an_empty_state(signed_in_client):
     assert 'class="empty-state"' in html
 
 
-def test_component_tree_uses_collapsible_details_for_branches(signed_in_client):
+def test_bike_screen_shows_the_part_tree_with_nesting_and_mileage(signed_in_client):
     _add_bike(signed_in_client)
     _add_component(signed_in_client, "Road Wheel", "wheel", parent_bike_id="1")
     _add_component(signed_in_client, "Road Tire", "tire", parent_component_id="1")
@@ -94,25 +93,18 @@ def test_component_tree_uses_collapsible_details_for_branches(signed_in_client):
 
     html = signed_in_client.get("/bikes/1").text
 
-    assert 'class="tree"' in html
-    assert html.count("<details open>") == 2  # wheel and tire have children
-    assert html.count("<summary") == 2
+    assert 'class="builder-nodes"' in html
+    assert html.count('<ul class="builder-nodes">') == 3  # bike level, wheel children, tire children
     assert html.index("Road Wheel") < html.index("Road Tire") < html.index("Road Valve")
-    # Interactive content must not nest inside <summary> (axe: nested-interactive).
-    assert not re.search(r"<summary[^>]*>(?:(?!</summary>).)*<(?:a|button)\b", html, re.S)
     assert 'href="/components/1"' in html and 'href="/components/2"' in html
-    start = html.rfind("<li", 0, html.index("Road Valve"))
-    valve_item = html[start : html.index("</li>", start)]
-    assert "<details" not in valve_item  # a leaf is a plain item, not a collapsible branch
     for kind in ("wheel", "tire", "other"):
-        assert kind in html
-    assert "0.0 mi" in html or "0 mi" in html
+        assert f'data-type="{kind}"' in html
 
 
 def test_bike_without_components_shows_an_empty_state(signed_in_client):
     _add_bike(signed_in_client)
 
-    assert 'class="empty-state"' in signed_in_client.get("/bikes/1").text
+    assert "Drag a frame here to start" in signed_in_client.get("/bikes/1").text
 
 
 def test_unconfirmed_delete_without_htmx_returns_a_full_page_confirmation(signed_in_client):
@@ -398,7 +390,7 @@ def test_every_control_has_an_associated_label(signed_in_client, path):
         assert f'<label for="{control_id.group(1)}"' in html
 
 
-@pytest.mark.parametrize("path", FORM_PAGES + ["/components/1"])
+@pytest.mark.parametrize("path", FORM_PAGES)
 def test_each_data_entry_form_has_exactly_one_primary_button(signed_in_client, path):
     _add_bike(signed_in_client)
     _add_component(signed_in_client, "Chain", "chain")

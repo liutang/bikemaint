@@ -45,6 +45,8 @@ class DueItem:
     owner_name: str
     projection: Projection
     status: str  # overdue | due_soon | on_track | no_estimate (see `due_status`)
+    days_until: int | None = None  # days to the projected date; negative = days late
+    ring: float = 0.0  # progress-ring fill, 0..1 (see `ring_fraction`)
 
 
 DEFAULT_LEAD_TIME_DAYS = 7
@@ -62,6 +64,53 @@ def due_status(projection: Projection, lead_time_days: int, today: date) -> str:
     if (projection.due_at - today).days <= lead_time_days:
         return "due_soon"
     return "on_track"
+
+
+URGENT_STATUSES = ("overdue", "due_soon")
+MAX_URGENT_TILES = 6
+RING_FLOOR = 0.08  # a due-soon ring always shows at least a sliver of arc
+
+
+def ring_fraction(status: str, days_until: int | None, lead_time_days: int) -> float:
+    """How full a task's progress ring is: overdue is full, due soon grows as the date nears."""
+    if status == "overdue":
+        return 1.0
+    if status != "due_soon":
+        return 0.0
+    if days_until is None or days_until <= 0 or lead_time_days <= 0:
+        return 1.0
+    return min(1.0, max(RING_FLOOR, 1 - days_until / lead_time_days))
+
+
+@dataclass(frozen=True)
+class Attention:
+    shown: list[DueItem]  # urgent cards to display, most urgent first
+    overflow_count: int  # urgent tasks collapsed into the "+N more" tile
+    urgent_total: int
+    others: list[DueItem]  # on track / no estimate, for the compact list
+
+
+def split_attention(
+    items: list[DueItem], *, show_all: bool = False, limit: int = MAX_URGENT_TILES
+) -> Attention:
+    """Split the overview into urgent cards (capped at `limit` tiles) and everything else."""
+    overdue = sorted(
+        (i for i in items if i.status == "overdue"),
+        key=lambda i: (min(i.days_until or 0, 0), i.schedule.id),
+    )
+    due_soon = sorted(
+        (i for i in items if i.status == "due_soon"),
+        key=lambda i: (i.days_until if i.days_until is not None else 0, i.schedule.id),
+    )
+    urgent = overdue + due_soon
+    others = sorted(
+        (i for i in items if i.status not in URGENT_STATUSES),
+        key=lambda i: (i.days_until is None, i.days_until or 0, i.schedule.id),
+    )
+    if show_all or len(urgent) <= limit:
+        return Attention(urgent, 0, len(urgent), others)
+    shown = urgent[: limit - 1]
+    return Attention(shown, len(urgent) - len(shown), len(urgent), others)
 
 
 def _today(today: date | None) -> date:
@@ -246,13 +295,17 @@ def _due_item(
     if owner is None:
         return None  # the bike/component was deleted; nothing to project
     projection = _project(conn, schedule, today)
+    status = due_status(projection, lead_time_days, today)
+    days_until = (projection.due_at - today).days if projection.due_at is not None else None
     return DueItem(
         schedule=schedule,
         owner_type="bike" if schedule.bike_id is not None else "component",
         owner_id=owner.id,
         owner_name=owner.name,
         projection=projection,
-        status=due_status(projection, lead_time_days, today),
+        status=status,
+        days_until=days_until,
+        ring=ring_fraction(status, days_until, lead_time_days),
     )
 
 

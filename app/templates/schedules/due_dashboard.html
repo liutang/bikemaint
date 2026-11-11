@@ -1,10 +1,10 @@
 {% extends "layout.html" %}
 
-{% block title %}Maintenance due — Bike Maintenance Tracker{% endblock %}
+{% block title %}What needs attention — Bike Maintenance Tracker{% endblock %}
 
 {% block content %}
 <div class="page-head">
-  <h1>Maintenance due</h1>
+  <h1>What needs attention</h1>
 </div>
 
 {% if alerts %}
@@ -33,24 +33,7 @@
 {% endif %}
 
 {% if items %}
-<div class="table-responsive">
-  <table>
-    <thead>
-      <tr>
-        <th scope="col">Item</th>
-        <th scope="col">Status</th>
-        <th scope="col">Projected due</th>
-        <th scope="col">Remaining</th>
-        <th scope="col">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in items %}
-      {% include "partials/due_soon_row.html" %}
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+{% include "partials/attention_board.html" %}
 {% else %}
 <div class="empty-state">
   <p class="empty-title">No maintenance schedules yet</p>

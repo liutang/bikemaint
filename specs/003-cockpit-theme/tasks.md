@@ -72,17 +72,17 @@ Single project; existing `app/` and `tests/` layout. Plain CSS in `app/static/st
 
 ### Tests (first)
 
-- [ ] T010 [P] [US2] Add `tests/services/test_attention.py` covering `days_until`, `ring_fraction` (overdue 1.0, floor 0.08, clamped), `split_attention` ordering (overdue most-late first, then due-soon soonest first), cap (6 → 6 cards no overflow, 7 → 5 + 2), `show_all`, and that no-estimate/on-track items are never urgent
-- [ ] T011 [P] [US2] Add `tests/test_ui_attention.py`: page title "What needs attention", ring `role="img"` with aria-label text ("Overdue by 30 days", "Due in 4 days"), visible "30d"/"late" and "4d"/"left", "+2 more tasks" tile and `?all=1` link at 7 urgent, `?all=1` shows all, 2-3 urgent use `cols-2`, 4+ use `cols-3`, other tasks in the compact list with badges, all-clear and no-schedules empty states, an overdue-by-mileage item with no date shows "Late"
-- [ ] T012 [US2] Update HTMX tests in `tests/test_ui_pages.py` (the single-`<tr>` assertions) to expect the re-rendered `#attention` board from `POST /schedules/{id}/complete`, a hidden `all` field preserved, and the non-HTMX redirect unchanged
+- [X] T010 [P] [US2] Add `tests/services/test_attention.py` covering `days_until`, `ring_fraction` (overdue 1.0, floor 0.08, clamped), `split_attention` ordering (overdue most-late first, then due-soon soonest first), cap (6 → 6 cards no overflow, 7 → 5 + 2), `show_all`, and that no-estimate/on-track items are never urgent
+- [X] T011 [P] [US2] Add `tests/test_ui_attention.py`: page title "What needs attention", ring `role="img"` with aria-label text ("Overdue by 30 days", "Due in 4 days"), visible "30d"/"late" and "4d"/"left", "+2 more tasks" tile and `?all=1` link at 7 urgent, `?all=1` shows all, 2-3 urgent use `cols-2`, 4+ use `cols-3`, other tasks in the compact list with badges, all-clear and no-schedules empty states, an overdue-by-mileage item with no date shows "Late"
+- [X] T012 [US2] Update HTMX tests in `tests/test_ui_pages.py` (the single-`<tr>` assertions) to expect the re-rendered `#attention` board from `POST /schedules/{id}/complete`, a hidden `all` field preserved, and the non-HTMX redirect unchanged
 
 ### Implementation
 
-- [ ] T013 [US2] Add `days_until` to `DueItem`, plus pure helpers `ring_fraction` and `split_attention` in `app/services/schedule_service.py`
-- [ ] T014 [P] [US2] Add ring, `arrow_right`/needed icons to `app/templates/partials/icons.html` and the `ring` macro in new `app/templates/partials/ring.html`
-- [ ] T015 [US2] Create `app/templates/partials/attention_board.html`, `attention_card.html` and `other_row.html`; rewrite `app/templates/schedules/due_dashboard.html` as "What needs attention" (alerts stay above; remove `due_soon_row.html` once unused)
-- [ ] T016 [US2] Update `app/routers/schedules.py`: parse the boolean `all` query flag with a validated model, call `split_attention`, pass board context; HTMX complete returns the board partial
-- [ ] T017 [US2] Add attention-grid, card, ring, overflow tile, other-list and all-clear styles to `app/static/styles.css` (2/3/1 column rules, 44 px targets, reduced-motion safe)
+- [X] T013 [US2] Add `days_until` to `DueItem`, plus pure helpers `ring_fraction` and `split_attention` in `app/services/schedule_service.py`
+- [X] T014 [P] [US2] Add ring, `arrow_right`/needed icons to `app/templates/partials/icons.html` and the `ring` macro in new `app/templates/partials/ring.html`
+- [X] T015 [US2] Create `app/templates/partials/attention_board.html`, `attention_card.html` and `other_row.html`; rewrite `app/templates/schedules/due_dashboard.html` as "What needs attention" (alerts stay above; remove `due_soon_row.html` once unused)
+- [X] T016 [US2] Update `app/routers/schedules.py`: parse the boolean `all` query flag with a validated model, call `split_attention`, pass board context; HTMX complete returns the board partial
+- [X] T017 [US2] Add attention-grid, card, ring, overflow tile, other-list and all-clear styles to `app/static/styles.css` (2/3/1 column rules, 44 px targets, reduced-motion safe)
 
 **Checkpoint**: US2 complete.
 

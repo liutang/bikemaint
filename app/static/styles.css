@@ -870,6 +870,260 @@ input[type="checkbox"] {
   font-weight: 700;
 }
 
+/* ---------- Attention board ("What needs attention") ---------- */
+.attention-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: var(--space-5);
+}
+
+.attention-grid.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.attention-card,
+.attention-more {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.attention-card.status-overdue {
+  border-color: var(--ring-overdue);
+}
+
+.attention-card.status-soon {
+  border-color: var(--ring-soon);
+}
+
+.attention-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.attention-text {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  min-width: 0;
+}
+
+.attention-title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.attention-meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.attention-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  margin-top: auto;
+}
+
+.attention-actions .btn:first-child {
+  flex: 1 1 auto;
+}
+
+.ring-wrap {
+  position: relative;
+  flex: none;
+  width: 6rem;
+  height: 6rem;
+}
+
+.cols-3 .ring-wrap {
+  width: 4.5rem;
+  height: 4.5rem;
+}
+
+.ring {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ring-track {
+  stroke: var(--ring-track);
+}
+
+.ring-progress {
+  stroke: var(--ring-ok);
+}
+
+.status-overdue .ring-progress {
+  stroke: var(--ring-overdue);
+}
+
+.status-soon .ring-progress {
+  stroke: var(--ring-soon);
+}
+
+.ring-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+  font-family: var(--font-display);
+}
+
+.ring-value {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.status-overdue .ring-value {
+  color: var(--badge-overdue-fg);
+}
+
+.status-soon .ring-value {
+  color: var(--badge-soon-fg);
+}
+
+.ring-caption {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.cols-3 .ring-value {
+  font-size: 1rem;
+}
+
+.attention-more {
+  justify-content: center;
+  border-style: dashed;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.attention-more:hover {
+  background: var(--surface-2);
+}
+
+.attention-more-count {
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.attention-more-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--link);
+  font-weight: 600;
+}
+
+.attention-more-cta .icon {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.attention-collapse {
+  margin: calc(var(--space-3) * -1) 0 var(--space-5);
+}
+
+.all-clear {
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--success);
+  border-radius: var(--radius-sm);
+}
+
+.section-title {
+  margin-top: var(--space-5);
+}
+
+.other-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.other-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.other-row:last-child {
+  border-bottom: 0;
+}
+
+.other-main {
+  display: grid;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.other-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.other-when {
+  display: grid;
+  min-width: 8rem;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.other-actions {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+@media (max-width: 64rem) {
+  .attention-grid.cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 40rem) {
+  .attention-grid,
+  .attention-grid.cols-3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cols-3 .ring-wrap {
+    width: 6rem;
+    height: 6rem;
+  }
+
+  .cols-3 .ring-value {
+    font-size: var(--font-size-lg);
+  }
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   *,

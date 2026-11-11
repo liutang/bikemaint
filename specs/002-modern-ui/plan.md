@@ -97,8 +97,7 @@ app/
 │       ├── badges.html            # new: status badge macro
 │       ├── bike_row.html          # restyled as a card
 │       ├── component_tree.html    # restyled with <details>/<summary>
-│       ├── confirm_delete.html, due_soon_row.html, stale_connection_banner.html  # restyled
-│       └── acknowledged alert handling lives in due_dashboard.html
+│       └── confirm_delete.html, due_soon_row.html, stale_connection_banner.html  # restyled
 ├── models/form_errors.py          # new: ValidationError -> {field: message}
 ├── services/schedule_service.py   # + due_status(): overdue / due_soon / on_track / no_estimate
 └── routers/                       # context additions only (field_errors, values, lead time);

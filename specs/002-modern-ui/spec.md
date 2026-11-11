@@ -95,7 +95,7 @@ As the rider, I want every form (bike, component, move, maintenance entry, sched
 - **FR-002**: The application MUST use a single consistent visual system (colors, type scale, spacing, corner radii, shadows) defined once and reused by every page.
 - **FR-003**: The application MUST automatically follow the rider's operating-system light or dark preference, including changes made while the app is open, without a manual toggle.
 - **FR-004**: All pages MUST be usable on screens from phone width (about 360 px) to wide desktop, with no horizontal page scrolling, readable text, and tap targets of at least 44 px on touch devices.
-- **FR-005**: Bikes MUST be presented as cards showing name, type, total mileage and quick actions; components in storage MUST be presented in a clearly labeled, similarly styled section.
+- **FR-005**: Bikes MUST be presented as cards showing name, type, total mileage and quick actions (view, add component, maintenance history); components in storage MUST be presented in a clearly labeled, similarly styled section.
 - **FR-006**: A bike's or component's nested components MUST be presented as a visually indented tree showing each item's type and mileage, in which any branch can be collapsed and expanded in place.
 - **FR-007**: The due-soon dashboard MUST present each schedule with its owner, projected date, remaining mileage and a status badge for overdue, due soon, on track, or low-confidence, where status is conveyed by text or icon in addition to color.
 - **FR-008**: Marking a schedule done, dismissing an in-app alert, and confirming a delete MUST update the affected part of the page in place wherever the application already supports partial updates, falling back to normal navigation when they are unavailable.
@@ -118,7 +118,7 @@ This feature changes presentation only and introduces no new data entities.
 - **SC-001**: On a first load over a typical home broadband connection, every page becomes fully styled and usable in under 1 second, with the total styling and script assets for any page under 150 KB.
 - **SC-002**: A rider can reach Garage, Maintenance due and Settings from any page in a single click or tap.
 - **SC-003**: Every page is fully usable at 360 px width with zero horizontal page scrolling.
-- **SC-004**: Text and interactive-element contrast meets WCAG 2.1 AA in both light and dark themes on every page, verified by an automated accessibility check with no critical violations.
+- **SC-004**: Text and interactive-element contrast meets WCAG 2.1 AA in both light and dark themes on every page, verified by automated contrast and markup checks plus an accessibility-scanner run with no critical or serious violations.
 - **SC-005**: A rider can identify which maintenance items are overdue within 5 seconds of opening the dashboard, without relying on color perception.
 - **SC-006**: Marking a schedule done updates the dashboard row with no full-page reload.
 - **SC-007**: The existing automated test suite passes with no behavioral test changes, and no stored data, route or form field changes.

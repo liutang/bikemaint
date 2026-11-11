@@ -37,6 +37,7 @@ def upsert_ride_activity(
             occurred_at = excluded.occurred_at,
             is_deleted_upstream = 0,
             synced_at = excluded.synced_at
+        WHERE ride_activity.user_modified = 0 AND ride_activity.deleted_by_user = 0
         """,
         (strava_activity_id, strava_gear_id, bike_id, distance_miles, occurred_at, now),
     )
@@ -46,13 +47,91 @@ def upsert_ride_activity(
     return RideActivity.from_row(row)
 
 
+def get_ride(conn: sqlite3.Connection, ride_id: int) -> RideActivity | None:
+    row = conn.execute("SELECT * FROM ride_activity WHERE id = ?", (ride_id,)).fetchone()
+    return RideActivity.from_row(row) if row else None
+
+
+def create_manual_ride(
+    conn: sqlite3.Connection,
+    *,
+    bike_id: int,
+    distance_miles: float,
+    occurred_at: str,
+    note: str | None,
+) -> RideActivity:
+    """A ride the rider added by hand (not tracked on Strava)."""
+    cursor = conn.execute(
+        """
+        INSERT INTO ride_activity (source, bike_id, distance_miles, occurred_at, note, user_modified)
+        VALUES ('manual', ?, ?, ?, ?, 1)
+        """,
+        (bike_id, distance_miles, occurred_at, note),
+    )
+    ride = get_ride(conn, cursor.lastrowid)
+    assert ride is not None
+    return ride
+
+
+def update_ride(
+    conn: sqlite3.Connection,
+    ride_id: int,
+    *,
+    bike_id: int,
+    distance_miles: float,
+    occurred_at: str,
+    note: str | None,
+) -> RideActivity:
+    """Edit a ride (miles, time, bike, note). Marks it so Strava sync never overwrites it."""
+    conn.execute(
+        """
+        UPDATE ride_activity
+        SET bike_id = ?, distance_miles = ?, occurred_at = ?, note = ?, user_modified = 1
+        WHERE id = ?
+        """,
+        (bike_id, distance_miles, occurred_at, note, ride_id),
+    )
+    ride = get_ride(conn, ride_id)
+    assert ride is not None
+    return ride
+
+
+def delete_ride(conn: sqlite3.Connection, ride_id: int) -> None:
+    """Remove a ride. A Strava ride is kept as a tombstone so the next sync cannot restore it."""
+    ride = get_ride(conn, ride_id)
+    if ride is None:
+        return
+    if ride.source == "manual":
+        conn.execute("DELETE FROM ride_activity WHERE id = ?", (ride_id,))
+    else:
+        conn.execute(
+            "UPDATE ride_activity SET deleted_by_user = 1, user_modified = 1 WHERE id = ?",
+            (ride_id,),
+        )
+
+
+def list_rides_for_bike(conn: sqlite3.Connection, bike_id: int) -> list[RideActivity]:
+    """A bike's live rides, oldest first (deleted ones are excluded)."""
+    rows = conn.execute(
+        """
+        SELECT * FROM ride_activity
+        WHERE bike_id = ? AND is_deleted_upstream = 0 AND deleted_by_user = 0
+        ORDER BY occurred_at, id
+        """,
+        (bike_id,),
+    ).fetchall()
+    return [RideActivity.from_row(row) for row in rows]
+
+
 def latest_ride_epoch(conn: sqlite3.Connection) -> int | None:
     """The Unix-epoch `occurred_at` of the most recently synced ride, or None if none yet.
 
     Used as the `after` cursor for an incremental sync (research.md §7) — there's no
     stored cursor column in data-model.md's `account` table, so it's derived instead.
     """
-    row = conn.execute("SELECT MAX(occurred_at) AS latest FROM ride_activity").fetchone()
+    row = conn.execute(
+        "SELECT MAX(occurred_at) AS latest FROM ride_activity WHERE source = 'strava'"
+    ).fetchone()
     if row is None or row["latest"] is None:
         return None
     dt = datetime.strptime(row["latest"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)
@@ -97,7 +176,7 @@ def recompute_bike_total_mileage(conn: sqlite3.Connection, bike_id: int) -> floa
     rides = conn.execute(
         """
         SELECT COALESCE(SUM(distance_miles), 0) AS total FROM ride_activity
-        WHERE bike_id = ? AND is_deleted_upstream = 0
+        WHERE bike_id = ? AND is_deleted_upstream = 0 AND deleted_by_user = 0
         """,
         (bike_id,),
     ).fetchone()["total"]
@@ -132,6 +211,7 @@ def recompute_component_total_mileage(conn: sqlite3.Connection, component_id: in
               OR ride_activity.occurred_at < component_installation_period.removed_at)
         WHERE component_installation_period.component_id = ?
           AND ride_activity.is_deleted_upstream = 0
+          AND ride_activity.deleted_by_user = 0
         """,
         (component_id,),
     ).fetchone()["total"]
@@ -147,6 +227,59 @@ def recompute_component_total_mileage(conn: sqlite3.Connection, component_id: in
     return total
 
 
+def list_rides_for_component(conn: sqlite3.Connection, component_id: int) -> list[RideActivity]:
+    """Live rides that happened while `component_id` was installed on a bike (oldest first)."""
+    rows = conn.execute(
+        """
+        SELECT DISTINCT ride_activity.*
+        FROM component_installation_period AS period
+        JOIN ride_activity
+          ON ride_activity.bike_id = period.parent_bike_id
+         AND ride_activity.occurred_at >= period.installed_at
+         AND (period.removed_at IS NULL OR ride_activity.occurred_at < period.removed_at)
+        WHERE period.component_id = ?
+          AND ride_activity.is_deleted_upstream = 0
+          AND ride_activity.deleted_by_user = 0
+        ORDER BY ride_activity.occurred_at, ride_activity.id
+        """,
+        (component_id,),
+    ).fetchall()
+    return [RideActivity.from_row(row) for row in rows]
+
+
+def list_adjustments(
+    conn: sqlite3.Connection, *, bike_id: int | None = None, component_id: int | None = None
+) -> list[MileageAdjustment]:
+    """Manual mileage corrections for a bike or a component, oldest first."""
+    if bike_id is not None:
+        rows = conn.execute(
+            "SELECT * FROM mileage_adjustment WHERE bike_id = ? ORDER BY created_at, id", (bike_id,)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM mileage_adjustment WHERE component_id = ? ORDER BY created_at, id",
+            (component_id,),
+        ).fetchall()
+    return [MileageAdjustment.from_row(row) for row in rows]
+
+
+def component_ids_with_history_on(conn: sqlite3.Connection, bike_ids: set[int]) -> list[int]:
+    """Live components that are, or ever were, installed on any of these bikes."""
+    if not bike_ids:
+        return []
+    marks = ",".join("?" for _ in bike_ids)
+    rows = conn.execute(
+        f"""
+        SELECT DISTINCT period.component_id AS id
+        FROM component_installation_period AS period
+        JOIN component ON component.id = period.component_id AND component.is_deleted = 0
+        WHERE period.parent_bike_id IN ({marks})
+        """,
+        tuple(sorted(bike_ids)),
+    ).fetchall()
+    return [row["id"] for row in rows]
+
+
 def recent_ride_stats_for_bike(conn: sqlite3.Connection, bike_id: int, *, since: str) -> tuple[float, int]:
     """(total miles, number of distinct ride days) for `bike_id` since the `since` timestamp.
 
@@ -157,7 +290,7 @@ def recent_ride_stats_for_bike(conn: sqlite3.Connection, bike_id: int, *, since:
         SELECT COALESCE(SUM(distance_miles), 0) AS miles,
                COUNT(DISTINCT substr(occurred_at, 1, 10)) AS ride_days
         FROM ride_activity
-        WHERE bike_id = ? AND is_deleted_upstream = 0 AND occurred_at >= ?
+        WHERE bike_id = ? AND is_deleted_upstream = 0 AND deleted_by_user = 0 AND occurred_at >= ?
         """,
         (bike_id, since),
     ).fetchone()

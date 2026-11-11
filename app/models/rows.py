@@ -131,24 +131,32 @@ class ComponentInstallationPeriod:
 @dataclass(frozen=True)
 class RideActivity:
     id: int
-    strava_activity_id: int
+    source: str  # "strava" or "manual"
+    strava_activity_id: int | None
     strava_gear_id: str | None
     bike_id: int | None
     distance_miles: float
     occurred_at: str
+    note: str | None
     is_deleted_upstream: bool
-    synced_at: str
+    deleted_by_user: bool
+    user_modified: bool
+    synced_at: str | None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> RideActivity:
         return cls(
             id=row["id"],
+            source=row["source"],
             strava_activity_id=row["strava_activity_id"],
             strava_gear_id=row["strava_gear_id"],
             bike_id=row["bike_id"],
             distance_miles=row["distance_miles"],
             occurred_at=row["occurred_at"],
+            note=row["note"],
             is_deleted_upstream=bool(row["is_deleted_upstream"]),
+            deleted_by_user=bool(row["deleted_by_user"]),
+            user_modified=bool(row["user_modified"]),
             synced_at=row["synced_at"],
         )
 

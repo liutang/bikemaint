@@ -110,6 +110,12 @@ stylesheet, `app/static/styles.css`, with no framework and no build step (consti
   work you log; system-recorded times are shown in your local time (`app/static/localtime.js`).
   **Mark done** confirms itself, shows the next due date, and ignores accidental double clicks.
 
+- **Ride log:** every bike has a **Rides** screen that starts from its starting mileage and adds Strava
+  rides; you can add manual rides, edit miles/date/time, re-assign a ride to another bike, or delete it
+  (Strava sync never undoes your edits or deletions). Mileage of the bikes involved and of every part that
+  was ever installed on them is recomputed after each change. A part's **Rides** is a read-only view of the
+  rides while it was installed. Code: `app/services/ride_service.py`, `app/routers/rides.py`.
+
 ## Running in Docker
 
 ```bash

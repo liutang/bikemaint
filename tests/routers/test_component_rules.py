@@ -1,0 +1,205 @@
+"""Placement rules through the existing forms and routes (specs/004-bike-builder, M2)."""
+
+import re
+
+import pytest
+
+from app.services import bike_service, component_service
+
+
+def _bike(name="Road Bike"):
+    return bike_service.create_bike(name=name)
+
+
+def _mk(name, component_type, **parent):
+    return component_service.create_component(name=name, component_type=component_type, **parent)
+
+
+def _options(html, select_id):
+    block = re.search(rf'<select id="{select_id}".*?</select>', html, re.S).group(0)
+    return re.findall(r'<option value="([^"]*)"', block)
+
+
+# --- create form
+
+
+def test_creating_a_pedal_on_a_wheel_is_refused_with_a_clear_message(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    response = signed_in_client.post(
+        "/components",
+        data={"name": "Pedal", "component_type": "pedal", "parent_component_id": str(wheel.id)},
+    )
+
+    assert response.status_code == 422
+    assert "A pedal can be mounted on a crankset, not on a wheel." in response.text
+    assert component_service.get_descendants(wheel.id) == []
+
+
+def test_creating_a_tire_on_a_rim_works(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    rim = _mk("Rim", "rim", parent_component_id=wheel.id)
+
+    response = signed_in_client.post(
+        "/components",
+        data={"name": "Tire", "component_type": "tire", "parent_component_id": str(rim.id)},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+
+
+def test_add_form_under_a_wheel_offers_only_types_that_fit_a_wheel(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    html = signed_in_client.get(f"/components/new?parent_component_id={wheel.id}").text
+
+    types = _options(html, "component_type")
+    assert {"hub", "rim", "spoke", "bolt", "other"} == set(types)
+    assert "pedal" not in types and "tire" not in types
+
+
+def test_add_form_under_a_bike_offers_bike_level_parts_only(signed_in_client):
+    bike = _bike()
+
+    types = _options(signed_in_client.get(f"/components/new?parent_bike_id={bike.id}").text, "component_type")
+
+    assert {"frame", "fork", "wheel", "crankset"} <= set(types)
+    assert "tire" not in types and "pedal" not in types
+
+
+def test_add_form_for_storage_offers_every_type(signed_in_client):
+    types = _options(signed_in_client.get("/components/new").text, "component_type")
+
+    assert "pedal" in types and "tire" in types and "frame" in types
+
+
+def test_failed_create_keeps_the_filtered_type_list(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    response = signed_in_client.post(
+        "/components",
+        data={"name": "Pedal", "component_type": "pedal", "parent_component_id": str(wheel.id)},
+    )
+
+    assert "pedal" not in _options(response.text, "component_type")
+
+
+# --- edit form
+
+
+def test_changing_a_type_to_one_that_does_not_fit_is_refused(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    hub = _mk("Hub", "hub", parent_component_id=wheel.id)
+
+    response = signed_in_client.post(
+        f"/components/{hub.id}",
+        data={"name": "Hub", "component_type": "saddle", "manual_baseline_mileage": "0"},
+    )
+
+    assert response.status_code == 422
+    assert "A saddle can be mounted on the bike, not on a wheel." in response.text
+
+
+# --- move control (the no-JS "Move to..." alternative)
+
+
+def test_component_page_has_a_move_select_with_only_valid_targets(signed_in_client):
+    bike = _bike("Road Bike")
+    wheel = _mk("Front wheel", "wheel", parent_bike_id=bike.id)
+    rim = _mk("Rim", "rim", parent_component_id=wheel.id)
+    tire = _mk("Tire", "tire")
+    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
+
+    html = signed_in_client.get(f"/components/{tire.id}").text
+
+    assert 'action="/components/%d/move"' % tire.id in html
+    assert 'name="target"' in html and "Parent bike ID" not in html
+    targets = _options(html, "target")
+    assert f"component:{rim.id}" in targets
+    assert f"component:{crank.id}" not in targets and f"bike:{bike.id}" not in targets
+    assert re.search(rf'<option value="component:{rim.id}">Road Bike › Front wheel › Rim</option>', html)
+
+
+def test_component_page_without_any_valid_target_says_so(signed_in_client):
+    pedal = _mk("Pedal", "pedal")
+
+    html = signed_in_client.get(f"/components/{pedal.id}").text
+
+    assert "No valid place to move this to" in html
+    assert 'name="target"' not in html
+
+
+def test_moving_with_the_target_field_works(signed_in_client):
+    bike = _bike()
+    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
+    pedal = _mk("Pedal", "pedal")
+
+    response = signed_in_client.post(
+        f"/components/{pedal.id}/move", data={"target": f"component:{crank.id}"}, follow_redirects=False
+    )
+
+    assert response.status_code == 303
+    assert component_service.get_component(pedal.id).parent_component_id == crank.id
+
+
+def test_moving_to_storage_with_the_target_field_works(signed_in_client):
+    bike = _bike()
+    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
+    pedal = _mk("Pedal", "pedal", parent_component_id=crank.id)
+
+    signed_in_client.post(f"/components/{pedal.id}/move", data={"target": "storage"})
+
+    assert component_service.get_component(pedal.id).parent_component_id is None
+
+
+def test_moving_to_an_invalid_target_is_refused_with_the_rule_message(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    pedal = _mk("Pedal", "pedal")
+
+    response = signed_in_client.post(
+        f"/components/{pedal.id}/move", data={"target": f"component:{wheel.id}"}
+    )
+
+    assert response.status_code == 422
+    assert "A pedal can be mounted on a crankset, not on a wheel." in response.text
+    assert component_service.get_component(pedal.id).parent_component_id is None
+
+
+def test_the_legacy_parent_id_fields_are_validated_by_the_same_rules(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    pedal = _mk("Pedal", "pedal")
+
+    response = signed_in_client.post(
+        f"/components/{pedal.id}/move", data={"parent_component_id": str(wheel.id)}
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("bad", ["bike:abc", "component:", "x", "storage;drop", "bike:1:2", "bike:-1"])
+def test_malformed_targets_are_rejected_and_nothing_moves(signed_in_client, bad):
+    bike = _bike()
+    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
+    pedal = _mk("Pedal", "pedal", parent_component_id=crank.id)
+
+    response = signed_in_client.post(f"/components/{pedal.id}/move", data={"target": bad})
+
+    assert response.status_code == 422
+    assert component_service.get_component(pedal.id).parent_component_id == crank.id
+
+
+def test_a_target_pointing_at_a_missing_component_is_refused(signed_in_client):
+    pedal = _mk("Pedal", "pedal")
+
+    response = signed_in_client.post(f"/components/{pedal.id}/move", data={"target": "component:999"})
+
+    assert response.status_code == 422
+    assert component_service.get_component(pedal.id).parent_component_id is None

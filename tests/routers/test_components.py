@@ -1,5 +1,7 @@
 import pytest
 
+from app.services import bike_service
+
 
 @pytest.mark.parametrize(
     "method,path,data",
@@ -25,7 +27,7 @@ def test_component_routes_redirect_unauthenticated_requests_to_login(
 
 
 def _login(client, monkeypatch, athlete_id=42):
-    from app.services import strava_client
+    from app.services import bike_service, strava_client
 
     monkeypatch.setattr(
         strava_client,
@@ -55,7 +57,7 @@ def test_create_component_rejects_second_single_instance_type_under_same_parent(
 ):
     _login(client, monkeypatch)
 
-    client.post("/bikes", data={"name": "Commuter", "manual_baseline_mileage": "0"})
+    bike_service.create_bike(name="Commuter", manual_baseline_mileage=0)
 
     from app.db import connection
 
@@ -64,13 +66,13 @@ def test_create_component_rejects_second_single_instance_type_under_same_parent(
 
     first = client.post(
         "/components",
-        data={"name": "Rim", "component_type": "rim", "parent_bike_id": str(bike_id)},
+        data={"name": "Frame", "component_type": "frame", "parent_bike_id": str(bike_id)},
     )
     assert first.status_code in (200, 303)
 
     second = client.post(
         "/components",
-        data={"name": "Second Rim", "component_type": "rim", "parent_bike_id": str(bike_id)},
+        data={"name": "Second Frame", "component_type": "frame", "parent_bike_id": str(bike_id)},
     )
     assert second.status_code == 422
 
@@ -78,7 +80,7 @@ def test_create_component_rejects_second_single_instance_type_under_same_parent(
 def test_move_component_to_storage(client, monkeypatch):
     _login(client, monkeypatch)
 
-    client.post("/bikes", data={"name": "Commuter", "manual_baseline_mileage": "0"})
+    bike_service.create_bike(name="Commuter", manual_baseline_mileage=0)
 
     from app.db import connection
 

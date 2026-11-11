@@ -15,7 +15,8 @@
 
 <div class="actions panel">
   <a class="btn" href="/bikes/{{ bike.id }}/edit">Edit</a>
-  <a class="btn btn-primary" href="/components/new?parent_bike_id={{ bike.id }}">{{ ui_icons.plus() }}Add component</a>
+  <a class="btn btn-primary" href="/bikes/{{ bike.id }}/build">{{ ui_icons.wrench() }}Build</a>
+  <a class="btn" href="/components/new?parent_bike_id={{ bike.id }}">{{ ui_icons.plus() }}Add component</a>
   <a class="btn" href="/bikes/{{ bike.id }}/maintenance">Maintenance history</a>
   <a class="btn" href="/bikes/{{ bike.id }}/schedules/new">Add schedule</a>
   <a class="btn" href="/bikes/{{ bike.id }}/mileage/adjust">Adjust mileage</a>
@@ -29,7 +30,7 @@
 <div class="empty-state">
   <p class="empty-title">Nothing installed yet</p>
   <p>Add a wheel, drivetrain or any part to build up this bike.</p>
-  <a class="btn btn-primary" href="/components/new?parent_bike_id={{ bike.id }}">Add component</a>
+  <a class="btn btn-primary" href="/bikes/{{ bike.id }}/build">Start building</a>
 </div>
 {% endif %}
 

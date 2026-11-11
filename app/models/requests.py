@@ -7,26 +7,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-# Curated vocabulary (research.md §3): drives the FR-024 single-instance-per-type-per-parent
-# rule below. Types not in MULTI_INSTANCE_COMPONENT_TYPES may appear at most once under
-# any given parent (bike, component, or storage).
-COMPONENT_TYPES: tuple[str, ...] = (
-    "frame",
-    "wheel",
-    "hub",
-    "rim",
-    "tire",
-    "spoke",
-    "bolt",
-    "pad",
-    "drivetrain",
-    "chain",
-    "brake",
-    "other",
+from app.models.component_kinds import (  # noqa: E402
+    COMPONENT_TYPES,
+    MULTI_INSTANCE_COMPONENT_TYPES,
 )
-
-MULTI_INSTANCE_COMPONENT_TYPES: frozenset[str] = frozenset({"spoke", "bolt", "pad", "other"})
-
 
 def _validate_component_type(value: str) -> str:
     if value not in COMPONENT_TYPES:
@@ -42,6 +26,14 @@ class BikeCreateRequest(BaseModel):
 
 class BikeUpdateRequest(BikeCreateRequest):
     pass
+
+
+class BikeCatalogRequest(BaseModel):
+    """Add/edit a bike by catalog entry. Only the id's shape is checked here; membership in the
+    catalog (and whether `__keep__` is allowed) is decided by `app/services/bike_service.py`."""
+
+    catalog_id: str = Field(pattern=r"^(__keep__|[a-z0-9]+(-[a-z0-9]+)*)$", max_length=64)
+    manual_baseline_mileage: float = Field(default=0.0, ge=0)
 
 
 class _ComponentParentFields(BaseModel):
@@ -82,6 +74,47 @@ class ComponentUpdateRequest(BaseModel):
 
 class ComponentMoveRequest(_ComponentParentFields):
     pass
+
+
+class MoveTargetRequest(BaseModel):
+    """The "Move to..." choice: `storage`, `bike:ID` or `component:ID` (ids checked by the service)."""
+
+    target: str = Field(pattern=r"^(storage|bike:[0-9]{1,9}|component:[0-9]{1,9})$")
+
+    def parents(self) -> dict[str, int | None]:
+        kind, _, raw = self.target.partition(":")
+        value = int(raw) if raw else None
+        return {
+            "parent_bike_id": value if kind == "bike" else None,
+            "parent_component_id": value if kind == "component" else None,
+        }
+
+
+class BuilderAddRequest(BaseModel):
+    """Palette drop / Add control: create a new part of a type on a bike or component."""
+
+    component_type: str
+    target: str = Field(pattern=r"^(bike|component):[0-9]{1,9}$")
+    before_component_id: int | None = Field(default=None, ge=1)
+
+    @field_validator("component_type")
+    @classmethod
+    def _check_component_type(cls, value: str) -> str:
+        return _validate_component_type(value)
+
+    def parents(self) -> dict[str, int | None]:
+        return MoveTargetRequest(target=self.target).parents()
+
+
+class BuilderMoveRequest(BaseModel):
+    """Drag / Move-to / reorder: put a part on a parent (or storage), optionally before a sibling."""
+
+    component_id: int = Field(ge=1)
+    target: str = Field(pattern=r"^(storage|bike:[0-9]{1,9}|component:[0-9]{1,9})$")
+    before_component_id: int | None = Field(default=None, ge=1)
+
+    def parents(self) -> dict[str, int | None]:
+        return MoveTargetRequest(target=self.target).parents()
 
 
 class MaintenanceLogRequest(BaseModel):

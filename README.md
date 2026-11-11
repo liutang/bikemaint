@@ -86,6 +86,17 @@ stylesheet, `app/static/styles.css`, with no framework and no build step (consti
 | `app/templates/`, `app/static/` | Jinja2 templates and static assets |
 | `tests/` | Mirrors `app/` one-to-one |
 
+## Bikes and the component builder
+
+- **Add a bike** from a catalog of common models (`app/services/bike_catalog.py`); the name is
+  "Make Model" (a numeric suffix for duplicates) and the type comes from the catalog.
+- **Placement rules** live in one place, `app/models/component_kinds.py`: which part types exist and
+  which parents each may be mounted on (pedal on a crankset, tire on a rim, and so on). Every path
+  that creates or moves a component enforces them on the server.
+- **Builder** (`/bikes/{id}/build`): bike tree on the left, storage and a part palette on the right.
+  Drag to mount, move, re-order or unmount (`app/static/builder.js`, plain JavaScript, no library);
+  every drag has a keyboard/no-JS form equivalent ("Move to…", "Add to…", up/down buttons).
+
 ## Running in Docker
 
 ```bash

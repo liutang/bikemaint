@@ -1254,6 +1254,224 @@ input[type="radio"] {
   }
 }
 
+/* ---------- Bike builder (drag and drop) ---------- */
+.builder-message {
+  min-height: 1.5rem;
+  margin: 0 0 var(--space-3);
+  font-weight: 600;
+}
+
+.builder-message.is-error {
+  padding: var(--space-3) var(--space-4);
+  border-left: 6px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--badge-overdue-bg);
+  color: var(--badge-overdue-fg);
+}
+
+.builder-panes {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.builder-tree h2,
+.side-section h2 {
+  margin-top: 0;
+  font-size: var(--font-size-lg);
+}
+
+.builder-root,
+.side-section {
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.builder-root {
+  min-height: 12rem;
+}
+
+.builder-empty {
+  margin: var(--space-5) 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.builder-nodes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.builder-nodes .builder-nodes {
+  margin-left: var(--space-4);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--border);
+}
+
+.node-row,
+.side-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-height: var(--tap-min);
+  padding: var(--space-1) var(--space-2);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.node-row:hover,
+.side-item:hover {
+  background: var(--surface-2);
+}
+
+.node-row[draggable="true"],
+.side-item[draggable="true"] {
+  cursor: grab;
+}
+
+.drag-handle {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.drag-handle .icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.node-name {
+  font-weight: 600;
+}
+
+.node-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.node-form,
+.node-moveto,
+.side-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.node-moveto,
+.side-form {
+  flex-wrap: wrap;
+}
+
+.node-more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.node-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.node-more[open] {
+  flex-basis: 100%;
+}
+
+.btn-icon {
+  min-width: var(--tap-min);
+  padding: 0;
+}
+
+.btn-icon .icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.side-section + .side-section {
+  margin-top: var(--space-4);
+}
+
+.side-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.side-name {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.palette .side-item {
+  border-color: var(--border);
+}
+
+.side-more {
+  margin-left: auto;
+}
+
+.side-more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.side-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.side-more[open] {
+  flex-basis: 100%;
+}
+
+.side-form select,
+.node-moveto select {
+  flex: 1 1 10rem;
+  width: 100%;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+
+/* While dragging: valid targets glow in the accent, the rest recede. */
+.builder .is-valid {
+  border-color: var(--primary);
+  border-style: dashed;
+}
+
+.builder .is-invalid {
+  opacity: 0.45;
+}
+
+.builder .is-over {
+  border-style: solid;
+  background: var(--surface-2);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+
+.builder .is-dragging.node-row,
+.builder .is-dragging.side-item {
+  opacity: 0.5;
+}
+
+.builder.is-dragging {
+  cursor: grabbing;
+}
+
+@media (max-width: 64rem) {
+  .builder-panes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   *,

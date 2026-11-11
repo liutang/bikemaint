@@ -11,9 +11,9 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from pydantic import ValidationError
 
-from app.models.requests import BikeCreateRequest, BikeUpdateRequest
+from app.models.requests import BikeCatalogRequest
 from app.models.form_errors import error_context, message_context
-from app.services import bike_service, component_service, strava_client
+from app.services import bike_catalog, bike_service, component_service, strava_client
 from app.services.auth_dependency import require_account
 
 router = APIRouter()
@@ -41,28 +41,47 @@ def garage_overview(request: Request, account=Depends(require_account)):
     )
 
 
+def _form_context(bike, extra: dict | None = None) -> dict:
+    return {
+        "bike": bike,
+        "errors": [],
+        "catalog_groups": bike_catalog.grouped(),
+        "keep_marker": bike_service.KEEP_CURRENT,
+        **(extra or {}),
+    }
+
+
+def _parse_catalog_form(form) -> BikeCatalogRequest:
+    return BikeCatalogRequest(
+        catalog_id=form.get("catalog_id", ""),
+        manual_baseline_mileage=_optional_float(form.get("manual_baseline_mileage")),
+    )
+
+
 @router.get("/bikes/new", name="new_bike_form")
 def new_bike_form(request: Request, account=Depends(require_account)):
-    return _render(request, "bikes/form.html", {"bike": None, "errors": []})
+    return _render(request, "bikes/form.html", _form_context(None))
 
 
 @router.post("/bikes", name="create_bike")
 async def create_bike(request: Request, account=Depends(require_account)):
     form = await request.form()
     try:
-        payload = BikeCreateRequest(
-            name=form.get("name", ""),
-            bike_type=form.get("bike_type") or None,
-            manual_baseline_mileage=_optional_float(form.get("manual_baseline_mileage")),
+        payload = _parse_catalog_form(form)
+        bike = bike_service.create_bike_from_catalog(
+            payload.catalog_id, manual_baseline_mileage=payload.manual_baseline_mileage
         )
     except ValidationError as exc:
         return _render(
+            request, "bikes/form.html", _form_context(None, error_context(form, exc)), status_code=422
+        )
+    except ValueError as exc:
+        return _render(
             request,
             "bikes/form.html",
-            {"bike": None, **error_context(form, exc)},
+            _form_context(None, message_context(form, str(exc), field="catalog_id")),
             status_code=422,
         )
-    bike = bike_service.create_bike(**payload.model_dump())
     if request.headers.get("hx-request") == "true":
         return _render(request, "bikes/list.html", {
             "bikes": bike_service.list_bikes(),
@@ -87,27 +106,31 @@ def edit_bike_form(request: Request, bike_id: int, account=Depends(require_accou
     bike = bike_service.get_bike(bike_id)
     if bike is None:
         return PlainTextResponse("Bike not found", status_code=404)
-    return _render(request, "bikes/form.html", {"bike": bike, "errors": []})
+    return _render(request, "bikes/form.html", _form_context(bike))
 
 
 @router.post("/bikes/{bike_id}", name="update_bike")
 async def update_bike(request: Request, bike_id: int, account=Depends(require_account)):
+    bike = bike_service.get_bike(bike_id)
+    if bike is None:
+        return PlainTextResponse("Bike not found", status_code=404)
     form = await request.form()
     try:
-        payload = BikeUpdateRequest(
-            name=form.get("name", ""),
-            bike_type=form.get("bike_type") or None,
-            manual_baseline_mileage=_optional_float(form.get("manual_baseline_mileage")),
+        payload = _parse_catalog_form(form)
+        bike = bike_service.update_bike_from_catalog(
+            bike_id, payload.catalog_id, manual_baseline_mileage=payload.manual_baseline_mileage
         )
     except ValidationError as exc:
-        bike = bike_service.get_bike(bike_id)
+        return _render(
+            request, "bikes/form.html", _form_context(bike, error_context(form, exc)), status_code=422
+        )
+    except ValueError as exc:
         return _render(
             request,
             "bikes/form.html",
-            {"bike": bike, **error_context(form, exc)},
+            _form_context(bike, message_context(form, str(exc), field="catalog_id")),
             status_code=422,
         )
-    bike = bike_service.update_bike(bike_id, **payload.model_dump())
     return RedirectResponse(url=f"/bikes/{bike.id}", status_code=303)
 
 

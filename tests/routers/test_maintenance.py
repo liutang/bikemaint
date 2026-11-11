@@ -1,5 +1,7 @@
 import pytest
 
+from app.services import bike_service
+
 
 @pytest.mark.parametrize(
     "method,path",
@@ -23,7 +25,7 @@ def test_maintenance_routes_redirect_unauthenticated_requests_to_login(client, m
 
 
 def _login(client, monkeypatch, athlete_id=42):
-    from app.services import strava_client
+    from app.services import bike_service, strava_client
 
     monkeypatch.setattr(
         strava_client,
@@ -40,7 +42,7 @@ def _login(client, monkeypatch, athlete_id=42):
 
 def test_log_then_view_bike_maintenance_history(client, monkeypatch):
     _login(client, monkeypatch)
-    client.post("/bikes", data={"name": "Road Bike", "manual_baseline_mileage": "50"})
+    bike_service.create_bike(name="Road Bike", manual_baseline_mileage=50)
 
     response = client.post(
         "/bikes/1/maintenance",
@@ -58,7 +60,7 @@ def test_log_then_view_bike_maintenance_history(client, monkeypatch):
 
 def test_invalid_maintenance_entry_returns_422(client, monkeypatch):
     _login(client, monkeypatch)
-    client.post("/bikes", data={"name": "Road Bike", "manual_baseline_mileage": "0"})
+    bike_service.create_bike(name="Road Bike", manual_baseline_mileage=0)
 
     response = client.post(
         "/bikes/1/maintenance", data={"description": "", "performed_at": "not-a-date"}
@@ -69,7 +71,7 @@ def test_invalid_maintenance_entry_returns_422(client, monkeypatch):
 
 def test_edit_and_delete_maintenance_entry(client, monkeypatch):
     _login(client, monkeypatch)
-    client.post("/bikes", data={"name": "Road Bike", "manual_baseline_mileage": "0"})
+    bike_service.create_bike(name="Road Bike", manual_baseline_mileage=0)
     client.post(
         "/bikes/1/maintenance", data={"description": "Old", "performed_at": "2026-05-01"}
     )

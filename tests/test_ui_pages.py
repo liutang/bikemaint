@@ -4,8 +4,10 @@ import re
 
 
 def _add_bike(client, name="Road Bike", bike_type="road", baseline="12.5"):
-    client.post(
-        "/bikes", data={"name": name, "bike_type": bike_type, "manual_baseline_mileage": baseline}
+    from app.services import bike_service
+
+    bike_service.create_bike(
+        name=name, bike_type=bike_type, manual_baseline_mileage=float(baseline)
     )
 
 
@@ -318,10 +320,10 @@ import pytest  # noqa: E402
 
 BAD_SUBMISSIONS = [
     # (id, path, form data, field with the error, entered value that must be preserved, preserved field)
-    ("bike", "/bikes", {"name": "", "bike_type": "gravel", "manual_baseline_mileage": "5"},
-     "name", "gravel", "bike_type"),
-    ("bike-edit", "/bikes/1", {"name": "", "bike_type": "gravel", "manual_baseline_mileage": "5"},
-     "name", "gravel", "bike_type"),
+    ("bike", "/bikes", {"catalog_id": "", "manual_baseline_mileage": "5"},
+     "catalog_id", "5", "manual_baseline_mileage"),
+    ("bike-edit", "/bikes/1", {"catalog_id": "", "manual_baseline_mileage": "5"},
+     "catalog_id", "5", "manual_baseline_mileage"),
     ("component", "/components", {"name": "", "component_type": "chain", "manual_baseline_mileage": "9"},
      "name", "9", "manual_baseline_mileage"),
     ("maintenance", "/bikes/1/maintenance",

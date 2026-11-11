@@ -22,10 +22,11 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: python -m pytest -q
 
-  # Every merge to master publishes the image the Docker host pulls (ghcr.io/<owner>/bikemaint).
+  # Every merge to master publishes the image the Docker host pulls (ghcr.io/<owner>/bikemaint);
+  # run this workflow by hand on master to republish (for example after an Actions outage).
   publish:
     needs: test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     permissions:
       contents: read

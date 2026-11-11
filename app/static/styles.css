@@ -537,6 +537,91 @@ ul {
   font-size: var(--font-size-sm);
 }
 
+/* ---------- Garage cards (Cockpit) ---------- */
+.bike-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.bike-card:hover,
+.bike-card:focus-within {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+
+.bike-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.bike-card-head h3 {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-lg);
+}
+
+.bike-card-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--link);
+}
+
+.bike-card-icon .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.chip {
+  display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.bike-card-figure {
+  margin: 0;
+}
+
+.bike-card-stat {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.bike-card-stat strong {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+
+.bike-card-stat small {
+  color: var(--text-muted);
+}
+
+.bike-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin-top: auto;
+}
+
+.is-storage .bike-card-figure {
+  margin-bottom: var(--space-1);
+}
+
 /* ---------- Empty states ---------- */
 .empty-state {
   padding: var(--space-5);

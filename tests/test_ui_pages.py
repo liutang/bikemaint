@@ -34,6 +34,33 @@ def test_garage_shows_bikes_as_cards_with_quick_actions(signed_in_client):
     assert "View" in body
 
 
+def test_garage_bike_card_uses_the_cockpit_card_layout(signed_in_client):
+    _add_bike(signed_in_client)
+
+    html = signed_in_client.get("/").text
+
+    card = re.search(r'<article class="card bike-card" id="bike-1">(.*?)</article>', html, re.S).group(1)
+    assert re.search(r'<span class="bike-card-stat"><strong>12.5 mi</strong>', card)
+    assert re.search(r'<span class="chip">road</span>', card)
+    assert re.search(r'<a class="btn btn-primary" href="/bikes/1">View</a>', card)
+    # secondary actions are quiet, so View is the one primary action on the card
+    assert card.count("btn-primary") == 1
+    assert 'class="btn btn-quiet" href="/components/new?parent_bike_id=1"' in card
+    assert 'class="btn btn-quiet" href="/bikes/1/maintenance"' in card
+
+
+def test_storage_components_use_the_same_card_style_on_garage_and_storage_pages(signed_in_client):
+    _add_component(signed_in_client, "Spare Tire", "tire")
+
+    for path in ("/", "/components"):
+        html = signed_in_client.get(path).text
+        card = re.search(r'<article class="card bike-card is-storage"[^>]*>(.*?)</article>', html, re.S)
+        assert card, path
+        assert 'href="/components/1"' in card.group(1) and "Spare Tire" in card.group(1)
+        assert '<span class="chip">tire</span>' in card.group(1)
+        assert 'class="bike-card-stat"' in card.group(1)
+
+
 def test_garage_lists_storage_under_its_own_heading(signed_in_client):
     _add_component(signed_in_client, "Spare Tire", "tire")
 

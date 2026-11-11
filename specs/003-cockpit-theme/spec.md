@@ -66,6 +66,23 @@ As the rider, I want the garage, bike detail with its component tree, component 
 
 ---
 
+### User Story 4 - Choose My Theme in Settings (Priority: P4)
+
+As the rider, I want a Theme setting in Settings with System (default), Light and Dark, so I can override my device's light/dark preference for this app.
+
+**Why this priority**: The automatic theme already works; this adds control for riders who want the app to differ from their device.
+
+**Independent Test**: Open Settings, choose Dark while the device is light (and Light while the device is dark); every page renders in the chosen theme, including after reload and on the sign-in page; choose System and the app follows the device again.
+
+**Acceptance Scenarios**:
+
+1. **Given** Settings, **When** the rider opens it, **Then** an Appearance section shows System, Light and Dark with the current choice selected (System by default).
+2. **Given** the rider saves Dark or Light, **When** any page loads (including after the browser is closed and reopened, and the sign-in page), **Then** it uses that theme regardless of the device preference, with no flash of the other theme.
+3. **Given** the rider saves System, **When** pages load, **Then** the theme follows the device preference again.
+4. **Given** a tampered or unknown theme value is submitted, **When** the request is processed, **Then** it is rejected with an error and the saved choice is unchanged.
+
+---
+
 ### Edge Cases
 
 - Exactly six urgent tasks show as six cards with no overflow tile; seven show five cards plus "+2 more tasks".
@@ -100,6 +117,9 @@ As the rider, I want the garage, bike detail with its component tree, component 
 - **FR-017**: Layouts MUST work from phone width (about 360 px) to wide desktop with no horizontal page scrolling and touch targets of at least 44 px.
 - **FR-018**: Animation MUST be omitted when the rider prefers reduced motion.
 - **FR-019**: No stored data, route path, form field, calculation or notification behavior may change; every existing automated test MUST continue to pass, with test changes limited to assertions on old class names or copy that this restyle intentionally replaces.
+- **FR-021**: Settings MUST offer an Appearance control with System (default), Light and Dark; the choice MUST apply to every page, including sign-in, persist across visits in the same browser, and be applied before first paint so no wrong-theme flash occurs. Only those three values may be accepted.
+- **FR-022**: The Maintenance due page MUST NOT show the separate "Due-soon alerts" list; urgency is conveyed by the attention cards. Webhook notifications and their recording are unchanged.
+- **FR-023**: The garage screen (bike cards, storage cards, empty states) MUST adopt the Cockpit card style, not merely the new colors: display-font names, a prominent mileage figure, a primary "View" action with quieter secondary actions, and hover emphasis.
 - **FR-020**: Styling MUST remain plain CSS served from the application's static assets with no client-side framework and no build step to run or deploy, per constitution v1.3.0.
 
 ### Key Entities
@@ -127,4 +147,5 @@ This feature changes presentation only. It reads existing schedule status (overd
 - The last-sync indicator reads the existing last successful Strava sync time; if none is recorded it shows "Not synced yet".
 - Typeface files, if bundled, are committed as static assets; if they cannot be bundled, the system font fallback is acceptable.
 - Existing partial-update behavior (Mark done, alert dismissal, delete confirmation) is reused; no new routes are needed.
+- The theme choice is stored per browser (a cookie), not per account, so each device can differ; this needs no database change.
 - Supported browsers are the latest two major versions of Chrome, Safari, Firefox and Edge.

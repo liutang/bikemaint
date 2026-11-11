@@ -26,3 +26,8 @@ Empty states: `.empty-state` for no schedules; `.all-clear` message when nothing
 
 ## Status semantics
 overdue = red, due soon = gold (distinct hue from accent), on track = green, no estimate/low confidence = grey; each with icon + text.
+
+## Follow-ups
+- Due page: no alerts list (FR-022).
+- `POST /settings/theme` (form field `theme` = `system|light|dark`): sets the `theme` cookie (1 year, `Secure`, `SameSite=Lax`, `HttpOnly`) and redirects 303 to `/settings`; any other value is 422. `layout.html` renders `<html data-theme="light|dark">` from the cookie (no attribute for System).
+- Garage: `.bike-card` (name, type chip, `.bike-card-stat` mileage, primary View + quiet secondary actions); storage components use `.bike-card.is-storage`.

@@ -160,8 +160,11 @@ def test_nested_component_uses_the_pace_of_the_bike_at_the_top_of_its_chain(db_p
     wheel = component_service.create_component(
         name="Wheel", component_type="wheel", parent_bike_id=bike.id
     )
+    rim = component_service.create_component(
+        name="Rim", component_type="rim", parent_component_id=wheel.id
+    )
     tire = component_service.create_component(
-        name="Tire", component_type="tire", parent_component_id=wheel.id
+        name="Tire", component_type="tire", parent_component_id=rim.id
     )
     schedule = schedule_service.create_schedule(
         component_id=tire.id, name="Replace tire", interval_miles=100

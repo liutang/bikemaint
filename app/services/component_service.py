@@ -8,13 +8,16 @@ Per Constitution Principle II this module is callable without FastAPI/request ob
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import dataclass
 from datetime import datetime, timezone
 
+from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db import maintenance as maintenance_db
 from app.db import schedules as schedules_db
 from app.db.connection import get_connection
-from app.models.requests import MULTI_INSTANCE_COMPONENT_TYPES
+from app.models import component_kinds
+from app.models.component_kinds import BIKE, MULTI_INSTANCE_COMPONENT_TYPES
 from app.models.rows import Component
 
 
@@ -22,8 +25,46 @@ class ComponentNestingConflictError(Exception):
     """Raised when installing a component would violate FR-024's single-instance rule."""
 
 
+class ComponentPlacementError(ComponentNestingConflictError):
+    """Raised when a component type cannot be mounted on the chosen parent (specs/004, FR-006)."""
+
+
+@dataclass(frozen=True)
+class MoveTarget:
+    """A place a component may legally go: `bike:ID`, `component:ID` or `storage`."""
+
+    value: str
+    label: str
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def _parent_kind(
+    conn: sqlite3.Connection, *, parent_bike_id: int | None, parent_component_id: int | None
+) -> str | None:
+    if parent_bike_id is not None:
+        return BIKE
+    if parent_component_id is not None:
+        parent = components_db.get_by_id(conn, parent_component_id)
+        if parent is None:
+            raise LookupError(f"No component with id {parent_component_id}")
+        return parent.component_type
+    return None
+
+
+def _validate_placement(
+    conn: sqlite3.Connection,
+    *,
+    component_type: str,
+    parent_bike_id: int | None,
+    parent_component_id: int | None,
+) -> None:
+    kind = _parent_kind(conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id)
+    message = component_kinds.placement_error(component_type, kind)
+    if message:
+        raise ComponentPlacementError(message)
 
 
 def _validate_nesting(
@@ -36,6 +77,12 @@ def _validate_nesting(
 ) -> None:
     if parent_bike_id is None and parent_component_id is None:
         return  # storage always allowed
+    _validate_placement(
+        conn,
+        component_type=component_type,
+        parent_bike_id=parent_bike_id,
+        parent_component_id=parent_component_id,
+    )
     if component_type in MULTI_INSTANCE_COMPONENT_TYPES:
         return
     siblings = components_db.list_children(
@@ -142,6 +189,13 @@ def update_component(
         if component is None:
             raise LookupError(f"No component with id {component_id}")
         if component_type != component.component_type:
+            for child in components_db.list_children(conn, parent_component_id=component_id):
+                message = component_kinds.placement_error(child.component_type, component_type)
+                if message:
+                    raise ComponentPlacementError(
+                        f"Changing the type would leave a {child.component_type} without a valid "
+                        f"parent. {message}"
+                    )
             _validate_nesting(
                 conn,
                 component_type=component_type,
@@ -159,6 +213,69 @@ def update_component(
             manual_baseline_mileage=manual_baseline_mileage,
             total_mileage=new_total_mileage,
         )
+
+
+def valid_types_for_parent(
+    *, parent_bike_id: int | None = None, parent_component_id: int | None = None
+) -> list[str]:
+    """Component types that may be added under the given parent (all types for storage)."""
+    with get_connection() as conn:
+        try:
+            kind = _parent_kind(
+                conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
+            )
+        except LookupError:
+            kind = None
+        return component_kinds.child_types_for(kind)
+
+
+def list_move_targets(component_id: int) -> list[MoveTarget]:
+    """Every place `component_id` could be moved right now, and only those (specs/004, FR-014)."""
+    with get_connection() as conn:
+        component = components_db.get_by_id(conn, component_id)
+        if component is None:
+            raise LookupError(f"No component with id {component_id}")
+        blocked = {component_id} | {d.id for d in components_db.get_descendants(conn, component_id)}
+        multi = component.component_type in MULTI_INSTANCE_COMPONENT_TYPES
+
+        def _slot_free(children: list[Component]) -> bool:
+            return multi or all(
+                c.id == component_id or c.component_type != component.component_type
+                for c in children
+            )
+
+        targets: list[MoveTarget] = []
+        for bike in bikes_db.list_active(conn):
+            tree = components_db.get_tree_for_bike(conn, bike.id)
+            by_id = {c.id: c for c in tree}
+            children_of: dict[int | None, list[Component]] = {}
+            for c in tree:
+                children_of.setdefault(c.parent_component_id, []).append(c)
+
+            def _path(c: Component) -> str:
+                names = []
+                node: Component | None = c
+                while node is not None:
+                    names.append(node.name)
+                    node = by_id.get(node.parent_component_id)
+                return " › ".join([bike.name, *reversed(names)])
+
+            if (
+                component.parent_bike_id != bike.id
+                and component_kinds.can_mount(component.component_type, BIKE)
+                and _slot_free(components_db.list_children(conn, parent_bike_id=bike.id))
+            ):
+                targets.append(MoveTarget(f"bike:{bike.id}", bike.name))
+            for c in tree:
+                if c.id in blocked or component.parent_component_id == c.id:
+                    continue
+                if component_kinds.can_mount(component.component_type, c.component_type) and _slot_free(
+                    children_of.get(c.id, [])
+                ):
+                    targets.append(MoveTarget(f"component:{c.id}", _path(c)))
+        if component.parent_bike_id is not None or component.parent_component_id is not None:
+            targets.append(MoveTarget("storage", "Storage"))
+        return targets
 
 
 def move_component(

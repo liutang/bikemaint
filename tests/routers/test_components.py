@@ -66,13 +66,13 @@ def test_create_component_rejects_second_single_instance_type_under_same_parent(
 
     first = client.post(
         "/components",
-        data={"name": "Rim", "component_type": "rim", "parent_bike_id": str(bike_id)},
+        data={"name": "Frame", "component_type": "frame", "parent_bike_id": str(bike_id)},
     )
     assert first.status_code in (200, 303)
 
     second = client.post(
         "/components",
-        data={"name": "Second Rim", "component_type": "rim", "parent_bike_id": str(bike_id)},
+        data={"name": "Second Frame", "component_type": "frame", "parent_bike_id": str(bike_id)},
     )
     assert second.status_code == 422
 

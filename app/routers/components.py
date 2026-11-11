@@ -13,10 +13,10 @@ from pydantic import ValidationError
 from app.models.form_errors import error_context, message_context
 
 from app.models.requests import (
-    COMPONENT_TYPES,
     ComponentCreateRequest,
     ComponentMoveRequest,
     ComponentUpdateRequest,
+    MoveTargetRequest,
 )
 from app.services import component_service
 from app.services.auth_dependency import require_account
@@ -42,6 +42,36 @@ def _render(request: Request, template: str, context: dict, status_code: int = 2
     return templates.TemplateResponse(request, template, context, status_code=status_code)
 
 
+def _form_context(component, parent_bike_id, parent_component_id, extra: dict | None = None) -> dict:
+    """Context for components/form.html: only the types that fit the parent are offered."""
+    return {
+        "component": component,
+        "component_types": component_service.valid_types_for_parent(
+            parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
+        )
+        if component is None or component.parent_bike_id or component.parent_component_id
+        else component_service.valid_types_for_parent(),
+        "parent_bike_id": parent_bike_id,
+        "parent_component_id": parent_component_id,
+        "errors": [],
+        **(extra or {}),
+    }
+
+
+def _detail_context(component, tree, extra: dict | None = None) -> dict:
+    return {
+        "component": component,
+        "tree": tree,
+        "move_targets": component_service.list_move_targets(component.id),
+        "errors": [],
+        **(extra or {}),
+    }
+
+
+def _message(exc: Exception) -> str:
+    return "That place no longer exists." if isinstance(exc, LookupError) else str(exc)
+
+
 def _subtree(component) -> list[dict]:
     descendants = component_service.get_descendants(component.id)
     return component_service.build_tree([component], [component, *descendants])[0]["children"]
@@ -61,15 +91,7 @@ def new_component_form(
     parent_component_id: int | None = None,
 ):
     return _render(
-        request,
-        "components/form.html",
-        {
-            "component": None,
-            "component_types": COMPONENT_TYPES,
-            "parent_bike_id": parent_bike_id,
-            "parent_component_id": parent_component_id,
-            "errors": [],
-        },
+        request, "components/form.html", _form_context(None, parent_bike_id, parent_component_id)
     )
 
 
@@ -90,28 +112,18 @@ async def create_component(request: Request, account=Depends(require_account)):
         return _render(
             request,
             "components/form.html",
-            {
-                "component": None,
-                "component_types": COMPONENT_TYPES,
-                "parent_bike_id": parent_bike_id,
-                "parent_component_id": parent_component_id,
-                **error_context(form, exc),
-            },
+            _form_context(None, parent_bike_id, parent_component_id, error_context(form, exc)),
             status_code=422,
         )
     try:
         component = component_service.create_component(**payload.model_dump())
-    except ComponentNestingConflictError as exc:
+    except (ComponentNestingConflictError, LookupError) as exc:
         return _render(
             request,
             "components/form.html",
-            {
-                "component": None,
-                "component_types": COMPONENT_TYPES,
-                "parent_bike_id": parent_bike_id,
-                "parent_component_id": parent_component_id,
-                **message_context(form, str(exc)),
-            },
+            _form_context(
+                None, parent_bike_id, parent_component_id, message_context(form, _message(exc))
+            ),
             status_code=422,
         )
     if request.headers.get("hx-request") == "true":
@@ -127,7 +139,7 @@ def component_detail(request: Request, component_id: int, account=Depends(requir
     if component is None:
         return PlainTextResponse("Component not found", status_code=404)
     return _render(
-        request, "components/detail.html", {"component": component, "tree": _subtree(component)}
+        request, "components/detail.html", _detail_context(component, _subtree(component))
     )
 
 
@@ -139,13 +151,7 @@ def edit_component_form(request: Request, component_id: int, account=Depends(req
     return _render(
         request,
         "components/form.html",
-        {
-            "component": component,
-            "component_types": COMPONENT_TYPES,
-            "parent_bike_id": component.parent_bike_id,
-            "parent_component_id": component.parent_component_id,
-            "errors": [],
-        },
+        _form_context(component, component.parent_bike_id, component.parent_component_id),
     )
 
 
@@ -165,13 +171,9 @@ async def update_component(request: Request, component_id: int, account=Depends(
         return _render(
             request,
             "components/form.html",
-            {
-                "component": existing,
-                "component_types": COMPONENT_TYPES,
-                "parent_bike_id": existing.parent_bike_id,
-                "parent_component_id": existing.parent_component_id,
-                **error_context(form, exc),
-            },
+            _form_context(
+                existing, existing.parent_bike_id, existing.parent_component_id, error_context(form, exc)
+            ),
             status_code=422,
         )
     try:
@@ -180,13 +182,12 @@ async def update_component(request: Request, component_id: int, account=Depends(
         return _render(
             request,
             "components/form.html",
-            {
-                "component": existing,
-                "component_types": COMPONENT_TYPES,
-                "parent_bike_id": existing.parent_bike_id,
-                "parent_component_id": existing.parent_component_id,
-                **message_context(form, str(exc)),
-            },
+            _form_context(
+                existing,
+                existing.parent_bike_id,
+                existing.parent_component_id,
+                message_context(form, str(exc)),
+            ),
             status_code=422,
         )
     return RedirectResponse(url=f"/components/{component.id}", status_code=303)
@@ -199,33 +200,34 @@ async def move_component(request: Request, component_id: int, account=Depends(re
     if existing is None:
         return PlainTextResponse("Component not found", status_code=404)
     try:
-        payload = ComponentMoveRequest(
-            parent_bike_id=_optional_int(form.get("parent_bike_id")),
-            parent_component_id=_optional_int(form.get("parent_component_id")),
-        )
+        if "target" in form:  # the "Move to..." select
+            parents = MoveTargetRequest(target=form.get("target", "")).parents()
+        else:  # legacy: explicit parent id fields
+            parents = ComponentMoveRequest(
+                parent_bike_id=_optional_int(form.get("parent_bike_id")),
+                parent_component_id=_optional_int(form.get("parent_component_id")),
+            ).model_dump()
     except ValidationError as exc:
         return _render(
             request,
             "components/detail.html",
-            {
-                "component": existing,
-                "tree": _subtree(existing),
-                **error_context(form, exc),
-            },
+            _detail_context(existing, _subtree(existing), error_context(form, exc)),
             status_code=422,
         )
     try:
-        component = component_service.move_component(component_id, **payload.model_dump())
-    except (ComponentNestingConflictError, ValueError) as exc:
+        component = component_service.move_component(component_id, **parents)
+    except (ComponentNestingConflictError, ValueError, LookupError) as exc:
         return _render(
             request,
             "components/detail.html",
-            {"component": existing, "tree": _subtree(existing), **message_context(form, str(exc))},
+            _detail_context(
+                existing, _subtree(existing), message_context(form, _message(exc))
+            ),
             status_code=422,
         )
     if request.headers.get("hx-request") == "true":
         return _render(
-            request, "components/detail.html", {"component": component, "tree": _subtree(component)}
+            request, "components/detail.html", _detail_context(component, _subtree(component))
         )
     return RedirectResponse(url=f"/components/{component.id}", status_code=303)
 

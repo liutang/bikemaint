@@ -24,11 +24,23 @@
 {{ error_summary(errors) }}
 
 <h2>Move</h2>
+{% if move_targets %}
 <form class="panel form" method="post" action="/components/{{ component.id }}/move">
-  {{ field("parent_bike_id", "Parent bike ID", component.parent_bike_id, values, field_errors, type="number") }}
-  {{ field("parent_component_id", "Parent component ID", component.parent_component_id, values, field_errors, type="number", hint="Leave both blank to move this component into storage.") }}
+  <div class="field{% if field_errors and "target" in field_errors %} has-error{% endif %}">
+    <label for="target">Move to</label>
+    <select id="target" name="target">
+      {% for target in move_targets %}
+      <option value="{{ target.value }}">{{ target.label }}</option>
+      {% endfor %}
+    </select>
+    <small class="field-hint">Only places this part can be mounted are listed.</small>
+    {% if field_errors and "target" in field_errors %}<p class="field-error">{{ field_errors.target }}</p>{% endif %}
+  </div>
   {{ submit("Move") }}
 </form>
+{% else %}
+<p class="panel text-muted">No valid place to move this to right now.</p>
+{% endif %}
 
 <h2>Sub-components</h2>
 {% if tree %}

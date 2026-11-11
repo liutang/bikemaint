@@ -32,12 +32,12 @@ description: "Task list for the Bike Catalog and Interactive Builder feature"
 
 ## Milestone 2: Placement rules (US2, P2)
 
-- [ ] T008 [US2] Create `tests/services/test_component_catalog.py` (every type has a label; allowed parents reference real types or "bike"; spec examples: pedal→crankset not wheel, tire→rim not bike, rim/hub/spoke→wheel, bolt/other anywhere, storage always allowed; message text names allowed parents; `valid_parent_types(type)`; existing types all present) and implement `app/services/component_catalog.py`
-- [ ] T009 [US2] Update `app/models/requests.py` `COMPONENT_TYPES`/`MULTI_INSTANCE_COMPONENT_TYPES` from the catalog (single source of truth) with tests
-- [ ] T010 [US2] Extend `tests/services/test_component_service.py`: create/update-type/move refuse invalid placements with the catalog message; single-instance rule still applies; pre-existing invalid arrangements stay readable; moving to storage always ok; then implement `_validate_placement` in `app/services/component_service.py`
-- [ ] T011 [US2] Update `tests/routers/test_components.py` and affected UI/quickstart tests for 422 messages and for forms offering only valid types/parents (component create form lists types valid under the chosen parent; move form shows valid parents); update `app/routers/components.py` and `app/templates/components/*.html`
-- [ ] T012 [US2] Fix any existing tests that built now-invalid trees (document each change in the commit message)
-- [ ] T013 [US2] M2 checkpoint: full suite green, `docker build -t bikemaint:m2-placement-rules .`, verify manually (pedal on wheel refused, tire on rim ok), mark tasks, commit, report
+- [X] T008 [US2] Create `tests/services/test_component_kinds.py` (every type has a label; allowed parents reference real types or "bike"; spec examples: pedal→crankset not wheel, tire→rim not bike, rim/hub/spoke→wheel, bolt/other anywhere, storage always allowed; message text names allowed parents; `valid_parent_types(type)`; existing types all present) and implement `app/models/component_kinds.py`
+- [X] T009 [US2] Update `app/models/requests.py` `COMPONENT_TYPES`/`MULTI_INSTANCE_COMPONENT_TYPES` from the catalog (single source of truth) with tests
+- [X] T010 [US2] Extend `tests/services/test_component_service.py`: create/update-type/move refuse invalid placements with the catalog message; single-instance rule still applies; pre-existing invalid arrangements stay readable; moving to storage always ok; then implement `_validate_placement` in `app/services/component_service.py`
+- [X] T011 [US2] Update `tests/routers/test_components.py` and affected UI/quickstart tests for 422 messages and for forms offering only valid types/parents (component create form lists types valid under the chosen parent; move form shows valid parents); update `app/routers/components.py` and `app/templates/components/*.html`
+- [X] T012 [US2] Fix any existing tests that built now-invalid trees (document each change in the commit message)
+- [X] T013 [US2] M2 checkpoint: full suite green, `docker build -t bikemaint:m2-placement-rules .`, verify manually (pedal on wheel refused, tire on rim ok), mark tasks, commit, report
 
 ## Milestone 3: Interactive builder (US3, P3)
 

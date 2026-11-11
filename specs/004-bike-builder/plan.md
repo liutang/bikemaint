@@ -8,7 +8,7 @@
 Three milestones, each independently shippable and image-tagged:
 
 - **M1 Bike catalog (US1)**: a curated catalog of ~60 common bikes (`app/services/bike_catalog.py`); Add/Edit bike becomes a grouped `<select>`; name = "Make Model" with numeric suffix for duplicates; type derived. New nullable `bike.catalog_id` column.
-- **M2 Compatibility rules (US2)**: one component-kind catalog (`app/services/component_catalog.py`) listing, per type, the parent kinds it may mount on; enforced in `component_service` for create, update (type change) and move; vocabulary extended; existing forms show only valid parents/types and relay a clear message.
+- **M2 Compatibility rules (US2)**: one component-kind catalog (`app/models/component_kinds.py`) listing, per type, the parent kinds it may mount on; enforced in `component_service` for create, update (type change) and move; vocabulary extended; existing forms show only valid parents/types and relay a clear message.
 - **M3 Builder (US3)**: `GET /bikes/{id}/build` split screen (tree left, storage list + part palette right); sibling `position` column; HTMX-swapped `#builder` fragment; a small vanilla `app/static/builder.js` for HTML5 drag and drop that posts to the same endpoints the no-JS "Move to…" forms use.
 
 ## Technical Context
@@ -56,7 +56,7 @@ app/
 ├── models/requests.py                     # catalog-id bike requests; builder request models; vocabulary
 ├── services/
 │   ├── bike_catalog.py                    # NEW: entries, grouping, naming
-│   ├── component_catalog.py               # NEW: kinds, allowed parents, messages, valid targets
+│   ├── component_kinds.py               # NEW: kinds, allowed parents, messages, valid targets
 │   ├── bike_service.py, component_service.py  # use catalogs; reorder; builder view model
 ├── routers/bikes.py, components.py        # form handling; builder routes
 ├── static/builder.js, styles.css          # DnD script; builder styles

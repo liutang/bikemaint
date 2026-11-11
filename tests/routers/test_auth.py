@@ -47,7 +47,7 @@ def test_login_page_renders_strava_authorize_link(client):
     assert "Sign in with Strava" in response.text
     assert "https://www.strava.com/oauth/authorize" in response.text
     assert "client_id=test-client-id" in response.text
-    assert "scope=activity%3Aread_all" in response.text
+    assert "scope=profile%3Aread_all%2Cactivity%3Aread_all" in response.text  # profile access lists gear
 
 
 def test_strava_callback_upserts_account_and_establishes_session(client, monkeypatch):

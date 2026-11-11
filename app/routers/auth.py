@@ -18,7 +18,8 @@ from app.services import auth_service
 router = APIRouter()
 
 STRAVA_AUTHORIZE_URL = "https://www.strava.com/oauth/authorize"
-STRAVA_OAUTH_SCOPE = "activity:read_all"
+# activity:read_all imports rides; profile:read_all is what makes Strava include the rider's gear.
+STRAVA_OAUTH_SCOPE = "profile:read_all,activity:read_all"
 
 
 def _callback_url(request: Request) -> str:

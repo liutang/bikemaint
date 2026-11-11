@@ -7,18 +7,28 @@
 <h1>Pair "{{ bike.name }}" with a Strava gear entry</h1>
 {{ error_summary(errors) }}
 
+{% set gear_options = [] %}
+{% for g in gear %}{% set _ = gear_options.append({"value": g.id|string, "label": g.name or g.id}) %}{% endfor %}
 {% if gear %}
 <form class="panel form" method="post" action="/bikes/{{ bike.id }}/strava-pairing">
-  {{ select_field("strava_gear_id", "Strava gear", gear|map(attribute="id")|map("string")|list, "", values, field_errors, hint="Pairing imports this gear's full ride history.") }}
+  {{ select_field("strava_gear_id", "Strava gear", gear_options, "", values, field_errors, hint="Pairing imports this gear's full ride history.") }}
   <div class="actions">
     {{ submit("Pair and import ride history") }}
     <a class="btn" href="/bikes/{{ bike.id }}">Cancel</a>
   </div>
 </form>
+{% elif needs_profile_access %}
+<div class="empty-state">
+  <p class="empty-title">Strava did not share your gear list</p>
+  <p>BikeMaint needs Strava's profile access to see your bikes. Sign out, then sign in with Strava again and approve the profile permission.</p>
+  <form method="post" action="/logout">
+    <button class="btn btn-primary" type="submit">Sign out and reconnect</button>
+  </form>
+</div>
 {% else %}
 <div class="empty-state">
   <p class="empty-title">No unpaired Strava gear found</p>
-  <p>Either every gear entry is already paired, or the Strava connection needs to be refreshed.</p>
+  <p>Either every gear entry is already paired, or your Strava account has no bikes yet. Add one under <a href="https://www.strava.com/settings/gear">Strava gear settings</a>, then come back.</p>
   <a class="btn" href="/settings">Check Strava connection</a>
 </div>
 {% endif %}

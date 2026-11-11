@@ -21,10 +21,19 @@ STRAVA_AUTHORIZE_URL = "https://www.strava.com/oauth/authorize"
 STRAVA_OAUTH_SCOPE = "activity:read_all"
 
 
+def _callback_url(request: Request) -> str:
+    """Where Strava sends the rider back. Behind a proxy, `PUBLIC_BASE_URL` (an http(s) URL)
+    pins the public address; otherwise it follows the request (and the proxy's forwarded headers)."""
+    base = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+    if base.startswith(("http://", "https://")) and " " not in base:
+        return f"{base}{request.app.url_path_for('strava_callback')}"
+    return str(request.url_for("strava_callback"))
+
+
 def _strava_authorize_url(request: Request) -> str:
     params = {
         "client_id": os.environ["STRAVA_CLIENT_ID"],
-        "redirect_uri": str(request.url_for("strava_callback")),
+        "redirect_uri": _callback_url(request),
         "response_type": "code",
         "approval_prompt": "auto",
         "scope": STRAVA_OAUTH_SCOPE,

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>BikeMaint</title>
+  <rect width="512" height="512" rx="112" fill="#FFA800"/>
+  <g transform="translate(64 68) scale(16)" fill="none" stroke="#1b1e25" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="5.5" cy="16.5" r="3.5"/>
+    <circle cx="18.5" cy="16.5" r="3.5"/>
+    <path d="M5.5 16.5 9.5 8.5H16l2.5 8"/>
+    <path d="M9.5 8.5 12 16.5 16 8.5"/>
+    <path d="M5.5 16.5H12"/>
+    <path d="M8 6h3.5"/>
+    <path d="M14.5 5.5H18M16 5.5v3"/>
+  </g>
+</svg>

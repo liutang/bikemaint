@@ -19,8 +19,8 @@ description: "Task list for the Unified Bike Screen and Simpler Parts feature"
 
 ## Milestone 2: Unified screen (US3) → `bikemaint:m2-unified-screen`
 
-- [ ] T008 [US3] `builder_service`: root-based `build_view`, scope checks in `add_part`/`move_part`/`delete_part`, `breadcrumbs`; tests in `tests/services/test_builder_service.py`
-- [ ] T009 [US3] Router `app/routers/builder.py`: `/builder/add|move|delete`, confirmation panel, root redirects; build-page redirect; tests in `tests/routers/test_builder.py`
-- [ ] T010 [US3] Templates: unified `bikes/detail.html` and `components/detail.html`, `partials/breadcrumb.html`, `partials/part_actions.html`, row Garage/Trash buttons, builder fragment with `data-root`; remove `bikes/build.html`, Build/Add component buttons, Move form; update `builder.js` to send `root`; UI tests
-- [ ] T011 [US3] CSS for breadcrumb, action bar, row buttons, confirmation panel; asset/contrast tests
-- [ ] T012 Docs (README, CLAUDE.md, contracts), mark tasks, full suite, build `bikemaint:m2-unified-screen`, verify drag/drop and drill-down in the browser, commit
+- [X] T008 [US3] `builder_service`: root-based `build_view`, scope checks in `add_part`/`move_part`/`delete_part`, `breadcrumbs`; tests in `tests/services/test_builder_service.py`
+- [X] T009 [US3] Router `app/routers/builder.py`: `/builder/add|move|delete`, confirmation panel, root redirects; build-page redirect; tests in `tests/routers/test_builder.py`
+- [X] T010 [US3] Templates: unified `bikes/detail.html` and `components/detail.html`, `partials/breadcrumb.html`, `partials/part_actions.html`, row Garage/Trash buttons, builder fragment with `data-root`; remove `bikes/build.html`, Build/Add component buttons, Move form; update `builder.js` to send `root`; UI tests
+- [X] T011 [US3] CSS for breadcrumb, action bar, row buttons, confirmation panel; asset/contrast tests
+- [X] T012 Docs (README, CLAUDE.md, contracts), mark tasks, full suite, build `bikemaint:m2-unified-screen`, verify drag/drop and drill-down in the browser, commit

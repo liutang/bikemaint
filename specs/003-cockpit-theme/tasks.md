@@ -50,15 +50,15 @@ Single project; existing `app/` and `tests/` layout. Plain CSS in `app/static/st
 
 ### Tests (first)
 
-- [X] T004 [P] [US1] Add `tests/db/test_mileage_latest_synced.py` for `app/db/mileage.py::latest_synced_at` (None when no rides, max `synced_at` otherwise)
-- [X] T005 [P] [US1] Add `tests/services/test_sync_status_service.py` for `last_sync_label(now)` ("Not synced yet", "Synced just now", "N min ago", "N h ago", "N d ago")
-- [X] T006 [US1] Update `tests/test_ui_shell.py`: header contains `.sync-status`, nav pills keep `aria-current="page"` on the current section, the sign-in page shows no nav or sync status, no external font/style URLs in any page
+- [ ] T004 [P] [US1] Add `tests/db/test_mileage_latest_synced.py` for `app/db/mileage.py::latest_synced_at` (None when no rides, max `synced_at` otherwise)
+- [ ] T005 [P] [US1] Add `tests/services/test_sync_status_service.py` for `last_sync_label(now)` ("Not synced yet", "Synced just now", "N min ago", "N h ago", "N d ago")
+- [ ] T006 [US1] Update `tests/test_ui_shell.py`: header contains `.sync-status`, nav pills keep `aria-current="page"` on the current section, the sign-in page shows no nav or sync status, no external font/style URLs in any page
 
 ### Implementation
 
-- [X] T007 [P] [US1] Add `latest_synced_at(conn)` to `app/db/mileage.py` (parameterized query)
-- [X] T008 [US1] Add `app/services/sync_status_service.py` with `last_sync_label` (depends on T007)
-- [X] T009 [US1] Register `last_sync_label` as a Jinja global in `app/main.py` (templates setup) and render the indicator in `app/templates/layout.html`; restyle `.app-header`, pill nav, brand, sync indicator and sign-out in `app/static/styles.css`; preload the two font files in the layout head
+- [ ] T007 [P] [US1] Add `latest_synced_at(conn)` to `app/db/mileage.py` (parameterized query)
+- [ ] T008 [US1] Add `app/services/sync_status_service.py` with `last_sync_label` (depends on T007)
+- [ ] T009 [US1] Register `last_sync_label` as a Jinja global in `app/main.py` (templates setup) and render the indicator in `app/templates/layout.html`; restyle `.app-header`, pill nav, brand, sync indicator and sign-out in `app/static/styles.css`; preload the two font files in the layout head
 
 **Checkpoint**: US1 complete and demonstrable.
 
@@ -72,17 +72,17 @@ Single project; existing `app/` and `tests/` layout. Plain CSS in `app/static/st
 
 ### Tests (first)
 
-- [X] T010 [P] [US2] Add `tests/services/test_attention.py` covering `days_until`, `ring_fraction` (overdue 1.0, floor 0.08, clamped), `split_attention` ordering (overdue most-late first, then due-soon soonest first), cap (6 → 6 cards no overflow, 7 → 5 + 2), `show_all`, and that no-estimate/on-track items are never urgent
-- [X] T011 [P] [US2] Add `tests/test_ui_attention.py`: page title "What needs attention", ring `role="img"` with aria-label text ("Overdue by 30 days", "Due in 4 days"), visible "30d"/"late" and "4d"/"left", "+2 more tasks" tile and `?all=1` link at 7 urgent, `?all=1` shows all, 2-3 urgent use `cols-2`, 4+ use `cols-3`, other tasks in the compact list with badges, all-clear and no-schedules empty states, an overdue-by-mileage item with no date shows "Late"
-- [X] T012 [US2] Update HTMX tests in `tests/test_ui_pages.py` (the single-`<tr>` assertions) to expect the re-rendered `#attention` board from `POST /schedules/{id}/complete`, a hidden `all` field preserved, and the non-HTMX redirect unchanged
+- [ ] T010 [P] [US2] Add `tests/services/test_attention.py` covering `days_until`, `ring_fraction` (overdue 1.0, floor 0.08, clamped), `split_attention` ordering (overdue most-late first, then due-soon soonest first), cap (6 → 6 cards no overflow, 7 → 5 + 2), `show_all`, and that no-estimate/on-track items are never urgent
+- [ ] T011 [P] [US2] Add `tests/test_ui_attention.py`: page title "What needs attention", ring `role="img"` with aria-label text ("Overdue by 30 days", "Due in 4 days"), visible "30d"/"late" and "4d"/"left", "+2 more tasks" tile and `?all=1` link at 7 urgent, `?all=1` shows all, 2-3 urgent use `cols-2`, 4+ use `cols-3`, other tasks in the compact list with badges, all-clear and no-schedules empty states, an overdue-by-mileage item with no date shows "Late"
+- [ ] T012 [US2] Update HTMX tests in `tests/test_ui_pages.py` (the single-`<tr>` assertions) to expect the re-rendered `#attention` board from `POST /schedules/{id}/complete`, a hidden `all` field preserved, and the non-HTMX redirect unchanged
 
 ### Implementation
 
-- [X] T013 [US2] Add `days_until` to `DueItem`, plus pure helpers `ring_fraction` and `split_attention` in `app/services/schedule_service.py`
-- [X] T014 [P] [US2] Add ring, `arrow_right`/needed icons to `app/templates/partials/icons.html` and the `ring` macro in new `app/templates/partials/ring.html`
-- [X] T015 [US2] Create `app/templates/partials/attention_board.html`, `attention_card.html` and `other_row.html`; rewrite `app/templates/schedules/due_dashboard.html` as "What needs attention" (alerts stay above; remove `due_soon_row.html` once unused)
-- [X] T016 [US2] Update `app/routers/schedules.py`: parse the boolean `all` query flag with a validated model, call `split_attention`, pass board context; HTMX complete returns the board partial
-- [X] T017 [US2] Add attention-grid, card, ring, overflow tile, other-list and all-clear styles to `app/static/styles.css` (2/3/1 column rules, 44 px targets, reduced-motion safe)
+- [ ] T013 [US2] Add `days_until` to `DueItem`, plus pure helpers `ring_fraction` and `split_attention` in `app/services/schedule_service.py`
+- [ ] T014 [P] [US2] Add ring, `arrow_right`/needed icons to `app/templates/partials/icons.html` and the `ring` macro in new `app/templates/partials/ring.html`
+- [ ] T015 [US2] Create `app/templates/partials/attention_board.html`, `attention_card.html` and `other_row.html`; rewrite `app/templates/schedules/due_dashboard.html` as "What needs attention" (alerts stay above; remove `due_soon_row.html` once unused)
+- [ ] T016 [US2] Update `app/routers/schedules.py`: parse the boolean `all` query flag with a validated model, call `split_attention`, pass board context; HTMX complete returns the board partial
+- [ ] T017 [US2] Add attention-grid, card, ring, overflow tile, other-list and all-clear styles to `app/static/styles.css` (2/3/1 column rules, 44 px targets, reduced-motion safe)
 
 **Checkpoint**: US2 complete.
 
@@ -96,12 +96,12 @@ Single project; existing `app/` and `tests/` layout. Plain CSS in `app/static/st
 
 ### Tests (first)
 
-- [X] T018 [P] [US3] Extend `tests/test_ui_contrast.py` with a status-badge token check (overdue/soon/ok/low in both themes, gold visibly distinct from `--accent` by hue) and a check that every `badge-*` rule uses status tokens
+- [ ] T018 [P] [US3] Extend `tests/test_ui_contrast.py` with a status-badge token check (overdue/soon/ok/low in both themes, gold visibly distinct from `--accent` by hue) and a check that every `badge-*` rule uses status tokens
 
 ### Implementation
 
-- [X] T019 [US3] Restyle cards, garage grid, component tree, tables, forms, alerts, banners, confirmations, sign-in and empty states in `app/static/styles.css` to the Cockpit surfaces, radii, shadows and type; keep all markup contracts (details/summary tree, `data-label` stacking, per-field errors)
-- [X] T020 [US3] Update `app/templates/partials/badges.html` and `app/templates/login.html` (and any template still using removed class names) to the new tokens and classes
+- [ ] T019 [US3] Restyle cards, garage grid, component tree, tables, forms, alerts, banners, confirmations, sign-in and empty states in `app/static/styles.css` to the Cockpit surfaces, radii, shadows and type; keep all markup contracts (details/summary tree, `data-label` stacking, per-field errors)
+- [ ] T020 [US3] Update `app/templates/partials/badges.html` and `app/templates/login.html` (and any template still using removed class names) to the new tokens and classes
 
 **Checkpoint**: all stories complete.
 
@@ -109,9 +109,9 @@ Single project; existing `app/` and `tests/` layout. Plain CSS in `app/static/st
 
 ## Phase 6: Polish and Cross-Cutting
 
-- [X] T021 Run the full suite (`.venv/bin/python -m pytest -q`); fix regressions without weakening behavioral assertions
-- [X] T022 Rebuild the Docker image, seed demo data (including a 7-urgent scenario), and visually verify dark, light and 375 px in the built-in browser (screenshots)
-- [X] T023 Update `README.md` "UI and styling" section and the UI note in `CLAUDE.md` (Cockpit tokens, fonts, attention board, `?all=1`); mark all tasks `[X]`
+- [ ] T021 Run the full suite (`.venv/bin/python -m pytest -q`); fix regressions without weakening behavioral assertions
+- [ ] T022 Rebuild the Docker image, seed demo data (including a 7-urgent scenario), and visually verify dark, light and 375 px in the built-in browser (screenshots)
+- [ ] T023 Update `README.md` "UI and styling" section and the UI note in `CLAUDE.md` (Cockpit tokens, fonts, attention board, `?all=1`); mark all tasks `[X]`
 
 ---
 

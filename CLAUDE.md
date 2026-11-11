@@ -9,15 +9,16 @@ The 001 feature is implemented (all tasks in `tasks.md` are checked off). Common
 - Install: `python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"`
 - Test: `.venv/bin/python -m pytest -q` (single file: `pytest tests/services/test_x.py`)
 - Run: export the variables in `.env.example`, then `uvicorn app.main:app --reload`
+- Docker: `docker build -t bikemaint:local .` (see README "Running in Docker")
 
-The active feature is `specs/001-bike-maintenance-tracker/`, tracked on git branch `001-bike-maintenance-tracker`. Its full spec/plan/design chain lives there:
+All features so far are merged into `master`; new work goes on a short-lived feature branch cut from it. Spec chains live under `specs/`: `001-bike-maintenance-tracker` (the app), `002-modern-ui` and `003-cockpit-theme` (the UI). The 001 chain contains:
 - `spec.md` — feature spec (user stories, functional requirements, clarifications)
 - `plan.md` — implementation plan (tech stack choices, constitution gate check, source layout)
 - `research.md` — Phase 0 design decisions and rejected alternatives
 - `data-model.md` — SQLite schema/entities
 - `contracts/routes.md`, `contracts/webhook-payload.md` — HTTP route contract and outbound webhook contract
 - `quickstart.md` — end-to-end manual validation script per user story
-- `tasks.md` (once generated) — the dependency-ordered task list to implement against
+- `tasks.md` — the dependency-ordered task list that was implemented
 
 ## Spec Kit workflow
 

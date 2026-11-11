@@ -159,3 +159,23 @@ def test_asset_budget():
     font_size = sum(p.stat().st_size for p in (STATIC / "fonts").glob("*.woff2"))
     assert css_size <= 40 * 1024
     assert css_size + font_size <= 250 * 1024
+
+
+@pytest.mark.parametrize("name", ["overdue", "soon", "ok", "low"])
+def test_status_badge_rules_use_their_status_tokens(name):
+    rule = re.search(rf"\.badge-{name}\s*\{{([^}}]*)\}}", CSS)
+    assert rule, f"no .badge-{name} rule"
+    assert f"var(--badge-{name}-bg)" in rule.group(1) and f"var(--badge-{name}-fg)" in rule.group(1)
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_due_soon_badge_text_is_not_the_brand_amber(theme):
+    tokens = _themes()[theme]
+    assert abs(_hue(tokens["--badge-soon-fg"]) - _hue(tokens["--primary"])) >= 8
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_status_hues_are_mutually_distinct(theme):
+    tokens = _themes()[theme]
+    hues = [_hue(tokens[f"--ring-{n}"]) for n in ("overdue", "soon", "ok")]
+    assert min(abs(a - b) for i, a in enumerate(hues) for b in hues[i + 1 :]) >= 20

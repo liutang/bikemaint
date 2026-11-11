@@ -96,12 +96,12 @@ Single project; existing `app/` and `tests/` layout. Plain CSS in `app/static/st
 
 ### Tests (first)
 
-- [ ] T018 [P] [US3] Extend `tests/test_ui_contrast.py` with a status-badge token check (overdue/soon/ok/low in both themes, gold visibly distinct from `--accent` by hue) and a check that every `badge-*` rule uses status tokens
+- [X] T018 [P] [US3] Extend `tests/test_ui_contrast.py` with a status-badge token check (overdue/soon/ok/low in both themes, gold visibly distinct from `--accent` by hue) and a check that every `badge-*` rule uses status tokens
 
 ### Implementation
 
-- [ ] T019 [US3] Restyle cards, garage grid, component tree, tables, forms, alerts, banners, confirmations, sign-in and empty states in `app/static/styles.css` to the Cockpit surfaces, radii, shadows and type; keep all markup contracts (details/summary tree, `data-label` stacking, per-field errors)
-- [ ] T020 [US3] Update `app/templates/partials/badges.html` and `app/templates/login.html` (and any template still using removed class names) to the new tokens and classes
+- [X] T019 [US3] Restyle cards, garage grid, component tree, tables, forms, alerts, banners, confirmations, sign-in and empty states in `app/static/styles.css` to the Cockpit surfaces, radii, shadows and type; keep all markup contracts (details/summary tree, `data-label` stacking, per-field errors)
+- [X] T020 [US3] Update `app/templates/partials/badges.html` and `app/templates/login.html` (and any template still using removed class names) to the new tokens and classes
 
 **Checkpoint**: all stories complete.
 
@@ -109,9 +109,9 @@ Single project; existing `app/` and `tests/` layout. Plain CSS in `app/static/st
 
 ## Phase 6: Polish and Cross-Cutting
 
-- [ ] T021 Run the full suite (`.venv/bin/python -m pytest -q`); fix regressions without weakening behavioral assertions
-- [ ] T022 Rebuild the Docker image, seed demo data (including a 7-urgent scenario), and visually verify dark, light and 375 px in the built-in browser (screenshots)
-- [ ] T023 Update `README.md` "UI and styling" section and the UI note in `CLAUDE.md` (Cockpit tokens, fonts, attention board, `?all=1`); mark all tasks `[X]`
+- [X] T021 Run the full suite (`.venv/bin/python -m pytest -q`); fix regressions without weakening behavioral assertions
+- [X] T022 Rebuild the Docker image, seed demo data (including a 7-urgent scenario), and visually verify dark, light and 375 px in the built-in browser (screenshots)
+- [X] T023 Update `README.md` "UI and styling" section and the UI note in `CLAUDE.md` (Cockpit tokens, fonts, attention board, `?all=1`); mark all tasks `[X]`
 
 ---
 

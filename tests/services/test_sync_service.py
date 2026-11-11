@@ -185,3 +185,23 @@ def test_sync_skipped_for_stale_connection_is_logged_as_a_warning(db_path, monke
         record.levelname == "WARNING" and f"account_id={account.id}" in record.getMessage()
         for record in caplog.records
     )
+
+
+def test_backfill_twice_does_not_duplicate_rides(db_path, monkeypatch):
+    _connected_account()
+    from app.db import connection, mileage
+    from app.services import bike_service
+
+    bike = bike_service.create_bike_from_details(year=2023, make="Trek", model="Madone", category="road")
+    monkeypatch.setattr(strava_client, "ensure_fresh_access_token", lambda account: "t")
+    activities = [{"id": 7, "gear_id": "b1", "distance": 16093.4, "start_date": "2024-01-01T10:00:00Z"}]
+    monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: activities)
+    with connection.get_connection() as conn:
+        from app.db import bikes as bikes_db
+        bikes_db.set_strava_pairing(conn, bike.id, strava_gear_id="b1", strava_paired_at="2024-01-01T00:00:00.000000Z")
+
+    sync_service.backfill_bike(bike.id)
+    sync_service.backfill_bike(bike.id)
+
+    with connection.get_connection() as conn:
+        assert len(mileage.list_rides_for_bike(conn, bike.id)) == 1

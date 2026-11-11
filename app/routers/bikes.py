@@ -204,6 +204,28 @@ async def pair_bike_to_strava_gear(request: Request, bike_id: int, account=Depen
     return RedirectResponse(url=f"/bikes/{updated.id}", status_code=303)
 
 
+@router.post("/bikes/{bike_id}/strava-reimport", name="reimport_strava_history")
+def reimport_strava_history(bike_id: int, account=Depends(require_account)):
+    try:
+        bike_service.reimport_strava_history(bike_id)
+    except LookupError:
+        return PlainTextResponse("Bike not found", status_code=404)
+    except bike_service.NotPairedError:
+        return PlainTextResponse("Bike is not paired with Strava", status_code=409)
+    return RedirectResponse(url=f"/bikes/{bike_id}", status_code=303)
+
+
+@router.post("/bikes/{bike_id}/strava-unpair", name="unpair_bike_from_strava")
+def unpair_bike_from_strava(bike_id: int, account=Depends(require_account)):
+    try:
+        bike_service.unpair_from_strava(bike_id)
+    except LookupError:
+        return PlainTextResponse("Bike not found", status_code=404)
+    except bike_service.NotPairedError:
+        return PlainTextResponse("Bike is not paired with Strava", status_code=409)
+    return RedirectResponse(url=f"/bikes/{bike_id}", status_code=303)
+
+
 @router.post("/bikes/{bike_id}/delete", name="delete_bike")
 async def delete_bike(request: Request, bike_id: int, account=Depends(require_account)):
     form = await request.form()

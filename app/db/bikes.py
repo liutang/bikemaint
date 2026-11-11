@@ -59,6 +59,16 @@ def get_by_strava_gear_id(conn: sqlite3.Connection, strava_gear_id: str) -> Bike
     return Bike.from_row(row) if row else None
 
 
+def clear_strava_pairing(conn: sqlite3.Connection, bike_id: int) -> Bike:
+    conn.execute(
+        "UPDATE bike SET strava_gear_id = NULL, strava_paired_at = NULL, updated_at = ? WHERE id = ?",
+        (_now(), bike_id),
+    )
+    bike = get_by_id(conn, bike_id)
+    assert bike is not None
+    return bike
+
+
 def set_strava_pairing(
     conn: sqlite3.Connection, bike_id: int, *, strava_gear_id: str, strava_paired_at: str
 ) -> Bike:

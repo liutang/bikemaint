@@ -193,3 +193,29 @@ def delete_bike(bike_id: int, *, confirmed: bool = False) -> None:
                 conn, component.id, removed_at=now, deleted_parent_name=bike.name
             )
         bikes_db.soft_delete(conn, bike_id)
+
+
+class NotPairedError(Exception):
+    """The bike has no Strava gear pairing to re-import or remove."""
+
+
+def reimport_strava_history(bike_id: int) -> None:
+    """Re-fetch the paired gear's full history; rides already imported are updated in
+    place by Strava activity id, so nothing is duplicated."""
+    bike = get_bike(bike_id)
+    if bike is None:
+        raise LookupError(f"No bike with id {bike_id}")
+    if not bike.strava_gear_id:
+        raise NotPairedError(bike_id)
+    sync_service.backfill_bike(bike_id)
+
+
+def unpair_from_strava(bike_id: int) -> Bike:
+    """Detach the bike from its Strava gear. Imported rides and mileage are kept."""
+    with get_connection() as conn:
+        bike = bikes_db.get_by_id(conn, bike_id)
+        if bike is None:
+            raise LookupError(f"No bike with id {bike_id}")
+        if not bike.strava_gear_id:
+            raise NotPairedError(bike_id)
+        return bikes_db.clear_strava_pairing(conn, bike_id)

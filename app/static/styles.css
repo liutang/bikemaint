@@ -71,8 +71,10 @@
   --tap-min: 2.75rem;
 }
 
+/* Dark applies automatically (OS preference) unless the rider forced Light in Settings,
+   and always when they forced Dark. The two dark blocks must stay identical (tested). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     /* Dark theme: softened charcoal (never near-black). */
     --bg: #1b1e25;
     --surface: #262a33;
@@ -106,6 +108,46 @@
 
     --shadow: 0 1px 2px rgb(0 0 0 / 30%);
   }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  /* Dark theme: softened charcoal (never near-black). */
+  --bg: #1b1e25;
+  --surface: #262a33;
+  --surface-2: #323742;
+  --text: #eceef2;
+  --text-muted: #b8bdc9;
+  --border: #363c48;
+  --primary: #ffa800;
+  --primary-text: #1b1e25;
+  --link: #ffa800;
+  --danger: #ff8a80;
+  --danger-text: #3b0a07;
+  --success: #3ddc84;
+  --warning: #f4dc4a;
+  --info: #ffa800;
+  --focus: #ffa800;
+
+  --badge-overdue-bg: #4a2326;
+  --badge-overdue-fg: #ffb4ab;
+  --badge-soon-bg: #4a4210;
+  --badge-soon-fg: #f4dc4a;
+  --badge-ok-bg: #163d2a;
+  --badge-ok-fg: #8be8b6;
+  --badge-low-bg: #3a404c;
+  --badge-low-fg: #d3d8e3;
+
+  --ring-overdue: #ff6b5e;
+  --ring-soon: #f4dc4a;
+  --ring-ok: #3ddc84;
+  --ring-track: #3d4350;
+
+  --shadow: 0 1px 2px rgb(0 0 0 / 30%);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 /* ---------- Base ---------- */
@@ -383,6 +425,38 @@ ul {
   .container {
     padding: var(--space-4) var(--space-3) var(--space-5);
   }
+}
+
+/* ---------- Theme choice ---------- */
+.theme-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.theme-option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.theme-option:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--surface-2);
+}
+
+.theme-option input {
+  accent-color: var(--primary);
 }
 
 /* ---------- Page header ---------- */

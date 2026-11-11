@@ -12,7 +12,11 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 
 from app.models.form_errors import error_context
-from app.models.requests import LeadTimeSettingsRequest, WebhookSettingsRequest
+from app.models.requests import (
+    LeadTimeSettingsRequest,
+    ThemeSettingsRequest,
+    WebhookSettingsRequest,
+)
 from app.services import settings_service
 from app.services.auth_dependency import require_account
 
@@ -67,3 +71,27 @@ async def update_notification_settings(request: Request, account=Depends(require
         return _settings_page(request, account.id, error_context(form, exc), 422)
     settings_service.set_lead_time_days(account.id, payload.notification_lead_time_days)
     return RedirectResponse(url="/settings", status_code=303)
+
+
+THEME_COOKIE = "theme"
+ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
+
+
+@router.post("/settings/theme", name="update_theme_setting")
+async def update_theme_setting(request: Request, account=Depends(require_account)):
+    """The theme is a per-browser preference, so it lives in a cookie, not the database."""
+    form = await request.form()
+    try:
+        payload = ThemeSettingsRequest(theme=form.get("theme", ""))
+    except ValidationError as exc:
+        return _settings_page(request, account.id, error_context(form, exc), 422)
+    response = RedirectResponse(url="/settings", status_code=303)
+    response.set_cookie(
+        THEME_COOKIE,
+        payload.theme,
+        max_age=ONE_YEAR_SECONDS,
+        secure=True,
+        httponly=True,
+        samesite="lax",
+    )
+    return response

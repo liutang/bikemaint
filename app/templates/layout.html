@@ -2,7 +2,8 @@
 {% set path = request.url.path %}
 {% set section = "due" if path.startswith("/maintenance/due") or path.startswith("/schedules") else ("settings" if path.startswith("/settings") else "garage") %}
 <!DOCTYPE html>
-<html lang="en">
+{% set theme = request.cookies.get("theme") %}
+<html lang="en"{% if theme in ["light", "dark"] %} data-theme="{{ theme }}"{% endif %}>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">

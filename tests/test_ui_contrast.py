@@ -13,20 +13,30 @@ STATIC = Path(__file__).parent.parent / "app" / "static"
 CSS = (STATIC / "styles.css").read_text()
 
 
-def _blocks(css: str) -> list[str]:
-    return re.findall(r":root\s*\{([^}]*)\}", css)
-
-
 def _tokens(block: str) -> dict[str, str]:
-    return dict(re.findall(r"(--[\w-]+)\s*:\s*([^;]+);", block))
+    return dict(re.findall(r"(--[\w-]+|color-scheme)\s*:\s*([^;]+);", block))
+
+
+def _rule(selector: str) -> dict[str, str]:
+    match = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", CSS)
+    assert match, f"no rule for {selector}"
+    return _tokens(match.group(1))
 
 
 def _themes() -> dict[str, dict[str, str]]:
-    blocks = _blocks(CSS)
-    assert len(blocks) >= 2, "expected a light :root block and a dark override block"
-    light = _tokens(blocks[0])
-    dark = {**light, **_tokens(blocks[1])}
+    light = _rule(":root")
+    dark = {**light, **_rule(':root:not([data-theme="light"])')}
     return {"light": light, "dark": dark}
+
+
+def test_forced_dark_theme_has_the_same_tokens_as_the_automatic_one():
+    auto = _rule(':root:not([data-theme="light"])')
+    forced = _rule(':root[data-theme="dark"]')
+    assert {k: v for k, v in auto.items() if k != "color-scheme"} == {
+        k: v for k, v in forced.items() if k != "color-scheme"
+    }
+    assert _rule(':root[data-theme="light"]')["color-scheme"] == "light"
+    assert forced["color-scheme"] == "dark"
 
 
 def _luminance(hex_color: str) -> float:

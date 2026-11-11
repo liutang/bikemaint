@@ -7,9 +7,9 @@ import pytest
         ("get", "/", None),
         ("get", "/bikes/1", None),
         ("get", "/bikes/new", None),
-        ("post", "/bikes", {"catalog_id": "trek-domane", "manual_baseline_mileage": "0"}),
+        ("post", "/bikes", {"year": "2022", "make": "Trek", "model": "Domane", "category": "road", "manual_baseline_mileage": "0"}),
         ("get", "/bikes/1/edit", None),
-        ("post", "/bikes/1", {"catalog_id": "trek-domane", "manual_baseline_mileage": "0"}),
+        ("post", "/bikes/1", {"year": "2022", "make": "Trek", "model": "Domane", "category": "road", "manual_baseline_mileage": "0"}),
         ("post", "/bikes/1/delete", {}),
     ],
 )
@@ -40,38 +40,38 @@ def _login(client, monkeypatch, athlete_id=42):
 def test_garage_overview_lists_created_bikes(client, monkeypatch):
     _login(client, monkeypatch)
 
-    client.post("/bikes", data={"catalog_id": "canyon-grizl", "manual_baseline_mileage": "0"})
+    client.post("/bikes", data={"year": "2023", "make": "Canyon", "model": "Grizl", "category": "gravel"})
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "Canyon Grizl" in response.text
+    assert "2023 Canyon Grizl" in response.text
 
 
 def test_create_then_view_bike_detail(client, monkeypatch):
     _login(client, monkeypatch)
 
-    client.post("/bikes", data={"catalog_id": "trek-domane", "manual_baseline_mileage": "10"})
+    client.post("/bikes", data={"year": "2022", "make": "Trek", "model": "Domane", "category": "road", "manual_baseline_mileage": "10"})
 
     from app.db import connection
 
     with connection.get_connection() as conn:
-        bike_id = conn.execute("SELECT id FROM bike WHERE name = 'Trek Domane'").fetchone()["id"]
+        bike_id = conn.execute("SELECT id FROM bike WHERE name = '2022 Trek Domane'").fetchone()["id"]
 
     response = client.get(f"/bikes/{bike_id}")
 
     assert response.status_code == 200
-    assert "Trek Domane" in response.text
+    assert "2022 Trek Domane" in response.text
 
 
 def test_delete_bike_with_installed_component_returns_confirmation_fragment(client, monkeypatch):
     _login(client, monkeypatch)
 
-    client.post("/bikes", data={"catalog_id": "trek-fx", "manual_baseline_mileage": "0"})
+    client.post("/bikes", data={"year": "2021", "make": "Trek", "model": "FX", "category": "hybrid"})
 
     from app.db import connection
 
     with connection.get_connection() as conn:
-        bike_id = conn.execute("SELECT id FROM bike WHERE name = 'Trek FX'").fetchone()["id"]
+        bike_id = conn.execute("SELECT id FROM bike WHERE name = '2021 Trek FX'").fetchone()["id"]
 
     client.post(
         "/components",
@@ -91,107 +91,131 @@ def test_delete_bike_with_installed_component_returns_confirmation_fragment(clie
     assert row["is_deleted"] == 1
 
 
-# ------------------------------------------------ catalog form (specs/004-bike-builder, M1)
+# ------------------------------------------------ year/make/model form (specs/005, M1)
 
 import re  # noqa: E402
 
 from app.services import bike_service  # noqa: E402
 
+DOMANE = {"year": "2022", "make": "Trek", "model": "Domane", "category": "road"}
 
-def test_add_form_is_a_catalog_select_with_no_free_text(signed_in_client):
+
+def test_add_form_has_text_entries_and_only_the_category_is_a_dropdown(signed_in_client):
     html = signed_in_client.get("/bikes/new").text
 
-    assert '<select id="catalog_id" name="catalog_id"' in html
-    assert 'name="name"' not in html and 'name="bike_type"' not in html
-    for label in ("Road", "Gravel", "Mountain", "Hybrid", "E-bike"):
-        assert f'<optgroup label="{label}">' in html
-    assert '<option value="trek-domane">Trek Domane</option>' in html
+    for name in ("year", "make", "model"):
+        assert re.search(rf'<input id="{name}" name="{name}" type="text"', html)
+    assert '<select id="category" name="category"' in html
+    options = re.findall(r'<option value="([^"]*)"', re.search(r'<select id="category".*?</select>', html, re.S).group(0))
+    assert options == ["road", "gravel", "mountain", "hybrid", "e-bike", "other"]
+    assert html.count("<select") == 1  # no make/model lists
+    assert "optgroup" not in html and "catalog_id" not in html
     assert 'name="manual_baseline_mileage"' in html
 
 
-def test_creating_from_the_catalog_names_and_types_the_bike(signed_in_client):
+def test_creating_a_bike_derives_its_name_and_uses_the_category(signed_in_client):
     response = signed_in_client.post(
-        "/bikes", data={"catalog_id": "specialized-diverge", "manual_baseline_mileage": "12.5"},
-        follow_redirects=False,
+        "/bikes", data={**DOMANE, "category": "gravel", "manual_baseline_mileage": "12.5"}, follow_redirects=False
     )
 
     assert response.status_code == 303 and response.headers["location"] == "/bikes/1"
     bike = bike_service.get_bike(1)
-    assert (bike.name, bike.bike_type, bike.catalog_id) == ("Specialized Diverge", "gravel", "specialized-diverge")
+    assert (bike.name, bike.bike_type, bike.year, bike.make, bike.model) == ("2022 Trek Domane", "gravel", 2022, "Trek", "Domane")
     assert bike.total_mileage == 12.5
 
 
-def test_adding_the_same_model_twice_suffixes_the_second(signed_in_client):
+def test_the_same_bike_twice_gets_a_suffix(signed_in_client):
     for _ in range(2):
-        signed_in_client.post("/bikes", data={"catalog_id": "trek-domane"})
+        signed_in_client.post("/bikes", data=DOMANE)
 
-    assert [b.name for b in bike_service.list_bikes()] == ["Trek Domane", "Trek Domane (2)"]
+    assert [b.name for b in bike_service.list_bikes()] == ["2022 Trek Domane", "2022 Trek Domane (2)"]
 
 
-@pytest.mark.parametrize("value", ["", "nope", "Trek Domane", "__keep__", "<script>"])
-def test_unknown_or_missing_catalog_ids_are_rejected_with_a_field_error(signed_in_client, value):
-    response = signed_in_client.post("/bikes", data={"catalog_id": value})
+@pytest.mark.parametrize(
+    "change,field",
+    [
+        ({"year": ""}, "year"),
+        ({"year": "abc"}, "year"),
+        ({"year": "1850"}, "year"),
+        ({"make": "  "}, None),
+        ({"model": ""}, None),
+        ({"category": "spaceship"}, "category"),
+        ({"category": ""}, "category"),
+        ({"make": "x" * 61}, "make"),
+        ({"manual_baseline_mileage": "-5"}, "manual_baseline_mileage"),
+    ],
+)
+def test_invalid_entries_are_rejected_keeping_the_other_values(signed_in_client, change, field):
+    response = signed_in_client.post("/bikes", data={**DOMANE, **change})
 
     assert response.status_code == 422
-    assert 'class="field-error"' in response.text
     assert bike_service.list_bikes() == []
+    assert 'class="error-summary"' in response.text
+    if field:
+        assert f'id="{field}-error"' in response.text
+    if "model" not in change:
+        assert 'value="Domane"' in response.text  # untouched entries survive
 
 
-def test_free_text_name_and_type_are_ignored(signed_in_client):
-    signed_in_client.post(
-        "/bikes", data={"catalog_id": "trek-domane", "name": "Hacked", "bike_type": "bmx"}
-    )
-
-    bike = bike_service.get_bike(1)
-    assert (bike.name, bike.bike_type) == ("Trek Domane", "road")
-
-
-def test_negative_baseline_mileage_is_rejected_and_the_choice_kept(signed_in_client):
-    response = signed_in_client.post(
-        "/bikes", data={"catalog_id": "trek-domane", "manual_baseline_mileage": "-5"}
-    )
-
-    assert response.status_code == 422
-    assert re.search(r'<option value="trek-domane" selected>', response.text)
-
-
-def test_edit_form_preselects_the_current_catalog_entry(signed_in_client):
-    bike_service.create_bike_from_catalog("giant-tcr")
+def test_edit_form_prefills_the_details(signed_in_client):
+    bike_service.create_bike_from_details(year=2020, make="Giant", model="TCR", category="gravel")
 
     html = signed_in_client.get("/bikes/1/edit").text
 
-    assert re.search(r'<option value="giant-tcr" selected>', html)
-    assert "__keep__" not in html
+    assert 'value="2020"' in html and 'value="Giant"' in html and 'value="TCR"' in html
+    assert re.search(r'<option value="gravel" selected>', html)
+    assert "single name" not in html
 
 
-def test_edit_form_for_a_legacy_bike_offers_keep_current(signed_in_client):
+def test_edit_form_for_a_legacy_bike_explains_the_single_name(signed_in_client):
     bike_service.create_bike(name="Grandpa's Raleigh", bike_type="vintage")
 
     html = signed_in_client.get("/bikes/1/edit").text
 
-    assert re.search(r'<option value="__keep__" selected>Keep current: Grandpa&#39;s Raleigh', html)
+    assert "single name" in html and "Grandpa&#39;s Raleigh" in html
+    assert re.search(r'<option value="other" selected>', html)  # unknown legacy type maps to other
+    assert not re.search(r'<input id="year"[^>]*required', html)
 
 
-def test_editing_a_legacy_bike_with_keep_current_changes_only_the_mileage(signed_in_client):
+def test_editing_a_legacy_bike_with_blank_details_keeps_the_name(signed_in_client):
     bike_service.create_bike(name="Grandpa's Raleigh", bike_type="vintage")
 
     response = signed_in_client.post(
-        "/bikes/1", data={"catalog_id": "__keep__", "manual_baseline_mileage": "9"},
+        "/bikes/1", data={"year": "", "make": "", "model": "", "category": "road", "manual_baseline_mileage": "9"},
         follow_redirects=False,
     )
 
     assert response.status_code == 303
     bike = bike_service.get_bike(1)
-    assert (bike.name, bike.bike_type, bike.manual_baseline_mileage) == ("Grandpa's Raleigh", "vintage", 9)
+    assert (bike.name, bike.bike_type, bike.manual_baseline_mileage) == ("Grandpa's Raleigh", "road", 9)
 
 
-def test_editing_to_another_catalog_entry_renames_the_bike(signed_in_client):
-    bike_service.create_bike_from_catalog("trek-domane")
+def test_editing_with_a_mix_of_blank_and_filled_details_is_refused(signed_in_client):
+    bike_service.create_bike(name="Grandpa's Raleigh")
 
-    signed_in_client.post("/bikes/1", data={"catalog_id": "canyon-grizl", "manual_baseline_mileage": "0"})
+    response = signed_in_client.post("/bikes/1", data={"year": "1975", "make": "", "model": "", "category": "road"})
 
-    assert bike_service.get_bike(1).name == "Canyon Grizl"
+    assert response.status_code == 422
+    assert bike_service.get_bike(1).name == "Grandpa's Raleigh"
+
+
+def test_editing_renames_the_bike(signed_in_client):
+    bike_service.create_bike_from_details(year=2022, make="Trek", model="Domane", category="road")
+
+    signed_in_client.post("/bikes/1", data={"year": "2023", "make": "Canyon", "model": "Grizl", "category": "gravel"})
+
+    assert bike_service.get_bike(1).name == "2023 Canyon Grizl"
 
 
 def test_editing_a_missing_bike_is_a_404(signed_in_client):
-    assert signed_in_client.post("/bikes/99", data={"catalog_id": "trek-domane"}).status_code == 404
+    assert signed_in_client.post("/bikes/99", data=DOMANE).status_code == 404
+
+
+def test_the_add_and_edit_pages_show_a_breadcrumb(signed_in_client):
+    bike_service.create_bike_from_details(year=2022, make="Trek", model="Domane", category="road")
+
+    add = signed_in_client.get("/bikes/new").text
+    edit = signed_in_client.get("/bikes/1/edit").text
+
+    assert '<nav class="breadcrumb" aria-label="Breadcrumb">' in add and '<a href="/">Garage</a>' in add
+    assert '<a href="/bikes/1">2022 Trek Domane</a>' in edit and 'aria-current="page"><span>Edit</span>' in edit

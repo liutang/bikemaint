@@ -89,22 +89,22 @@ def test_empty_storage_page_shows_an_empty_state(signed_in_client):
 def test_component_tree_uses_collapsible_details_for_branches(signed_in_client):
     _add_bike(signed_in_client)
     _add_component(signed_in_client, "Road Wheel", "wheel", parent_bike_id="1")
-    _add_component(signed_in_client, "Road Rim", "rim", parent_component_id="1")
-    _add_component(signed_in_client, "Road Tire", "tire", parent_component_id="2")
+    _add_component(signed_in_client, "Road Tire", "tire", parent_component_id="1")
+    _add_component(signed_in_client, "Road Valve", "other", parent_component_id="2")
 
     html = signed_in_client.get("/bikes/1").text
 
     assert 'class="tree"' in html
-    assert html.count("<details open>") == 2  # wheel and rim have children
+    assert html.count("<details open>") == 2  # wheel and tire have children
     assert html.count("<summary") == 2
-    assert html.index("Road Wheel") < html.index("Road Rim") < html.index("Road Tire")
+    assert html.index("Road Wheel") < html.index("Road Tire") < html.index("Road Valve")
     # Interactive content must not nest inside <summary> (axe: nested-interactive).
     assert not re.search(r"<summary[^>]*>(?:(?!</summary>).)*<(?:a|button)\b", html, re.S)
     assert 'href="/components/1"' in html and 'href="/components/2"' in html
-    start = html.rfind("<li", 0, html.index("Road Tire"))
-    tire_item = html[start : html.index("</li>", start)]
-    assert "<details" not in tire_item  # a leaf is a plain item, not a collapsible branch
-    for kind in ("wheel", "rim", "tire"):
+    start = html.rfind("<li", 0, html.index("Road Valve"))
+    valve_item = html[start : html.index("</li>", start)]
+    assert "<details" not in valve_item  # a leaf is a plain item, not a collapsible branch
+    for kind in ("wheel", "tire", "other"):
         assert kind in html
     assert "0.0 mi" in html or "0 mi" in html
 
@@ -144,7 +144,7 @@ def test_unconfirmed_delete_with_htmx_returns_only_the_confirmation_fragment(sig
 
 def test_component_delete_confirmation_follows_the_same_contract(signed_in_client):
     _add_component(signed_in_client, "Road Wheel", "wheel")
-    _add_component(signed_in_client, "Road Rim", "rim", parent_component_id="1")
+    _add_component(signed_in_client, "Road Tire", "tire", parent_component_id="1")
 
     page = signed_in_client.post("/components/1/delete", data={})
     fragment = signed_in_client.post(
@@ -320,10 +320,10 @@ import pytest  # noqa: E402
 
 BAD_SUBMISSIONS = [
     # (id, path, form data, field with the error, entered value that must be preserved, preserved field)
-    ("bike", "/bikes", {"catalog_id": "", "manual_baseline_mileage": "5"},
-     "catalog_id", "5", "manual_baseline_mileage"),
-    ("bike-edit", "/bikes/1", {"catalog_id": "", "manual_baseline_mileage": "5"},
-     "catalog_id", "5", "manual_baseline_mileage"),
+    ("bike", "/bikes", {"year": "abc", "make": "Trek", "model": "Domane", "category": "road"},
+     "year", "Trek", "make"),
+    ("bike-edit", "/bikes/1", {"year": "abc", "make": "Trek", "model": "Domane", "category": "road"},
+     "year", "Trek", "make"),
     ("component", "/components", {"name": "", "component_type": "chain", "manual_baseline_mileage": "9"},
      "name", "9", "manual_baseline_mileage"),
     ("maintenance", "/bikes/1/maintenance",

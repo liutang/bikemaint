@@ -74,7 +74,7 @@ def test_bike_root_is_a_drop_target_with_its_accepted_types(signed_in_client):
 def test_tree_nodes_are_draggable_drop_targets_with_rules_attached(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    _mk("Rim", "rim", parent_component_id=wheel.id)
+    _mk("Tire", "tire", parent_component_id=wheel.id)
 
     html = signed_in_client.get(f"/bikes/{bike.id}/build").text
 
@@ -82,7 +82,7 @@ def test_tree_nodes_are_draggable_drop_targets_with_rules_attached(signed_in_cli
     assert 'draggable="true"' in node and 'data-source="node"' in node and 'data-type="wheel"' in node
     assert f'data-ref="component:{wheel.id}"' in node and f'data-parent-ref="bike:{bike.id}"' in node
     accepts = re.search(r'data-accepts="([^"]*)"', node).group(1).split()
-    assert "hub" in accepts and "rim" not in accepts  # the single rim slot is taken
+    assert "other" in accepts and "tire" not in accepts  # the single tire slot is taken
 
 
 def test_storage_and_palette_items_are_draggable_sources(signed_in_client):
@@ -100,7 +100,7 @@ def test_storage_and_palette_items_are_draggable_sources(signed_in_client):
 def test_every_drag_action_has_a_keyboard_form_with_only_valid_targets(signed_in_client):
     bike = _bike("Road")
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    _mk("Spare hub", "hub")
+    _mk("Spare tire", "tire")
 
     html = signed_in_client.get(f"/bikes/{bike.id}/build").text
 
@@ -110,8 +110,8 @@ def test_every_drag_action_has_a_keyboard_form_with_only_valid_targets(signed_in
     assert 'name="component_id"' in forms[0] and 'name="target"' in forms[0]
     # palette: "Add" select for hubs lists the wheel; pedals have no valid place so no form control
     add_forms = re.findall(r'<form class="side-form"[^>]*action="/bikes/%d/build/add".*?</form>' % bike.id, html, re.S)
-    assert any('name="component_type" value="hub"' in f and f'value="component:{wheel.id}"' in f for f in add_forms)
-    assert not any('value="pedal"' in f for f in add_forms)
+    assert any('name="component_type" value="tire"' in f and f'value="component:{wheel.id}"' in f for f in add_forms)
+    assert not any('value="rim"' in f for f in add_forms)  # older finer kinds are never offered
 
 
 def test_reorder_buttons_exist_for_siblings(signed_in_client):
@@ -168,12 +168,12 @@ def test_adding_without_htmx_redirects_back_to_the_builder(signed_in_client):
 def test_adding_before_a_sibling_orders_it(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    first = _mk("S1", "spoke", parent_component_id=wheel.id)
+    first = _mk("S1", "other", parent_component_id=wheel.id)
 
     _hx(signed_in_client, f"/bikes/{bike.id}/build/add",
-        {"component_type": "spoke", "target": f"component:{wheel.id}", "before_component_id": str(first.id)})
+        {"component_type": "other", "target": f"component:{wheel.id}", "before_component_id": str(first.id)})
 
-    assert _names(bike.id) == ["Wheel", "Spoke", "S1"]
+    assert _names(bike.id) == ["Wheel", "Other part", "S1"]
 
 
 def test_an_invalid_add_returns_the_fragment_with_a_422_and_the_reason(signed_in_client):
@@ -186,7 +186,7 @@ def test_an_invalid_add_returns_the_fragment_with_a_422_and_the_reason(signed_in
     assert response.status_code == 422
     assert response.text.lstrip().startswith('<div id="builder"')
     assert 'role="alert"' in response.text
-    assert "A pedal can be mounted on a crankset, not on a wheel." in response.text
+    assert "A pedal can be mounted on the bike, not on a wheel." in response.text
     assert _names(bike.id) == ["Wheel"]
 
 
@@ -199,7 +199,7 @@ def test_an_invalid_add_without_htmx_renders_the_full_page_with_the_reason(signe
     )
 
     assert response.status_code == 422 and "<html" in response.text
-    assert "A pedal can be mounted on a crankset" in response.text
+    assert "A pedal can be mounted on the bike" in response.text
 
 
 @pytest.mark.parametrize(
@@ -300,7 +300,7 @@ def test_an_invalid_move_is_refused_with_the_reason_and_nothing_moves(signed_in_
                    {"component_id": str(pedal.id), "target": f"component:{wheel.id}"})
 
     assert response.status_code == 422
-    assert "A pedal can be mounted on a crankset, not on a wheel." in response.text
+    assert "A pedal can be mounted on the bike, not on a wheel." in response.text
     assert component_service.get_component(pedal.id).parent_component_id is None
 
 

@@ -13,7 +13,12 @@ from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db.connection import get_connection
 from app.models import component_kinds
-from app.models.component_kinds import BIKE, COMPONENT_KINDS, MULTI_INSTANCE_COMPONENT_TYPES
+from app.models.component_kinds import (
+    BIKE,
+    COMPONENT_KINDS,
+    COMPONENT_TYPES,
+    MULTI_INSTANCE_COMPONENT_TYPES,
+)
 from app.models.rows import Bike, Component
 from app.services import component_service
 from app.services.component_service import MoveTarget
@@ -109,11 +114,11 @@ def build_view(bike_id: int) -> BuilderView | None:
         ],
         palette=[
             PaletteItem(
-                kind.type,
-                kind.label.capitalize(),
-                component_service.list_type_targets(kind.type, bike_id=bike_id),
+                type_,
+                COMPONENT_KINDS[type_].label.capitalize(),
+                component_service.list_type_targets(type_, bike_id=bike_id),
             )
-            for kind in COMPONENT_KINDS.values()
+            for type_ in COMPONENT_TYPES
         ],
     )
 

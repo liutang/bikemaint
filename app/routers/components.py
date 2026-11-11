@@ -44,13 +44,18 @@ def _render(request: Request, template: str, context: dict, status_code: int = 2
 
 def _form_context(component, parent_bike_id, parent_component_id, extra: dict | None = None) -> dict:
     """Context for components/form.html: only the types that fit the parent are offered."""
-    return {
-        "component": component,
-        "component_types": component_service.valid_types_for_parent(
+    types = (
+        component_service.valid_types_for_parent(
             parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
         )
         if component is None or component.parent_bike_id or component.parent_component_id
-        else component_service.valid_types_for_parent(),
+        else component_service.valid_types_for_parent()
+    )
+    if component is not None and component.component_type not in types:
+        types = [component.component_type, *types]  # an older kind stays selectable on its own part
+    return {
+        "component": component,
+        "component_types": types,
         "parent_bike_id": parent_bike_id,
         "parent_component_id": parent_component_id,
         "errors": [],

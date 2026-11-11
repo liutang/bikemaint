@@ -8,13 +8,22 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.models.component_kinds import (  # noqa: E402
+    ALL_COMPONENT_TYPES,
     COMPONENT_TYPES,
     MULTI_INSTANCE_COMPONENT_TYPES,
 )
 
 def _validate_component_type(value: str) -> str:
+    """New parts may only use the offered kinds."""
     if value not in COMPONENT_TYPES:
-        raise ValueError(f"component_type must be one of {sorted(COMPONENT_TYPES)}")
+        raise ValueError(f"component_type must be one of {list(COMPONENT_TYPES)}")
+    return value
+
+
+def _validate_existing_component_type(value: str) -> str:
+    """Editing may keep an older, finer kind; the service refuses switching *to* one."""
+    if value not in ALL_COMPONENT_TYPES:
+        raise ValueError(f"component_type must be one of {list(COMPONENT_TYPES)}")
     return value
 
 
@@ -28,12 +37,54 @@ class BikeUpdateRequest(BikeCreateRequest):
     pass
 
 
-class BikeCatalogRequest(BaseModel):
-    """Add/edit a bike by catalog entry. Only the id's shape is checked here; membership in the
-    catalog (and whether `__keep__` is allowed) is decided by `app/services/bike_service.py`."""
+BIKE_CATEGORIES: tuple[str, ...] = ("road", "gravel", "mountain", "hybrid", "e-bike", "other")
 
-    catalog_id: str = Field(pattern=r"^(__keep__|[a-z0-9]+(-[a-z0-9]+)*)$", max_length=64)
+
+def _next_year() -> int:
+    from datetime import date as _date
+
+    return _date.today().year + 1
+
+
+class BikeDetailsRequest(BaseModel):
+    """Add/edit a bike by year, make, model and category (specs/005-unified-bike-screen).
+
+    On edit, a bike with a single legacy name may leave year, make and model all blank; that
+    rule lives in `bike_service`, so blank values are allowed through here as None.
+    """
+
+    year: int | None = None
+    make: str | None = Field(default=None, max_length=60)
+    model: str | None = Field(default=None, max_length=60)
+    category: str
     manual_baseline_mileage: float = Field(default=0.0, ge=0)
+
+    @field_validator("make", "model", mode="before")
+    @classmethod
+    def _trim(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
+    @field_validator("year", mode="before")
+    @classmethod
+    def _blank_year(cls, value):
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("year")
+    @classmethod
+    def _plausible_year(cls, value):
+        if value is not None and not 1900 <= value <= _next_year():
+            raise ValueError(f"Year must be between 1900 and {_next_year()}.")
+        return value
+
+    @field_validator("category")
+    @classmethod
+    def _known_category(cls, value):
+        if value not in BIKE_CATEGORIES:
+            raise ValueError("Choose a category from the list.")
+        return value
 
 
 class _ComponentParentFields(BaseModel):
@@ -69,7 +120,7 @@ class ComponentUpdateRequest(BaseModel):
     @field_validator("component_type")
     @classmethod
     def _check_component_type(cls, value: str) -> str:
-        return _validate_component_type(value)
+        return _validate_existing_component_type(value)
 
 
 class ComponentMoveRequest(_ComponentParentFields):

@@ -1,0 +1,10 @@
+{# Breadcrumb trail: Garage > bike > ancestors > current. `crumbs` is a list of (label, url|None). #}
+{% if crumbs %}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <ol>
+    {% for label, url in crumbs %}
+    <li{% if loop.last %} aria-current="page"{% endif %}>{% if url and not loop.last %}<a href="{{ url }}">{{ label }}</a>{% else %}<span>{{ label }}</span>{% endif %}</li>
+    {% endfor %}
+  </ol>
+</nav>
+{% endif %}

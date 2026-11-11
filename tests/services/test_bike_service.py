@@ -100,90 +100,128 @@ def test_unpaired_gear_excludes_gear_already_paired_to_a_bike(tmp_path, monkeypa
     assert bike_service.unpaired_gear(gear) == [{"id": "g2", "name": "Free"}]
 
 
-# ------------------------------------------------ catalog bikes (specs/004-bike-builder, M1)
+# ------------------------------------------------ year/make/model bikes (specs/005, M1)
 
 
-def test_create_from_catalog_names_the_bike_and_derives_its_type(db_path):
-    bike = bike_service.create_bike_from_catalog("trek-domane", manual_baseline_mileage=12.5)
+def test_create_from_details_derives_the_name_and_uses_the_category(db_path):
+    bike = bike_service.create_bike_from_details(
+        year=2022, make="Trek", model="Domane", category="road", manual_baseline_mileage=12.5
+    )
 
-    assert bike.name == "Trek Domane"
-    assert bike.bike_type == "road"
-    assert bike.catalog_id == "trek-domane"
+    assert bike.name == "2022 Trek Domane"
+    assert (bike.year, bike.make, bike.model, bike.bike_type) == (2022, "Trek", "Domane", "road")
     assert bike.total_mileage == 12.5
 
 
-def test_duplicate_catalog_bikes_get_a_numeric_suffix(db_path):
-    names = [bike_service.create_bike_from_catalog("trek-domane").name for _ in range(3)]
+def test_duplicate_names_get_a_numeric_suffix(db_path):
+    names = [
+        bike_service.create_bike_from_details(year=2022, make="Trek", model="Domane", category="road").name
+        for _ in range(3)
+    ]
 
-    assert names == ["Trek Domane", "Trek Domane (2)", "Trek Domane (3)"]
+    assert names == ["2022 Trek Domane", "2022 Trek Domane (2)", "2022 Trek Domane (3)"]
 
 
 def test_deleted_bikes_do_not_count_towards_the_suffix(db_path):
-    first = bike_service.create_bike_from_catalog("giant-tcr")
+    first = bike_service.create_bike_from_details(year=2020, make="Giant", model="TCR", category="road")
     bike_service.delete_bike(first.id)
 
-    assert bike_service.create_bike_from_catalog("giant-tcr").name == "Giant TCR"
+    second = bike_service.create_bike_from_details(year=2020, make="Giant", model="TCR", category="road")
+
+    assert second.name == "2020 Giant TCR"
 
 
-def test_a_legacy_bike_named_like_a_catalog_entry_also_forces_a_suffix(db_path):
-    bike_service.create_bike(name="Trek Domane")
-
-    assert bike_service.create_bike_from_catalog("trek-domane").name == "Trek Domane (2)"
-
-
-@pytest.mark.parametrize("bad", ["", "nope", "__keep__", None, "trek-domane'; --"])
-def test_create_from_catalog_rejects_unknown_ids(db_path, bad):
+def test_create_rejects_an_unknown_category(db_path):
     with pytest.raises(ValueError):
-        bike_service.create_bike_from_catalog(bad)
+        bike_service.create_bike_from_details(year=2022, make="Trek", model="Domane", category="spaceship")
     assert bike_service.list_bikes() == []
 
 
-def test_update_to_a_different_catalog_entry_renames_and_retypes(db_path):
-    bike = bike_service.create_bike_from_catalog("trek-domane", manual_baseline_mileage=10)
-
-    updated = bike_service.update_bike_from_catalog(
-        bike.id, "canyon-grizl", manual_baseline_mileage=20
+def test_update_changes_the_details_and_renames(db_path):
+    bike = bike_service.create_bike_from_details(
+        year=2022, make="Trek", model="Domane", category="road", manual_baseline_mileage=10
     )
 
-    assert (updated.name, updated.bike_type, updated.catalog_id) == ("Canyon Grizl", "gravel", "canyon-grizl")
+    updated = bike_service.update_bike_from_details(
+        bike.id, year=2023, make="Canyon", model="Grizl", category="gravel", manual_baseline_mileage=20
+    )
+
+    assert (updated.name, updated.bike_type) == ("2023 Canyon Grizl", "gravel")
     assert updated.manual_baseline_mileage == 20
 
 
-def test_update_keeping_the_same_catalog_entry_does_not_add_a_suffix(db_path):
-    bike = bike_service.create_bike_from_catalog("trek-domane")
+def test_update_with_the_same_details_does_not_add_a_suffix(db_path):
+    bike = bike_service.create_bike_from_details(year=2022, make="Trek", model="Domane", category="road")
 
-    updated = bike_service.update_bike_from_catalog(bike.id, "trek-domane", manual_baseline_mileage=5)
-
-    assert updated.name == "Trek Domane"
-    assert updated.manual_baseline_mileage == 5
-
-
-def test_legacy_bike_can_keep_its_current_name_and_type(db_path):
-    bike = bike_service.create_bike(name="Grandpa's Raleigh", bike_type="vintage")
-
-    updated = bike_service.update_bike_from_catalog(
-        bike.id, bike_service.KEEP_CURRENT, manual_baseline_mileage=3
+    updated = bike_service.update_bike_from_details(
+        bike.id, year=2022, make="Trek", model="Domane", category="gravel", manual_baseline_mileage=5
     )
 
-    assert (updated.name, updated.bike_type, updated.catalog_id) == ("Grandpa's Raleigh", "vintage", None)
-    assert updated.manual_baseline_mileage == 3
+    assert updated.name == "2022 Trek Domane" and updated.bike_type == "gravel"
 
 
-def test_legacy_bike_can_move_to_a_catalog_entry(db_path):
+def test_update_preserves_mileage_earned_beyond_the_baseline(db_path):
+    bike = bike_service.create_bike_from_details(
+        year=2022, make="Trek", model="Domane", category="road", manual_baseline_mileage=10
+    )
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE bike SET total_mileage = 15.0 WHERE id = ?", (bike.id,))
+
+    updated = bike_service.update_bike_from_details(
+        bike.id, year=2022, make="Trek", model="Domane", category="road", manual_baseline_mileage=20
+    )
+
+    assert updated.total_mileage == 25.0
+
+
+def test_legacy_bike_can_keep_its_name_with_blank_details(db_path):
+    bike = bike_service.create_bike(name="Grandpa's Raleigh", bike_type="vintage")
+
+    updated = bike_service.update_bike_from_details(
+        bike.id, year=None, make=None, model=None, category="other", manual_baseline_mileage=3
+    )
+
+    assert (updated.name, updated.bike_type, updated.manual_baseline_mileage) == ("Grandpa's Raleigh", "other", 3)
+    assert updated.year is None
+
+
+def test_legacy_bike_can_move_to_year_make_model(db_path):
     bike = bike_service.create_bike(name="Grandpa's Raleigh")
 
-    updated = bike_service.update_bike_from_catalog(bike.id, "specialized-sirrus", manual_baseline_mileage=0)
+    updated = bike_service.update_bike_from_details(
+        bike.id, year=1975, make="Raleigh", model="Competition", category="road", manual_baseline_mileage=0
+    )
 
-    assert (updated.name, updated.catalog_id) == ("Specialized Sirrus", "specialized-sirrus")
+    assert updated.name == "1975 Raleigh Competition"
 
 
-def test_keep_current_is_refused_for_bikes_created_from_the_catalog(db_path):
-    bike = bike_service.create_bike_from_catalog("trek-domane")
+@pytest.mark.parametrize(
+    "details",
+    [
+        {"year": 2020, "make": None, "model": None},
+        {"year": None, "make": "Trek", "model": None},
+        {"year": 2020, "make": "Trek", "model": ""},
+    ],
+)
+def test_a_mix_of_filled_and_blank_details_is_refused(db_path, details):
+    bike = bike_service.create_bike(name="Grandpa's Raleigh")
 
     with pytest.raises(ValueError):
-        bike_service.update_bike_from_catalog(bike.id, bike_service.KEEP_CURRENT, manual_baseline_mileage=0)
+        bike_service.update_bike_from_details(bike.id, category="road", manual_baseline_mileage=0, **details)
+    assert bike_service.get_bike(bike.id).name == "Grandpa's Raleigh"
 
 
-def test_update_from_catalog_for_a_missing_bike_raises_lookup_error(db_path):
+def test_a_bike_with_details_cannot_blank_them(db_path):
+    bike = bike_service.create_bike_from_details(year=2022, make="Trek", model="Domane", category="road")
+
+    with pytest.raises(ValueError):
+        bike_service.update_bike_from_details(
+            bike.id, year=None, make=None, model=None, category="road", manual_baseline_mileage=0
+        )
+
+
+def test_update_for_a_missing_bike_raises_lookup_error(db_path):
     with pytest.raises(LookupError):
-        bike_service.update_bike_from_catalog(999, "trek-domane", manual_baseline_mileage=0)
+        bike_service.update_bike_from_details(
+            999, year=2022, make="Trek", model="Domane", category="road", manual_baseline_mileage=0
+        )

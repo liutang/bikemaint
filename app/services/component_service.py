@@ -189,6 +189,8 @@ def update_component(
         if component is None:
             raise LookupError(f"No component with id {component_id}")
         if component_type != component.component_type:
+            if not component_kinds.is_offered(component_type):
+                raise ComponentPlacementError(f"{component_type} is not an available part type.")
             for child in components_db.list_children(conn, parent_component_id=component_id):
                 message = component_kinds.placement_error(child.component_type, component_type)
                 if message:
@@ -334,8 +336,8 @@ def mount_new_component(
 ) -> Component:
     """Create a part of `component_type` (default name) mounted on a parent, optionally ordered."""
     kind = component_kinds.COMPONENT_KINDS.get(component_type)
-    if kind is None:
-        raise ComponentPlacementError(f"Unknown component type: {component_type}.")
+    if kind is None or not kind.offered:
+        raise ComponentPlacementError(f"{component_type} is not an available part type.")
     with get_connection() as conn:
         _check_before(
             conn,

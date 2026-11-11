@@ -153,7 +153,7 @@ def test_create_refuses_a_part_on_a_parent_that_cannot_hold_it(db_path):
     with pytest.raises(component_service.ComponentPlacementError) as error:
         _mk("Pedal", "pedal", parent_component_id=wheel.id)
 
-    assert str(error.value) == "A pedal can be mounted on a crankset, not on a wheel."
+    assert str(error.value) == "A pedal can be mounted on the bike, not on a wheel."
     assert component_service.get_tree_for_bike(bike.id) == [component_service.get_component(wheel.id)]
 
 
@@ -166,12 +166,13 @@ def test_placement_error_is_also_a_nesting_conflict_so_existing_handlers_catch_i
 def test_create_accepts_valid_chains(db_path):
     bike = _create_bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    rim = _mk("Rim", "rim", parent_component_id=wheel.id)
-    tire = _mk("Tire", "tire", parent_component_id=rim.id)
-    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
-    pedal = _mk("Pedal", "pedal", parent_component_id=crank.id)
+    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
+    drivetrain = _mk("Drivetrain", "drivetrain", parent_bike_id=bike.id)
+    chain = _mk("Chain", "chain", parent_component_id=drivetrain.id)
+    pedal = _mk("Pedal", "pedal", parent_bike_id=bike.id)
 
-    assert (tire.parent_component_id, pedal.parent_component_id) == (rim.id, crank.id)
+    assert (tire.parent_component_id, chain.parent_component_id) == (wheel.id, drivetrain.id)
+    assert pedal.parent_bike_id == bike.id
 
 
 def test_create_on_the_bike_directly_refuses_a_tire(db_path):
@@ -182,7 +183,7 @@ def test_create_on_the_bike_directly_refuses_a_tire(db_path):
 
 
 def test_storage_accepts_every_type(db_path):
-    for component_type in ("pedal", "tire", "frame", "cassette"):
+    for component_type in ("pedal", "tire", "frame", "cassette", "rim"):
         assert _mk(f"Spare {component_type}", component_type).parent_bike_id is None
 
 
@@ -199,11 +200,10 @@ def test_move_refuses_an_invalid_parent_and_keeps_the_component_where_it_was(db_
 
 def test_move_to_a_valid_parent_works_and_back_to_storage_always_works(db_path):
     bike = _create_bike()
-    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
     pedal = _mk("Pedal", "pedal")
 
-    moved = component_service.move_component(pedal.id, parent_component_id=crank.id)
-    assert moved.parent_component_id == crank.id
+    moved = component_service.move_component(pedal.id, parent_bike_id=bike.id)
+    assert moved.parent_bike_id == bike.id
     stored = component_service.move_component(pedal.id)
     assert (stored.parent_bike_id, stored.parent_component_id) == (None, None)
 
@@ -221,13 +221,22 @@ def test_changing_a_type_is_checked_against_the_current_parent(db_path):
 
 def test_changing_a_type_is_refused_if_existing_children_would_no_longer_fit(db_path):
     bike = _create_bike()
-    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    rim = _mk("Rim", "rim", parent_component_id=wheel.id)
-    _mk("Tire", "tire", parent_component_id=rim.id)
+    drivetrain = _mk("Drivetrain", "drivetrain", parent_bike_id=bike.id)
+    _mk("Chain", "chain", parent_component_id=drivetrain.id)
 
-    with pytest.raises(component_service.ComponentPlacementError, match="tire"):
+    with pytest.raises(component_service.ComponentPlacementError, match="chain"):
         component_service.update_component(
-            rim.id, name="Rim", component_type="hub", manual_baseline_mileage=0
+            drivetrain.id, name="Drivetrain", component_type="saddle", manual_baseline_mileage=0
+        )
+
+
+def test_changing_a_type_to_an_older_finer_kind_is_refused(db_path):
+    bike = _create_bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    with pytest.raises(component_service.ComponentPlacementError, match="not an available"):
+        component_service.update_component(
+            wheel.id, name="Wheel", component_type="rim", manual_baseline_mileage=0
         )
 
 
@@ -252,23 +261,20 @@ def test_pre_existing_invalid_arrangements_stay_readable_and_editable(db_path):
 def test_move_targets_list_only_valid_places(db_path):
     bike = _create_bike("Road Bike")
     wheel = _mk("Front wheel", "wheel", parent_bike_id=bike.id)
-    rim = _mk("Rim", "rim", parent_component_id=wheel.id)
-    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
     pedal = _mk("Pedal", "pedal")
     tire = _mk("Tire", "tire")
 
     pedal_targets = {t.value for t in component_service.list_move_targets(pedal.id)}
     tire_targets = {t.value for t in component_service.list_move_targets(tire.id)}
 
-    assert pedal_targets == {f"component:{crank.id}"}  # storage is where it already is
-    assert tire_targets == {f"component:{rim.id}"}
+    assert pedal_targets == {f"bike:{bike.id}"}  # storage is where it already is
+    assert tire_targets == {f"component:{wheel.id}"}
     assert f"component:{wheel.id}" not in pedal_targets and f"bike:{bike.id}" not in tire_targets
 
 
 def test_move_targets_include_storage_for_mounted_parts_and_skip_the_current_parent(db_path):
     bike = _create_bike()
-    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
-    pedal = _mk("Pedal", "pedal", parent_component_id=crank.id)
+    pedal = _mk("Pedal", "pedal", parent_bike_id=bike.id)
 
     values = [t.value for t in component_service.list_move_targets(pedal.id)]
 
@@ -278,30 +284,30 @@ def test_move_targets_include_storage_for_mounted_parts_and_skip_the_current_par
 def test_move_targets_exclude_self_descendants_and_full_single_slots(db_path):
     bike = _create_bike()
     wheel = _mk("Wheel A", "wheel", parent_bike_id=bike.id)
-    other_wheel_bike = _create_bike("Other")
-    wheel_b = _mk("Wheel B", "wheel", parent_bike_id=other_wheel_bike.id)
-    hub = _mk("Hub", "hub", parent_component_id=wheel.id)
+    other_bike = _create_bike("Other")
+    wheel_b = _mk("Wheel B", "wheel", parent_bike_id=other_bike.id)
+    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
 
-    # hub could go on wheel B, but not back on its own parent; wheel B already has no hub.
-    assert [t.value for t in component_service.list_move_targets(hub.id)] == [
+    # the tire could go on wheel B, but not back on its own parent
+    assert [t.value for t in component_service.list_move_targets(tire.id)] == [
         f"component:{wheel_b.id}", "storage",
     ]
-    _mk("Hub B", "hub", parent_component_id=wheel_b.id)
-    # now wheel B's single hub slot is taken, so it is no longer offered
-    assert [t.value for t in component_service.list_move_targets(hub.id)] == ["storage"]
-    # a wheel is never offered its own sub-tree (not a valid kind anyway) and never itself
+    _mk("Tire B", "tire", parent_component_id=wheel_b.id)
+    # wheel B's single tire slot is now taken, so it is no longer offered
+    assert [t.value for t in component_service.list_move_targets(tire.id)] == ["storage"]
+    # a wheel is never offered itself or its own sub-tree
     assert all(t.value != f"component:{wheel.id}" for t in component_service.list_move_targets(wheel.id))
 
 
 def test_move_target_labels_show_the_path(db_path):
     bike = _create_bike("Road Bike")
-    wheel = _mk("Front wheel", "wheel", parent_bike_id=bike.id)
-    rim = _mk("Rim", "rim", parent_component_id=wheel.id)
-    tire = _mk("Tire", "tire")
+    drivetrain = _mk("Drivetrain", "drivetrain", parent_bike_id=bike.id)
+    chain = _mk("Chain", "chain")
 
-    labels = {t.value: t.label for t in component_service.list_move_targets(tire.id)}
+    labels = {t.value: t.label for t in component_service.list_move_targets(chain.id)}
 
-    assert labels[f"component:{rim.id}"] == "Road Bike › Front wheel › Rim"
+    assert labels[f"component:{drivetrain.id}"] == "Road Bike › Drivetrain"
+    assert labels[f"bike:{bike.id}"] == "Road Bike"
 
 
 def test_move_targets_for_an_unknown_component_raise(db_path):
@@ -403,27 +409,35 @@ def test_moving_onto_the_current_parent_does_not_revalidate_legacy_arrangements(
 
 def test_mount_new_component_uses_the_type_default_name_and_checks_placement(db_path):
     bike = _create_bike()
-    crank = _mk("Crankset", "crankset", parent_bike_id=bike.id)
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
 
-    pedal = component_service.mount_new_component("pedal", parent_component_id=crank.id)
+    tire = component_service.mount_new_component("tire", parent_component_id=wheel.id)
 
-    assert (pedal.name, pedal.component_type, pedal.parent_component_id) == ("Pedal", "pedal", crank.id)
+    assert (tire.name, tire.component_type, tire.parent_component_id) == ("Tire", "tire", wheel.id)
     with pytest.raises(component_service.ComponentPlacementError):
-        component_service.mount_new_component("pedal", parent_bike_id=bike.id)
+        component_service.mount_new_component("tire", parent_bike_id=bike.id)
     other = component_service.mount_new_component("other", parent_bike_id=bike.id)
     assert other.name == "Other part"
+
+
+def test_mount_new_component_refuses_the_older_finer_kinds(db_path):
+    bike = _create_bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    with pytest.raises(component_service.ComponentPlacementError, match="not an available"):
+        component_service.mount_new_component("rim", parent_component_id=wheel.id)
 
 
 def test_mount_new_component_can_insert_before_a_sibling(db_path):
     bike = _create_bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    first = _mk("S1", "spoke", parent_component_id=wheel.id)
+    first = _mk("Valve", "other", parent_component_id=wheel.id)
 
-    spoke = component_service.mount_new_component(
-        "spoke", parent_component_id=wheel.id, before_component_id=first.id
+    added = component_service.mount_new_component(
+        "other", parent_component_id=wheel.id, before_component_id=first.id
     )
 
-    assert _order(parent_component_id=wheel.id) == [spoke.name, "S1"]
+    assert _order(parent_component_id=wheel.id) == [added.name, "Valve"]
 
 
 def test_type_targets_list_valid_places_on_one_bike_only(db_path):
@@ -431,17 +445,15 @@ def test_type_targets_list_valid_places_on_one_bike_only(db_path):
     other = _create_bike("Other")
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     _mk("Wheel", "wheel", parent_bike_id=other.id)
-    rim = _mk("Rim", "rim", parent_component_id=wheel.id)
 
     tire_targets = component_service.list_type_targets("tire", bike_id=bike.id)
-    hub_targets = component_service.list_type_targets("hub", bike_id=bike.id)
 
-    assert [t.value for t in tire_targets] == [f"component:{rim.id}"]
-    assert [t.value for t in hub_targets] == [f"component:{wheel.id}"]
+    assert [t.value for t in tire_targets] == [f"component:{wheel.id}"]
     assert [t.value for t in component_service.list_type_targets("frame", bike_id=bike.id)] == [f"bike:{bike.id}"]
-    # single slot taken -> not offered again
+    # single slot taken -> not offered again; wheels allow several
     _mk("Frame", "frame", parent_bike_id=bike.id)
     assert component_service.list_type_targets("frame", bike_id=bike.id) == []
+    assert [t.value for t in component_service.list_type_targets("wheel", bike_id=bike.id)] == [f"bike:{bike.id}"]
 
 
 def test_move_targets_can_be_limited_to_one_bike(db_path):
@@ -449,11 +461,11 @@ def test_move_targets_can_be_limited_to_one_bike(db_path):
     other = _create_bike("Other")
     wa = _mk("Wheel A", "wheel", parent_bike_id=bike.id)
     wb = _mk("Wheel B", "wheel", parent_bike_id=other.id)
-    hub = _mk("Hub", "hub")
+    tire = _mk("Tire", "tire")
 
-    limited = component_service.list_move_targets(hub.id, only_bike_id=bike.id)
+    limited = component_service.list_move_targets(tire.id, only_bike_id=bike.id)
 
     assert [t.value for t in limited] == [f"component:{wa.id}"]
-    assert {t.value for t in component_service.list_move_targets(hub.id)} == {
+    assert {t.value for t in component_service.list_move_targets(tire.id)} == {
         f"component:{wa.id}", f"component:{wb.id}",
     }

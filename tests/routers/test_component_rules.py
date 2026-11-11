@@ -33,7 +33,7 @@ def test_creating_a_pedal_on_a_wheel_is_refused_with_a_clear_message(signed_in_c
     )
 
     assert response.status_code == 422
-    assert "A pedal can be mounted on a crankset, not on a wheel." in response.text
+    assert "A pedal can be mounted on the bike, not on a wheel." in response.text
     assert component_service.get_descendants(wheel.id) == []
 
 
@@ -58,8 +58,7 @@ def test_add_form_under_a_wheel_offers_only_types_that_fit_a_wheel(signed_in_cli
     html = signed_in_client.get(f"/components/new?parent_component_id={wheel.id}").text
 
     types = _options(html, "component_type")
-    assert {"hub", "rim", "spoke", "bolt", "other"} == set(types)
-    assert "pedal" not in types and "tire" not in types
+    assert set(types) == {"tire", "other"}
 
 
 def test_add_form_under_a_bike_offers_bike_level_parts_only(signed_in_client):
@@ -67,14 +66,14 @@ def test_add_form_under_a_bike_offers_bike_level_parts_only(signed_in_client):
 
     types = _options(signed_in_client.get(f"/components/new?parent_bike_id={bike.id}").text, "component_type")
 
-    assert {"frame", "fork", "wheel", "crankset"} <= set(types)
-    assert "tire" not in types and "pedal" not in types
+    assert {"frame", "fork", "wheel", "brake", "pedal"} <= set(types)
+    assert "tire" not in types and "rim" not in types
 
 
 def test_add_form_for_storage_offers_every_type(signed_in_client):
     types = _options(signed_in_client.get("/components/new").text, "component_type")
 
-    assert "pedal" in types and "tire" in types and "frame" in types
+    assert types == ["frame", "fork", "wheel", "tire", "brake", "drivetrain", "chain", "pedal", "saddle", "handlebar", "other"]
 
 
 def test_failed_create_keeps_the_filtered_type_list(signed_in_client):
@@ -168,7 +167,7 @@ def test_moving_to_an_invalid_target_is_refused_with_the_rule_message(signed_in_
     )
 
     assert response.status_code == 422
-    assert "A pedal can be mounted on a crankset, not on a wheel." in response.text
+    assert "A pedal can be mounted on the bike, not on a wheel." in response.text
     assert component_service.get_component(pedal.id).parent_component_id is None
 
 
@@ -203,3 +202,46 @@ def test_a_target_pointing_at_a_missing_component_is_refused(signed_in_client):
 
     assert response.status_code == 422
     assert component_service.get_component(pedal.id).parent_component_id is None
+
+
+# --- simplified part categories (specs/005-unified-bike-screen, M1)
+
+
+def test_creating_a_part_of_an_older_finer_kind_is_rejected(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    response = signed_in_client.post(
+        "/components", data={"name": "Rim", "component_type": "rim", "parent_component_id": str(wheel.id)}
+    )
+
+    assert response.status_code == 422
+    assert component_service.get_descendants(wheel.id) == []
+
+
+def test_an_existing_older_kind_part_can_be_edited_without_changing_its_type(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    rim = _mk("Rim", "rim", parent_component_id=wheel.id)  # as created before the simplification
+
+    html = signed_in_client.get(f"/components/{rim.id}/edit").text
+    assert '<option value="rim" selected>' in html  # its own kind stays selectable
+    response = signed_in_client.post(
+        f"/components/{rim.id}",
+        data={"name": "Rim renamed", "component_type": "rim", "manual_baseline_mileage": "5"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert component_service.get_component(rim.id).name == "Rim renamed"
+
+
+def test_an_older_kind_part_still_appears_moves_and_returns_to_storage(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    spoke = _mk("Spoke", "spoke", parent_component_id=wheel.id)
+
+    assert "Spoke" in signed_in_client.get(f"/bikes/{bike.id}").text
+    signed_in_client.post(f"/components/{spoke.id}/move", data={"target": "storage"})
+
+    assert component_service.get_component(spoke.id).parent_component_id is None

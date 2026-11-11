@@ -58,23 +58,21 @@ def test_scenario_1_garage_inventory(signed_in):
     assert "Gravel Bike" in client.get("/").text
 
     _add_component(client, "Gravel Wheel", "wheel", parent_bike_id="1")
-    _add_component(client, "Gravel Rim", "rim", parent_component_id="1")
-    _add_component(client, "Gravel Tire", "tire", parent_component_id="2")
+    _add_component(client, "Gravel Tire", "tire", parent_component_id="1")
     detail = client.get("/bikes/1").text
-    assert detail.index("Gravel Wheel") < detail.index("Gravel Rim") < detail.index("Gravel Tire")
+    assert detail.index("Gravel Wheel") < detail.index("Gravel Tire")
 
-    client.post("/components/3/move", data={})
+    client.post("/components/2/move", data={})
     assert "Gravel Tire" in client.get("/components").text
     assert "Gravel Tire" not in client.get("/bikes/1").text
 
     _add_component(client, "Road Wheel", "wheel", parent_bike_id="2")
-    _add_component(client, "Road Rim", "rim", parent_component_id="4")
-    client.post("/components/3/move", data={"parent_component_id": "5"})
+    client.post("/components/2/move", data={"parent_component_id": "3"})
     assert "Gravel Tire" in client.get("/bikes/2").text
     assert "Gravel Tire" not in client.get("/components").text
 
-    # Cross-cutting: a second single-instance tire on an occupied rim is rejected (FR-024).
-    duplicate = _add_component(client, "Second Tire", "tire", parent_component_id="5")
+    # Cross-cutting: a second single-instance tire on an occupied wheel is rejected (FR-024).
+    duplicate = _add_component(client, "Second Tire", "tire", parent_component_id="3")
     assert duplicate.status_code == 422
 
 

@@ -33,8 +33,8 @@ def test_empty_bike_accepts_bike_level_parts_and_has_no_nodes(db_path):
 
     assert view.nodes == []
     assert view.root_ref == f"bike:{bike.id}"
-    assert {"frame", "wheel", "fork", "crankset"} <= set(view.root_accepts)
-    assert "tire" not in view.root_accepts and "pedal" not in view.root_accepts
+    assert {"frame", "wheel", "fork", "brake", "pedal"} <= set(view.root_accepts)
+    assert "tire" not in view.root_accepts
 
 
 def test_root_accepts_excludes_single_instance_types_already_present(db_path):
@@ -44,27 +44,27 @@ def test_root_accepts_excludes_single_instance_types_already_present(db_path):
 
     accepts = _view(bike).root_accepts
 
-    assert "frame" not in accepts and "wheel" not in accepts
-    assert "other" in accepts and "bolt" in accepts  # multi-instance kinds stay available
+    assert "frame" not in accepts  # single-instance slot taken
+    assert "wheel" in accepts and "other" in accepts  # several wheels (front/rear) are fine
 
 
 def test_nodes_nest_in_position_order_with_per_node_accepts(db_path):
     bike = bike_service.create_bike(name="Road")
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    rim = _mk("Rim", "rim", parent_component_id=wheel.id)
-    _mk("Spoke 1", "spoke", parent_component_id=wheel.id)
+    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
+    _mk("Valve", "other", parent_component_id=wheel.id)
 
     view = _view(bike)
 
     assert [n.component.name for n in view.nodes] == ["Wheel"]
     wheel_node = view.nodes[0]
-    assert [c.component.name for c in wheel_node.children] == ["Rim", "Spoke 1"]
+    assert [c.component.name for c in wheel_node.children] == ["Tire", "Valve"]
     assert wheel_node.ref == f"component:{wheel.id}"
     assert wheel_node.parent_ref == f"bike:{bike.id}"
-    assert "hub" in wheel_node.accepts and "rim" not in wheel_node.accepts  # rim slot taken
-    assert "spoke" in wheel_node.accepts  # multi
-    assert "tire" in wheel_node.children[0].accepts and rim.id == wheel_node.children[0].component.id
+    assert "tire" not in wheel_node.accepts  # the single tire slot is taken
+    assert "other" in wheel_node.accepts  # multi
     assert "pedal" not in wheel_node.accepts
+    assert tire.id == wheel_node.children[0].component.id
 
 
 def test_move_controls_list_only_valid_targets_on_this_bike(db_path):
@@ -72,18 +72,18 @@ def test_move_controls_list_only_valid_targets_on_this_bike(db_path):
     other = bike_service.create_bike(name="Other")
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     _mk("Wheel", "wheel", parent_bike_id=other.id)
-    hub = _mk("Hub", "hub", parent_component_id=wheel.id)
+    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
 
     node = _view(bike).nodes[0].children[0]
 
-    assert node.component.id == hub.id
+    assert node.component.id == tire.id
     assert [t.value for t in node.targets] == ["storage"]  # the other bike's wheel is not offered here
 
 
 def test_reorder_controls_point_at_neighbours(db_path):
     bike = bike_service.create_bike(name="Road")
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    s1, s2, s3 = (_mk(n, "spoke", parent_component_id=wheel.id) for n in ("S1", "S2", "S3"))
+    s1, s2, s3 = (_mk(n, "other", parent_component_id=wheel.id) for n in ("S1", "S2", "S3"))
 
     nodes = {n.component.name: n for n in _view(bike).nodes[0].children}
 
@@ -96,25 +96,27 @@ def test_reorder_controls_point_at_neighbours(db_path):
 def test_storage_items_offer_add_targets_on_this_bike(db_path):
     bike = bike_service.create_bike(name="Road")
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    spare = _mk("Spare hub", "hub")
+    spare = _mk("Spare tire", "tire")
     _mk("Spare saddle", "saddle")
 
     view = _view(bike)
 
     by_name = {item.component.name: item for item in view.storage}
-    assert [t.value for t in by_name["Spare hub"].targets] == [f"component:{wheel.id}"]
+    assert [t.value for t in by_name["Spare tire"].targets] == [f"component:{wheel.id}"]
     assert [t.value for t in by_name["Spare saddle"].targets] == [f"bike:{bike.id}"]
-    assert spare.id == by_name["Spare hub"].component.id
+    assert spare.id == by_name["Spare tire"].component.id
 
 
-def test_palette_lists_every_part_type_with_its_valid_targets(db_path):
+def test_palette_lists_only_the_offered_part_types_with_their_valid_targets(db_path):
     bike = bike_service.create_bike(name="Road")
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
 
     palette = {p.type: p for p in _view(bike).palette}
 
-    assert "pedal" in palette and "tire" in palette
-    assert [t.value for t in palette["hub"].targets] == [f"component:{wheel.id}"]
-    assert palette["pedal"].targets == []  # nothing on this bike can take a pedal yet
+    assert list(palette) == ["frame", "fork", "wheel", "tire", "brake", "drivetrain", "chain", "pedal",
+                             "saddle", "handlebar", "other"]
+    assert "rim" not in palette and "spoke" not in palette
+    assert [t.value for t in palette["tire"].targets] == [f"component:{wheel.id}"]
+    assert [t.value for t in palette["pedal"].targets] == [f"bike:{bike.id}"]
     assert [t.value for t in palette["frame"].targets] == [f"bike:{bike.id}"]
     assert palette["frame"].label == "Frame"

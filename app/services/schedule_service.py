@@ -46,6 +46,7 @@ class DueItem:
     projection: Projection
     status: str  # overdue | due_soon | on_track | no_estimate (see `due_status`)
     days_until: int | None = None  # days to the projected date; negative = days late
+    bike_name: str | None = None  # the bike a part schedule's part is on (None for bike schedules)
     ring: float = 0.0  # progress-ring fill, 0..1 (see `ring_fraction`)
 
 
@@ -288,6 +289,15 @@ def project_due_date(schedule: MaintenanceSchedule, *, today: date | None = None
         return _project(conn, schedule, _today(today))
 
 
+def _bike_name_for_part(conn, schedule: MaintenanceSchedule) -> str | None:
+    """The name of the bike a part schedule's part is installed on, if any."""
+    if schedule.component_id is None:
+        return None
+    bike_id = _top_bike_id(conn, schedule)
+    bike = bikes_db.get_by_id(conn, bike_id) if bike_id is not None else None
+    return bike.name if bike else None
+
+
 def _due_item(
     conn, schedule: MaintenanceSchedule, today: date, lead_time_days: int
 ) -> DueItem | None:
@@ -305,6 +315,7 @@ def _due_item(
         projection=projection,
         status=status,
         days_until=days_until,
+        bike_name=_bike_name_for_part(conn, schedule),
         ring=ring_fraction(status, days_until, lead_time_days),
     )
 

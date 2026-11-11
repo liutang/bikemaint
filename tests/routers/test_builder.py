@@ -157,7 +157,9 @@ def test_storage_and_palette_items_are_draggable_sources(signed_in_client):
 
     assert re.search(rf'<li class="side-item"[^>]*draggable="true"[^>]*data-source="storage"[^>]*data-id="{spare.id}"', html)
     palette = re.findall(r'data-source="palette" data-type="([a-z]+)"', html)
-    assert palette == ["frame", "fork", "wheel", "tire", "brake", "drivetrain", "chain", "pedal",
+    # only kinds with a valid place: nothing here can take a tire or rotor (no wheel), but every
+    # other kind can still go on the bike
+    assert palette == ["frame", "fork", "wheel", "brake", "drivetrain", "chain", "pedal",
                        "saddle", "handlebar", "other"]
     assert 'data-ref="storage"' in html
 
@@ -299,6 +301,37 @@ def test_adding_inside_a_part_screen_returns_that_parts_fragment(signed_in_clien
     assert "Tire" in response.text and _names(bike.id) == ["Wheel", "Tire"]
 
 
+def test_adding_a_palette_part_to_the_storage_box_creates_it_in_storage(signed_in_client):
+    bike = _bike()
+
+    response = _hx(signed_in_client, "/builder/add", {"root": _root(bike), "component_type": "saddle", "target": "storage"})
+
+    assert response.status_code == 200
+    assert [c.name for c in component_service.list_in_storage()] == ["Saddle"]
+    assert _names(bike.id) == []
+    assert "Saddle" in response.text and 'data-source="storage"' in response.text  # shows in the box
+
+
+def test_storage_add_works_from_a_part_screen_and_keeps_that_screen(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    response = _hx(signed_in_client, "/builder/add",
+                   {"root": f"component:{wheel.id}", "component_type": "tire", "target": "storage"})
+
+    assert response.status_code == 200 and f'data-root="component:{wheel.id}"' in response.text
+    assert [c.component_type for c in component_service.list_in_storage()] == ["tire"]
+
+
+def test_a_wheel_screen_only_offers_what_fits_a_wheel(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    html = signed_in_client.get(f"/components/{wheel.id}").text
+
+    assert re.findall(r'data-source="palette" data-type="([a-z]+)"', html) == ["tire", "rotor", "other"]
+
+
 def test_adding_before_a_sibling_orders_it(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
@@ -339,7 +372,6 @@ def test_an_invalid_add_without_htmx_renders_the_full_page_with_the_reason(signe
     [
         {"component_type": "flux-capacitor", "target": "bike:1"},
         {"component_type": "rim", "target": "bike:1"},  # older finer kinds are never offered
-        {"component_type": "frame", "target": "storage"},
         {"component_type": "frame", "target": "bike:abc"},
         {"component_type": "", "target": "bike:1"},
         {"component_type": "frame"},
@@ -510,7 +542,7 @@ def test_trash_deletes_a_part_with_no_dependants_at_once(signed_in_client):
     assert f'data-id="{saddle.id}"' not in response.text  # gone from the tree
 
 
-def test_trash_asks_in_place_when_there_are_sub_parts_and_names_what_goes(signed_in_client):
+def test_trash_asks_in_place_when_there_are_sub_parts_and_says_they_move_to_storage(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     _mk("Tire", "tire", parent_component_id=wheel.id)
@@ -518,7 +550,7 @@ def test_trash_asks_in_place_when_there_are_sub_parts_and_names_what_goes(signed
     response = _hx(signed_in_client, "/builder/delete", {"root": _root(bike), "component_id": str(wheel.id)})
 
     assert response.status_code == 200 and response.text.lstrip().startswith('<div id="builder"')
-    assert 'class="confirm"' in response.text and "Delete Wheel?" in response.text and "sub-tree" in response.text
+    assert 'class="confirm"' in response.text and "Delete Wheel?" in response.text and "move to storage" in response.text
     assert 'name="confirmed" value="true"' in response.text and "Cancel" in response.text
     assert component_service.get_component(wheel.id) is not None
 
@@ -536,7 +568,7 @@ def test_trash_asks_when_the_part_has_maintenance_history(signed_in_client):
     assert component_service.get_component(chain.id) is not None
 
 
-def test_confirming_deletes_the_part_and_its_sub_parts(signed_in_client):
+def test_confirming_deletes_the_part_and_keeps_its_sub_parts_in_storage(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     tire = _mk("Tire", "tire", parent_component_id=wheel.id)
@@ -545,7 +577,10 @@ def test_confirming_deletes_the_part_and_its_sub_parts(signed_in_client):
                    {"root": _root(bike), "component_id": str(wheel.id), "confirmed": "true"})
 
     assert response.status_code == 200 and 'class="confirm"' not in response.text
-    assert component_service.get_component(wheel.id) is None and component_service.get_component(tire.id) is None
+    assert component_service.get_component(wheel.id) is None
+    kept = component_service.get_component(tire.id)
+    assert kept is not None and (kept.parent_bike_id, kept.parent_component_id) == (None, None)
+    assert "Tire" in response.text  # now listed in the storage box
 
 
 def test_trash_without_htmx_still_asks_on_a_full_page_and_then_redirects(signed_in_client):

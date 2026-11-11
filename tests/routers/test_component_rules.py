@@ -51,29 +51,10 @@ def test_creating_a_tire_on_a_rim_works(signed_in_client):
     assert response.status_code == 303
 
 
-def test_add_form_under_a_wheel_offers_only_types_that_fit_a_wheel(signed_in_client):
-    bike = _bike()
-    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-
-    html = signed_in_client.get(f"/components/new?parent_component_id={wheel.id}").text
-
-    types = _options(html, "component_type")
-    assert set(types) == {"tire", "other"}
-
-
-def test_add_form_under_a_bike_offers_bike_level_parts_only(signed_in_client):
-    bike = _bike()
-
-    types = _options(signed_in_client.get(f"/components/new?parent_bike_id={bike.id}").text, "component_type")
-
-    assert {"frame", "fork", "wheel", "brake", "pedal"} <= set(types)
-    assert "tire" not in types and "rim" not in types
-
-
 def test_add_form_for_storage_offers_every_type(signed_in_client):
     types = _options(signed_in_client.get("/components/new").text, "component_type")
 
-    assert types == ["frame", "fork", "wheel", "tire", "brake", "drivetrain", "chain", "pedal", "saddle", "handlebar", "other"]
+    assert types == ["frame", "fork", "wheel", "tire", "rotor", "brake", "drivetrain", "chain", "pedal", "saddle", "handlebar", "other"]
 
 
 def test_failed_create_keeps_the_filtered_type_list(signed_in_client):
@@ -219,3 +200,39 @@ def test_an_older_kind_part_still_appears_moves_and_returns_to_storage(signed_in
     signed_in_client.post(f"/components/{spoke.id}/move", data={"target": "storage"})
 
     assert component_service.get_component(spoke.id).parent_component_id is None
+
+
+# --- the Add part form (specs/006, M1)
+
+
+def test_the_add_part_form_shows_no_parent_ids(signed_in_client):
+    html = signed_in_client.get("/components/new").text
+
+    assert 'name="parent_bike_id"' not in html and 'name="parent_component_id"' not in html
+    assert "Parent bike ID" not in html and "Parent component ID" not in html
+    assert 'name="name"' in html and 'name="component_type"' in html and 'name="manual_baseline_mileage"' in html
+
+
+def test_the_add_part_form_ignores_parent_query_parameters(signed_in_client):
+    bike = _bike()
+
+    html = signed_in_client.get(f"/components/new?parent_bike_id={bike.id}").text
+
+    assert 'name="parent_bike_id"' not in html
+
+
+def test_adding_a_part_with_the_form_puts_it_in_storage(signed_in_client):
+    response = signed_in_client.post(
+        "/components", data={"name": "Spare saddle", "component_type": "saddle", "manual_baseline_mileage": "0"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert [c.name for c in component_service.list_in_storage()] == ["Spare saddle"]
+
+
+def test_the_add_part_form_offers_every_kind_and_cancels_back_to_storage(signed_in_client):
+    html = signed_in_client.get("/components/new").text
+
+    assert len(_options(html, "component_type")) == 12
+    assert 'href="/components">Cancel</a>' in html

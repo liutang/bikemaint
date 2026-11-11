@@ -55,3 +55,57 @@ def test_overview_items_carry_a_status(tmp_path, monkeypatch):
     items = {i.schedule.name: i.status for i in schedule_service.list_due_overview(lead_time_days=7)}
 
     assert items == {"Soon": "due_soon", "Later": "on_track"}
+
+
+# ------------------------------------------------ which bike a schedule's part belongs to (specs/006, M1)
+
+from app.db import connection  # noqa: E402
+from app.services import bike_service, component_service, schedule_service  # noqa: E402
+
+
+def _db(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "t.sqlite3"))
+    connection.run_migrations()
+
+
+def test_a_part_schedule_names_the_bike_the_part_is_on(tmp_path, monkeypatch):
+    _db(tmp_path, monkeypatch)
+    bike = bike_service.create_bike(name="Gravel Bike")
+    chain = component_service.create_component(name="Chain 1", component_type="chain", parent_bike_id=bike.id)
+    schedule_service.create_schedule(component_id=chain.id, name="Re-wax", interval_days=30)
+
+    (item,) = schedule_service.list_due_overview()
+
+    assert (item.owner_name, item.bike_name) == ("Chain 1", "Gravel Bike")
+
+
+def test_a_nested_part_names_the_bike_at_the_top_of_its_chain(tmp_path, monkeypatch):
+    _db(tmp_path, monkeypatch)
+    bike = bike_service.create_bike(name="Road Bike")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+    schedule_service.create_schedule(component_id=tire.id, name="Check pressure", interval_days=7)
+
+    (item,) = schedule_service.list_due_overview()
+
+    assert item.bike_name == "Road Bike"
+
+
+def test_a_bike_level_schedule_has_no_bike_prefix(tmp_path, monkeypatch):
+    _db(tmp_path, monkeypatch)
+    bike = bike_service.create_bike(name="Road Bike")
+    schedule_service.create_schedule(bike_id=bike.id, name="Annual service", interval_days=365)
+
+    (item,) = schedule_service.list_due_overview()
+
+    assert (item.owner_name, item.bike_name) == ("Road Bike", None)
+
+
+def test_a_part_in_storage_has_no_bike_prefix(tmp_path, monkeypatch):
+    _db(tmp_path, monkeypatch)
+    spare = component_service.create_component(name="Spare chain", component_type="chain")
+    schedule_service.create_schedule(component_id=spare.id, name="Re-wax", interval_days=30)
+
+    (item,) = schedule_service.list_due_overview()
+
+    assert item.bike_name is None

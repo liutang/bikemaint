@@ -113,9 +113,10 @@ def test_palette_lists_only_the_offered_part_types_with_their_valid_targets(db_p
 
     palette = {p.type: p for p in _view(bike).palette}
 
-    assert list(palette) == ["frame", "fork", "wheel", "tire", "brake", "drivetrain", "chain", "pedal",
-                             "saddle", "handlebar", "other"]
-    assert "rim" not in palette and "spoke" not in palette
+    assert list(palette) == ["frame", "fork", "wheel", "tire", "rotor", "brake", "drivetrain", "chain",
+                             "pedal", "saddle", "handlebar", "other"]
+    assert "rim" not in palette and "spoke" not in palette  # older finer kinds are never offered
+    assert [t.value for t in palette["rotor"].targets] == [f"component:{wheel.id}"]
     assert [t.value for t in palette["tire"].targets] == [f"component:{wheel.id}"]
     assert [t.value for t in palette["pedal"].targets] == [f"bike:{bike.id}"]
     assert [t.value for t in palette["frame"].targets] == [f"bike:{bike.id}"]
@@ -146,7 +147,7 @@ def test_a_part_screen_is_scoped_to_its_own_sub_parts(db_path):
 
     assert view.root_ref == f"component:{front.id}" and view.component.id == front.id
     assert [n.component.id for n in view.nodes] == [tire.id]
-    assert view.root_accepts == ["other"]  # the single tire slot is taken
+    assert view.root_accepts == ["rotor", "other"]  # the single tire slot is taken
     assert [i.component.id for i in view.storage] == [spare.id]
     assert view.title == "Front wheel"
 
@@ -164,7 +165,7 @@ def test_part_screen_targets_stay_inside_the_part(db_path):
     assert rear.id and spare.id
     palette = {p.type: p for p in view.palette}
     assert [t.value for t in palette["tire"].targets] == [f"component:{front.id}"]
-    assert palette["frame"].targets == []  # frames mount on the bike, which is not in scope here
+    assert "frame" not in palette  # frames mount on the bike, which is not in scope here
     assert [t.label for t in palette["tire"].targets] == ["Front wheel"]
 
 
@@ -233,14 +234,7 @@ def test_actions_are_limited_to_the_screens_scope(db_path):
     assert component_service.get_component(tire.id).parent_component_id == front.id
 
 
-def test_add_part_refuses_storage_as_a_destination(db_path):
-    bike = bike_service.create_bike(name="Road")
-
-    with pytest.raises(ValueError):
-        builder_service.add_part(f"bike:{bike.id}", "frame", {"parent_bike_id": None, "parent_component_id": None})
-
-
-def test_delete_part_needs_confirmation_for_sub_parts_and_then_deletes_the_sub_tree(db_path):
+def test_delete_part_needs_confirmation_for_sub_parts_and_then_keeps_them_in_storage(db_path):
     bike = bike_service.create_bike(name="Road")
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     tire = _mk("Tire", "tire", parent_component_id=wheel.id)
@@ -252,7 +246,8 @@ def test_delete_part_needs_confirmation_for_sub_parts_and_then_deletes_the_sub_t
 
     builder_service.delete_part(root, wheel.id, confirmed=True)
 
-    assert component_service.get_component(wheel.id) is None and component_service.get_component(tire.id) is None
+    assert component_service.get_component(wheel.id) is None
+    assert component_service.get_component(tire.id).parent_bike_id is None
 
 
 def test_delete_part_without_dependants_deletes_at_once(db_path):
@@ -271,3 +266,51 @@ def test_the_part_can_delete_itself_from_its_own_screen(db_path):
     builder_service.delete_part(f"component:{saddle.id}", saddle.id)
 
     assert component_service.get_component(saddle.id) is None
+
+
+# ------------------------------------------------ specs/006 M1
+
+
+def test_a_wheel_screen_palette_lists_only_what_can_go_on_a_wheel(db_path):
+    bike = bike_service.create_bike(name="Road")
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    view = builder_service.build_view(f"component:{wheel.id}")
+
+    assert [p.type for p in view.palette] == ["tire", "rotor", "other"]
+    assert "handlebar" not in [p.type for p in view.palette]
+
+
+def test_the_palette_hides_kinds_whose_single_slot_is_taken(db_path):
+    bike = bike_service.create_bike(name="Road")
+    _mk("Frame", "frame", parent_bike_id=bike.id)
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    _mk("Tire", "tire", parent_component_id=wheel.id)
+
+    on_bike = [p.type for p in builder_service.build_view(f"bike:{bike.id}").palette]
+    on_wheel = [p.type for p in builder_service.build_view(f"component:{wheel.id}").palette]
+
+    assert "frame" not in on_bike and "wheel" in on_bike  # a second wheel is fine
+    assert on_wheel == ["rotor", "other"]
+
+
+def test_a_palette_part_can_be_added_straight_to_storage(db_path):
+    bike = bike_service.create_bike(name="Road")
+
+    part = builder_service.add_part(
+        f"bike:{bike.id}", "saddle", {"parent_bike_id": None, "parent_component_id": None}
+    )
+
+    assert (part.name, part.parent_bike_id, part.parent_component_id) == ("Saddle", None, None)
+    assert part.id in {c.id for c in component_service.list_in_storage()}
+
+
+def test_adding_to_storage_is_allowed_from_a_part_screen_too(db_path):
+    bike = bike_service.create_bike(name="Road")
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    part = builder_service.add_part(
+        f"component:{wheel.id}", "tire", {"parent_bike_id": None, "parent_component_id": None}
+    )
+
+    assert part.parent_component_id is None and part.component_type == "tire"

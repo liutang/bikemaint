@@ -1,6 +1,6 @@
 {% import "partials/icons.html" as ui_icons %}
 {% set path = request.url.path %}
-{% set section = "due" if path.startswith("/maintenance/due") or path.startswith("/schedules") else ("settings" if path.startswith("/settings") else "garage") %}
+{% set section = "due" if path.startswith("/maintenance/due") or path.startswith("/schedules") else ("settings" if path.startswith("/settings") else ("storage" if path == "/components" or path == "/components/new" else "garage")) %}
 <!DOCTYPE html>
 {% set theme = request.cookies.get("theme") %}
 <html lang="en"{% if theme in ["light", "dark"] %} data-theme="{{ theme }}"{% endif %}>
@@ -22,6 +22,7 @@
         <nav aria-label="Primary">
             <a class="brand" href="/">{{ ui_icons.bike() }}BikeMaint</a>
             <a href="/"{% if section == "garage" %} aria-current="page"{% endif %}>{{ ui_icons.bike() }}Garage</a>
+            <a href="/components"{% if section == "storage" %} aria-current="page"{% endif %}>{{ ui_icons.garage() }}Storage</a>
             <a href="/maintenance/due"{% if section == "due" %} aria-current="page"{% endif %}>{{ ui_icons.wrench() }}Maintenance due</a>
             <a href="/settings"{% if section == "settings" %} aria-current="page"{% endif %}>{{ ui_icons.settings() }}Settings</a>
             <span class="sync-status">{{ last_sync_label() }}</span>

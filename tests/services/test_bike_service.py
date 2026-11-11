@@ -69,21 +69,32 @@ def test_delete_bike_with_installed_components_requires_confirmation(db_path):
     assert row["is_deleted"] == 0
 
 
-def test_delete_bike_confirmed_cascades_to_installed_components(db_path):
+def test_delete_bike_confirmed_moves_its_parts_to_storage(db_path):
     bike = bike_service.create_bike(name="Commuter")
     wheel = component_service.create_component(
         name="Front Wheel", component_type="wheel", parent_bike_id=bike.id
+    )
+    tire = component_service.create_component(
+        name="Tire", component_type="tire", parent_component_id=wheel.id
     )
 
     bike_service.delete_bike(bike.id, confirmed=True)
 
     with connection.get_connection() as conn:
         bike_row = conn.execute("SELECT is_deleted FROM bike WHERE id = ?", (bike.id,)).fetchone()
-        component_row = conn.execute(
-            "SELECT is_deleted FROM component WHERE id = ?", (wheel.id,)
-        ).fetchone()
     assert bike_row["is_deleted"] == 1
-    assert component_row["is_deleted"] == 1
+    stored = component_service.get_component(wheel.id)
+    assert stored is not None and (stored.parent_bike_id, stored.parent_component_id) == (None, None)
+    assert component_service.get_component(tire.id).parent_component_id == wheel.id  # sub-tree intact
+    assert wheel.id in {c.id for c in component_service.list_in_storage()}
+
+
+def test_delete_bike_confirmation_says_the_parts_move_to_storage(db_path):
+    bike = bike_service.create_bike(name="Commuter")
+    component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+
+    with pytest.raises(bike_service.ConfirmationRequiredError, match="storage"):
+        bike_service.delete_bike(bike.id)
 
 
 def test_unpaired_gear_excludes_gear_already_paired_to_a_bike(tmp_path, monkeypatch):

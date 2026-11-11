@@ -96,7 +96,9 @@ stylesheet, `app/static/styles.css`, with no framework and no build step (consti
   Pair with Strava for bikes), the part tree, storage, and a palette of new parts, all on one page.
   Click a part to drill in: same layout scoped to that part, with its own actions, a Garage button
   (move to storage) and a Trash button (delete, with an in-place confirmation when needed).
-- **Part categories** are deliberately few: frame, fork, wheel, tire, brake, drivetrain, chain,
+- **Storage** has its own screen (Garage > Storage, linked from the garage and the top bar). Deleting
+  a bike or part keeps what was installed on it: those parts move to storage.
+- **Part categories** are deliberately few: frame, fork, wheel, tire, rotor, brake, drivetrain, chain,
   pedal, saddle, handlebar, other. Older finer kinds (rim, hub, spoke...) still work on existing
   parts but are never offered. Placement rules live in `app/models/component_kinds.py` and are
   enforced on the server for every action.

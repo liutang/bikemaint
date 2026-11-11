@@ -232,3 +232,31 @@ def test_mark_done_without_htmx_still_redirects(signed_in_client):
 
     assert response.status_code == 303
     assert response.headers["location"] == "/maintenance/due"
+
+
+# ------------------------------------------------ owner shows its bike (specs/006, M1)
+
+
+def test_a_part_schedule_reads_bike_then_part_on_cards_and_in_the_list(signed_in_client):
+    from app.services import component_service
+
+    bike = _bike("Gravel Bike")
+    chain = component_service.create_component(name="Chain 1", component_type="chain", parent_bike_id=bike.id)
+    schedule_service.create_schedule(component_id=chain.id, name="Re-wax", interval_days=3, today=TODAY)  # urgent
+    schedule_service.create_schedule(component_id=chain.id, name="Replace", interval_days=300, today=TODAY)  # list
+
+    html = signed_in_client.get("/maintenance/due").text
+
+    card = _card(html, 1)
+    assert re.search(r'<span class="owner-bike">Gravel Bike</span>\s*<a href="/components/\d+">Chain 1</a>', card)
+    row = re.search(r'<li class="other-row" id="schedule-row-2">.*?</li>', html, re.S).group(0)
+    assert re.search(r'<span class="owner-bike">Gravel Bike</span>\s*<a href="/components/\d+">Chain 1</a>', row)
+
+
+def test_a_bike_level_schedule_shows_just_the_bike(signed_in_client):
+    bike = _bike("Gravel Bike")
+    schedule_service.create_schedule(bike_id=bike.id, name="Annual service", interval_days=3, today=TODAY)
+
+    card = _card(signed_in_client.get("/maintenance/due").text, 1)
+
+    assert "owner-bike" not in card and ">Gravel Bike</a>" in card

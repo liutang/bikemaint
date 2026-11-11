@@ -149,7 +149,7 @@ class BuilderAddRequest(BaseModel):
 
     root: str = Field(pattern=_ROOT_PATTERN)
     component_type: str
-    target: str = Field(pattern=r"^(bike|component):[0-9]{1,9}$")
+    target: str = Field(pattern=r"^(storage|bike:[0-9]{1,9}|component:[0-9]{1,9})$")
     before_component_id: int | None = Field(default=None, ge=1)
 
     @field_validator("component_type")

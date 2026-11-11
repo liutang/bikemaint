@@ -5,15 +5,15 @@ import pytest
 from app.models import component_kinds as kinds
 from app.models.component_kinds import BIKE
 
-OFFERED = ["frame", "fork", "wheel", "tire", "brake", "drivetrain", "chain", "pedal", "saddle",
-           "handlebar", "other"]
-LEGACY = {"hub", "rim", "spoke", "cassette", "rotor", "crankset", "derailleur", "shifter", "pad",
+OFFERED = ["frame", "fork", "wheel", "tire", "rotor", "brake", "drivetrain", "chain", "pedal",
+           "saddle", "handlebar", "other"]
+LEGACY = {"hub", "rim", "spoke", "cassette", "crankset", "derailleur", "shifter", "pad",
           "stem", "seatpost", "bolt"}
 
 
 def test_offered_kinds_are_the_short_meaningful_list_in_order():
     assert list(kinds.COMPONENT_TYPES) == OFFERED
-    assert len(kinds.COMPONENT_TYPES) <= 11
+    assert len(kinds.COMPONENT_TYPES) <= 12
 
 
 def test_older_finer_kinds_stay_valid_but_are_never_offered():
@@ -44,7 +44,7 @@ def test_every_kind_has_a_label_and_parents_that_exist():
     [
         ("frame", BIKE), ("fork", BIKE), ("wheel", BIKE), ("brake", BIKE), ("drivetrain", BIKE),
         ("pedal", BIKE), ("saddle", BIKE), ("handlebar", BIKE), ("chain", BIKE),
-        ("tire", "wheel"), ("chain", "drivetrain"), ("other", BIKE), ("other", "wheel"),
+        ("tire", "wheel"), ("rotor", "wheel"), ("chain", "drivetrain"), ("other", BIKE), ("other", "wheel"),
         ("other", "tire"),
         # older arrangements keep working
         ("tire", "rim"), ("rim", "wheel"), ("hub", "wheel"), ("spoke", "wheel"),
@@ -94,9 +94,9 @@ def test_unknown_types_are_refused():
 
 
 def test_child_and_parent_type_helpers_offer_only_current_kinds():
-    assert kinds.child_types_for("wheel") == ["tire", "other"]
+    assert kinds.child_types_for("wheel") == ["tire", "rotor", "other"]
     assert kinds.child_types_for("drivetrain") == ["chain", "other"]
-    assert set(kinds.child_types_for(BIKE)) == set(OFFERED) - {"tire"}
+    assert set(kinds.child_types_for(BIKE)) == set(OFFERED) - {"tire", "rotor"}
     assert kinds.child_types_for("tire") == ["other"]
     assert kinds.parent_types_for("tire") == ["wheel", "rim"]
     assert kinds.parent_types_for("pedal") == [BIKE, "crankset"]

@@ -187,6 +187,13 @@ def build_view(root: str | int) -> BuilderView | None:
             )
         return nodes
 
+    # Only kinds that can actually be added here: a wheel offers tires and rotors, not handlebars.
+    palette = []
+    for type_ in COMPONENT_TYPES:
+        targets = component_service.list_type_targets(type_, root=root_ref)
+        if targets:
+            palette.append(PaletteItem(type_, COMPONENT_KINDS[type_].label.capitalize(), targets))
+
     return BuilderView(
         root_ref=root_ref,
         bike=bike,
@@ -196,14 +203,7 @@ def build_view(root: str | int) -> BuilderView | None:
         storage=[
             StorageItem(c, component_service.list_move_targets(c.id, root=root_ref)) for c in storage
         ],
-        palette=[
-            PaletteItem(
-                type_,
-                COMPONENT_KINDS[type_].label.capitalize(),
-                component_service.list_type_targets(type_, root=root_ref),
-            )
-            for type_ in COMPONENT_TYPES
-        ],
+        palette=palette,
         crumbs=breadcrumbs(root_ref),
     )
 
@@ -223,11 +223,9 @@ def add_part(
     parents: dict[str, int | None],
     before_component_id: int | None = None,
 ) -> Component:
-    """Create a new part from the palette inside this screen's scope."""
+    """Create a new part from the palette inside this screen's scope, or in storage."""
     ids = scope_component_ids(root)
-    if parents["parent_bike_id"] is None and parents["parent_component_id"] is None:
-        raise ValueError("Choose a place on this screen.")
-    _check_parent_in_scope(root, ids, parents)
+    _check_parent_in_scope(root, ids, parents)  # storage (no parent) is always allowed
     try:
         return component_service.mount_new_component(
             component_type, before_component_id=before_component_id, **parents

@@ -36,7 +36,7 @@ def _current_links(html: str) -> list[str]:
     [
         ("/", "/"),
         ("/bikes/new", "/"),
-        ("/components", "/"),
+        ("/components", "/components"),
         ("/maintenance/due", "/maintenance/due"),
         ("/settings", "/settings"),
     ],

@@ -3,13 +3,13 @@
 Tests first for every task. Each milestone ends: suite green, commit per phase, push, PR, merge, delete branches, rebuild image, redeploy, verify.
 
 ## M1
-- [ ] T001 delete part/bike keeps sub-parts (service + router + confirmation wording)
-- [ ] T002 rotor offered; palette filtered to kinds with a valid place; kind tests updated
-- [ ] T003 palette part dropped on storage creates a stored part (service, route, JS)
-- [ ] T004 add-part form without parent IDs
-- [ ] T005 garage lists bikes only with a Storage button; Storage nav link; Storage screen with breadcrumbs
-- [ ] T006 Maintenance due owner shows the bike for part schedules
-- [ ] T007 docs, PR, merge, cleanup, build, deploy
+- [X] T001 delete part/bike keeps sub-parts (service + router + confirmation wording)
+- [X] T002 rotor offered; palette filtered to kinds with a valid place; kind tests updated
+- [X] T003 palette part dropped on storage creates a stored part (service, route, JS)
+- [X] T004 add-part form without parent IDs
+- [X] T005 garage lists bikes only with a Storage button; Storage nav link; Storage screen with breadcrumbs
+- [X] T006 Maintenance due owner shows the bike for part schedules
+- [X] T007 docs, PR, merge, cleanup, build, deploy
 
 ## M2
 - [ ] T008 migration 0008; event logging on add/move/remove/delete; delete-confirmation ignores events

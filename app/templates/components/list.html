@@ -1,12 +1,13 @@
 {% extends "layout.html" %}
 {% import "partials/icons.html" as ui_icons %}
 
-{% block title %}In Storage — Bike Maintenance Tracker{% endblock %}
+{% block title %}Storage — Bike Maintenance Tracker{% endblock %}
 
 {% block content %}
+{% include "partials/breadcrumb.html" %}
 <div class="page-head">
-  <h1>In Storage</h1>
-  <a class="btn btn-primary" href="/components/new">{{ ui_icons.plus() }}Add a component</a>
+  <h1>Storage</h1>
+  <a class="btn btn-primary" href="/components/new">{{ ui_icons.plus() }}Add a part</a>
 </div>
 {% if components %}
 <div class="card-grid">
@@ -17,8 +18,8 @@
 {% else %}
 <div class="empty-state">
   <p class="empty-title">Nothing in storage</p>
-  <p>Components you remove from a bike will appear here.</p>
-  <a class="btn btn-primary" href="/components/new">Add a component</a>
+  <p>Parts you take off a bike, or add here, will appear in storage.</p>
+  <a class="btn btn-primary" href="/components/new">Add a part</a>
 </div>
 {% endif %}
 {% endblock %}

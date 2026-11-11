@@ -19,7 +19,7 @@ Tests first for every task. Each milestone ends: suite green, commit per phase, 
 - [X] T012 docs, PR, merge, cleanup, build, deploy
 
 ## M3
-- [ ] T013 migration 0009 and ride model; sync respects edits and deletions
-- [ ] T014 ride_service CRUD with recompute across bikes and part history
-- [ ] T015 ride log screens and Rides button (bike) and read-only part rides; adjust button removed
-- [ ] T016 docs, PR, merge, cleanup, build, deploy
+- [X] T013 migration 0009 and ride model; sync respects edits and deletions
+- [X] T014 ride_service CRUD with recompute across bikes and part history
+- [X] T015 ride log screens and Rides button (bike) and read-only part rides; adjust button removed
+- [X] T016 docs, PR, merge, cleanup, build, deploy

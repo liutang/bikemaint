@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% from "partials/forms.html" import field, select_field, error_summary, submit %}
+
+{% block title %}{{ "Edit" if ride else "Add" }} ride — {{ bike.name }}{% endblock %}
+
+{% block content %}
+{% include "partials/breadcrumb.html" %}
+<h1>{{ "Edit ride" if ride else "Add a ride" }}</h1>
+{{ error_summary(errors) }}
+<form class="panel form" method="post" action="{{ action }}">
+  {% if ride %}
+  {{ select_field("bike_id", "Bike", bike_options, bike.id, values, field_errors, hint="Choose another bike to re-assign this ride.") }}
+  {% endif %}
+  {{ field("ride_date", "Date", ride.occurred_at[:10] if ride else "", values, field_errors, type="date", required=true) }}
+  {{ field("ride_time", "Time (optional)", ride.occurred_at[11:16] if ride else "", values, field_errors, type="time", hint="Leave blank to count it as noon.") }}
+  {{ field("miles", "Miles", ("%g"|format(ride.distance_miles)) if ride else "", values, field_errors, type="number", step="0.01", min=0, required=true) }}
+  {{ field("note", "Note (optional)", ride.note if ride and ride.note else "", values, field_errors, hint="For example “Commute” or “Group ride”.") }}
+  {% if ride and ride.source == "strava" %}
+  <p class="text-muted">This ride came from Strava. Your changes are kept when Strava syncs again.</p>
+  {% endif %}
+  <div class="actions">
+    {{ submit("Save") }}
+    <a class="btn" href="/bikes/{{ bike.id }}/rides">Cancel</a>
+  </div>
+</form>
+{% endblock %}

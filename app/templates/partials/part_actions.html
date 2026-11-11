@@ -10,7 +10,7 @@
   <a class="btn" href="{{ base }}/edit">Edit</a>
   <a class="btn" href="{{ base }}/maintenance">Maintenance history</a>
   <a class="btn" href="{{ base }}/schedules/new">Add schedule</a>
-  <a class="btn" href="{{ base }}/mileage/adjust">Adjust mileage</a>
+  <a class="btn" href="{{ base }}/rides">Rides</a>
   {% if bike and not bike.strava_gear_id %}<a class="btn" href="{{ base }}/strava-pairing">Pair with Strava</a>{% endif %}
   {% if component %}
   {% set mounted = component.parent_bike_id is not none or component.parent_component_id is not none %}

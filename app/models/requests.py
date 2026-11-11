@@ -229,3 +229,18 @@ class LeadTimeSettingsRequest(BaseModel):
 
 class ThemeSettingsRequest(BaseModel):
     theme: Literal["system", "light", "dark"]
+
+
+class RideRequest(BaseModel):
+    """Add or edit a ride (specs/006-feedback-round-2): date, optional time, miles, note, bike."""
+
+    ride_date: date
+    ride_time: str | None = Field(default=None, pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
+    miles: float = Field(gt=0, le=5000)
+    note: str | None = Field(default=None, max_length=200)
+    bike_id: int | None = Field(default=None, ge=1)
+
+    @field_validator("ride_time", "note", "bike_id", mode="before")
+    @classmethod
+    def _blank_is_none(cls, value):
+        return None if isinstance(value, str) and not value.strip() else value

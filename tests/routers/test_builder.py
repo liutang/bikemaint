@@ -81,7 +81,7 @@ def test_bike_screen_has_the_bike_actions_including_pair_with_strava(signed_in_c
     html = signed_in_client.get(f"/bikes/{bike.id}").text
 
     for label, href in (("Edit", "/edit"), ("Maintenance history", "/maintenance"),
-                        ("Add schedule", "/schedules/new"), ("Adjust mileage", "/mileage/adjust"),
+                        ("Add schedule", "/schedules/new"), ("Rides", "/rides"),
                         ("Pair with Strava", "/strava-pairing")):
         assert f'href="/bikes/{bike.id}{href}">{label}</a>' in html
     assert "Delete bike" in html
@@ -218,7 +218,7 @@ def test_part_screen_has_the_trail_its_own_actions_and_no_pair_with_strava(signe
     assert re.findall(r"<(?:a href=\"([^\"]+)\"|span)>", crumbs) == ["/", f"/bikes/{bike.id}", f"/components/{wheel.id}", ""]
     assert 'aria-current="page"><span>Tire</span>' in crumbs
     for label, href in (("Edit", "/edit"), ("Maintenance history", "/maintenance"),
-                        ("Add schedule", "/schedules/new"), ("Adjust mileage", "/mileage/adjust")):
+                        ("Add schedule", "/schedules/new"), ("Rides", "/rides")):
         assert f'href="/components/{tire.id}{href}">{label}</a>' in html
     assert "Pair with Strava" not in html
     assert "Delete bike" not in html

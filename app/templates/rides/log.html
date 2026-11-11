@@ -1,0 +1,84 @@
+{% extends "layout.html" %}
+{% import "partials/icons.html" as ui_icons %}
+
+{% block title %}Rides — {{ log.owner_name }}{% endblock %}
+
+{% block content %}
+{% include "partials/breadcrumb.html" %}
+<div class="page-head">
+  <div>
+    <h1>Rides</h1>
+    <p class="text-muted">{{ log.owner_name }}{% if log.owner_kind == "component" %} · read-only: rides while this part was on a bike{% endif %}</p>
+  </div>
+  <div class="actions">
+    <div class="stat"><small>Total mileage</small><strong>{{ "%.1f"|format(log.total) }} mi</strong></div>
+    {% if log.owner_kind == "bike" %}
+    <a class="btn btn-primary" href="/bikes/{{ log.owner_id }}/rides/new">{{ ui_icons.plus() }}Add a ride</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="table-responsive">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Date &amp; time</th>
+        <th scope="col">Miles</th>
+        <th scope="col">Source</th>
+        <th scope="col">Note</th>
+        <th scope="col">Total</th>
+        {% if log.owner_kind == "bike" %}<th scope="col">Actions</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in log.rows %}
+      <tr{% if row.kind != "ride" %} class="ride-{{ row.kind }}"{% endif %}>
+        {% if row.kind == "start" %}
+        <td data-label="Date &amp; time">Starting mileage</td>
+        <td data-label="Miles">{{ "%.1f"|format(row.miles) }}</td>
+        <td data-label="Source">Baseline</td>
+        <td data-label="Note">{% if log.owner_kind == "bike" %}<a href="/bikes/{{ log.owner_id }}/edit">Edit starting mileage</a>{% else %}<a href="/components/{{ log.owner_id }}/edit">Edit starting mileage</a>{% endif %}</td>
+        <td data-label="Total">{{ "%.1f"|format(row.running_total) }}</td>
+        {% if log.owner_kind == "bike" %}<td data-label="Actions"></td>{% endif %}
+        {% else %}
+        <td data-label="Date &amp; time">
+          {%- if row.kind == "adjustment" -%}
+            <time data-local datetime="{{ row.occurred_at }}">{{ row.occurred_at[:10] }} {{ row.occurred_at[11:16] }} UTC</time>
+          {%- elif row.source == "strava" -%}
+            <time data-local datetime="{{ row.occurred_at }}">{{ row.occurred_at[:10] }} {{ row.occurred_at[11:16] }} UTC</time>
+          {%- else -%}
+            {{ row.occurred_at[:10] }} {{ row.occurred_at[11:16] }}
+          {%- endif -%}
+        </td>
+        <td data-label="Miles">{{ "%.1f"|format(row.miles) }}</td>
+        <td data-label="Source">
+          {%- if row.kind == "adjustment" %}Adjustment{% elif row.source == "strava" %}Strava{% else %}Manual{% endif %}
+          {%- if row.bike_name %} · {{ row.bike_name }}{% endif -%}
+        </td>
+        <td data-label="Note">{{ row.note or "" }}</td>
+        <td data-label="Total">{{ "%.1f"|format(row.running_total) }}</td>
+        {% if log.owner_kind == "bike" %}
+        <td data-label="Actions">
+          {% if row.editable %}
+          <div class="actions">
+            <a class="btn" href="/rides/{{ row.id }}/edit">Edit</a>
+            <form method="post" action="/rides/{{ row.id }}/delete">
+              <button class="btn btn-quiet" type="submit">Delete</button>
+            </form>
+          </div>
+          {% endif %}
+        </td>
+        {% endif %}
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if log.rows|length == 1 %}
+<div class="empty-state">
+  <p class="empty-title">No rides yet</p>
+  <p>{% if log.owner_kind == "bike" %}Pair this bike with Strava to import rides, or add one by hand.{% else %}Rides appear here once this part has been installed on a bike while it was ridden.{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}

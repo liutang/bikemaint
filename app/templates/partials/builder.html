@@ -72,15 +72,18 @@
             <span class="drag-handle" aria-hidden="true">{{ ui_icons.grip() }}</span>
             <span class="side-name">{{ item.component.name }} <span class="chip">{{ item.component.component_type }}</span></span>
             {% if item.targets %}
-            <form class="side-form" method="post" action="/bikes/{{ bike_id }}/build/move"
-                  hx-post="/bikes/{{ bike_id }}/build/move" hx-target="#builder" hx-swap="outerHTML">
-              <input type="hidden" name="component_id" value="{{ item.component.id }}">
-              <label class="visually-hidden" for="addto-{{ item.component.id }}">Add {{ item.component.name }} to</label>
-              <select id="addto-{{ item.component.id }}" name="target">
-                {% for t in item.targets %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
-              </select>
-              <button class="btn" type="submit">Add</button>
-            </form>
+            <details class="side-more">
+              <summary class="btn btn-quiet">Add to…</summary>
+              <form class="side-form" method="post" action="/bikes/{{ bike_id }}/build/move"
+                    hx-post="/bikes/{{ bike_id }}/build/move" hx-target="#builder" hx-swap="outerHTML">
+                <input type="hidden" name="component_id" value="{{ item.component.id }}">
+                <label class="visually-hidden" for="addto-{{ item.component.id }}">Add {{ item.component.name }} to</label>
+                <select id="addto-{{ item.component.id }}" name="target">
+                  {% for t in item.targets %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
+                </select>
+                <button class="btn" type="submit">Add</button>
+              </form>
+            </details>
             {% else %}
             <small class="text-muted">No place for it on this bike yet</small>
             {% endif %}
@@ -100,15 +103,18 @@
             <span class="drag-handle" aria-hidden="true">{{ ui_icons.grip() }}</span>
             <span class="side-name">{{ item.label }}</span>
             {% if item.targets %}
-            <form class="side-form" method="post" action="/bikes/{{ bike_id }}/build/add"
-                  hx-post="/bikes/{{ bike_id }}/build/add" hx-target="#builder" hx-swap="outerHTML">
-              <input type="hidden" name="component_type" value="{{ item.type }}">
-              <label class="visually-hidden" for="add-{{ item.type }}">Add {{ item.label }} to</label>
-              <select id="add-{{ item.type }}" name="target">
-                {% for t in item.targets %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
-              </select>
-              <button class="btn" type="submit">Add</button>
-            </form>
+            <details class="side-more">
+              <summary class="btn btn-quiet">Add to…</summary>
+              <form class="side-form" method="post" action="/bikes/{{ bike_id }}/build/add"
+                    hx-post="/bikes/{{ bike_id }}/build/add" hx-target="#builder" hx-swap="outerHTML">
+                <input type="hidden" name="component_type" value="{{ item.type }}">
+                <label class="visually-hidden" for="add-{{ item.type }}">Add {{ item.label }} to</label>
+                <select id="add-{{ item.type }}" name="target">
+                  {% for t in item.targets %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
+                </select>
+                <button class="btn" type="submit">Add</button>
+              </form>
+            </details>
             {% endif %}
           </li>
           {% endfor %}

@@ -1416,15 +1416,29 @@ input[type="radio"] {
   border-color: var(--border);
 }
 
-.side-form select {
-  width: auto;
-  max-width: 100%;
-  min-width: 8rem;
+.side-more {
+  margin-left: auto;
 }
 
+.side-more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.side-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.side-more[open] {
+  flex-basis: 100%;
+}
+
+.side-form select,
 .node-moveto select {
-  width: auto;
-  max-width: 100%;
+  flex: 1 1 10rem;
+  width: 100%;
+  min-width: 0;
+  text-overflow: ellipsis;
 }
 
 /* While dragging: valid targets glow in the accent, the rest recede. */

@@ -15,7 +15,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.db.connection import run_migrations
 from app.routers import auth, bikes, components, maintenance, mileage, schedules, settings
-from app.services import scheduler
+from app.services import scheduler, sync_status_service
 from app.services.auth_dependency import AuthRequiredError
 
 APP_DIR = Path(__file__).parent
@@ -51,6 +51,7 @@ def create_app() -> FastAPI:
     )
 
     app.state.templates = Jinja2Templates(directory=TEMPLATES_DIR)
+    app.state.templates.env.globals["last_sync_label"] = sync_status_service.last_sync_label
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.exception_handler(AuthRequiredError)

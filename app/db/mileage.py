@@ -59,6 +59,12 @@ def latest_ride_epoch(conn: sqlite3.Connection) -> int | None:
     return int(dt.timestamp())
 
 
+def latest_synced_at(conn: sqlite3.Connection) -> str | None:
+    """When a ride was most recently synced from Strava, or None if none has been yet."""
+    row = conn.execute("SELECT MAX(synced_at) AS latest FROM ride_activity").fetchone()
+    return None if row is None else row["latest"]
+
+
 def insert_mileage_adjustment(
     conn: sqlite3.Connection,
     *,

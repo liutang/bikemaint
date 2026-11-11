@@ -50,15 +50,15 @@ Single project; existing `app/` and `tests/` layout. Plain CSS in `app/static/st
 
 ### Tests (first)
 
-- [ ] T004 [P] [US1] Add `tests/db/test_mileage_latest_synced.py` for `app/db/mileage.py::latest_synced_at` (None when no rides, max `synced_at` otherwise)
-- [ ] T005 [P] [US1] Add `tests/services/test_sync_status_service.py` for `last_sync_label(now)` ("Not synced yet", "Synced just now", "N min ago", "N h ago", "N d ago")
-- [ ] T006 [US1] Update `tests/test_ui_shell.py`: header contains `.sync-status`, nav pills keep `aria-current="page"` on the current section, the sign-in page shows no nav or sync status, no external font/style URLs in any page
+- [X] T004 [P] [US1] Add `tests/db/test_mileage_latest_synced.py` for `app/db/mileage.py::latest_synced_at` (None when no rides, max `synced_at` otherwise)
+- [X] T005 [P] [US1] Add `tests/services/test_sync_status_service.py` for `last_sync_label(now)` ("Not synced yet", "Synced just now", "N min ago", "N h ago", "N d ago")
+- [X] T006 [US1] Update `tests/test_ui_shell.py`: header contains `.sync-status`, nav pills keep `aria-current="page"` on the current section, the sign-in page shows no nav or sync status, no external font/style URLs in any page
 
 ### Implementation
 
-- [ ] T007 [P] [US1] Add `latest_synced_at(conn)` to `app/db/mileage.py` (parameterized query)
-- [ ] T008 [US1] Add `app/services/sync_status_service.py` with `last_sync_label` (depends on T007)
-- [ ] T009 [US1] Register `last_sync_label` as a Jinja global in `app/main.py` (templates setup) and render the indicator in `app/templates/layout.html`; restyle `.app-header`, pill nav, brand, sync indicator and sign-out in `app/static/styles.css`; preload the two font files in the layout head
+- [X] T007 [P] [US1] Add `latest_synced_at(conn)` to `app/db/mileage.py` (parameterized query)
+- [X] T008 [US1] Add `app/services/sync_status_service.py` with `last_sync_label` (depends on T007)
+- [X] T009 [US1] Register `last_sync_label` as a Jinja global in `app/main.py` (templates setup) and render the indicator in `app/templates/layout.html`; restyle `.app-header`, pill nav, brand, sync indicator and sign-out in `app/static/styles.css`; preload the two font files in the layout head
 
 **Checkpoint**: US1 complete and demonstrable.
 

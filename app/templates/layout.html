@@ -8,6 +8,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light dark">
     <title>{% block title %}Bike Maintenance Tracker{% endblock %}</title>
+    <link rel="preload" href="{{ url_for('static', path='fonts/inter-latin-wght.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ url_for('static', path='fonts/space-grotesk-latin-wght.woff2') }}" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
     <script src="{{ url_for('static', path='htmx.min.js') }}" defer></script>
 </head>
@@ -16,10 +18,11 @@
     {% block header %}
     <header class="app-header">
         <nav aria-label="Primary">
-            <a class="brand" href="/">BikeMaint</a>
+            <a class="brand" href="/">{{ ui_icons.bike() }}BikeMaint</a>
             <a href="/"{% if section == "garage" %} aria-current="page"{% endif %}>{{ ui_icons.bike() }}Garage</a>
             <a href="/maintenance/due"{% if section == "due" %} aria-current="page"{% endif %}>{{ ui_icons.wrench() }}Maintenance due</a>
             <a href="/settings"{% if section == "settings" %} aria-current="page"{% endif %}>{{ ui_icons.settings() }}Settings</a>
+            <span class="sync-status">{{ last_sync_label() }}</span>
             <form method="post" action="/logout">
                 <button class="btn btn-quiet" type="submit">{{ ui_icons.sign_out() }}Sign out</button>
             </form>

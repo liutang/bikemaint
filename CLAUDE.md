@@ -60,6 +60,8 @@ This is a **single-user, self-hosted** app (one rider, one Strava account) — d
 - **Notification dedup**: each `maintenance_schedule` has a `cycle_number` bumped on every completion; `notification` rows are uniquely keyed on `(schedule_id, cycle_number)` to prevent duplicate due-soon alerts within the same cycle.
 - **Outbound webhook**: due-soon notifications POST a JSON payload (contract in `contracts/webhook-payload.md`) to a user-configured URL (e.g. a Discord incoming webhook) via `httpx`, with a short timeout and limited retries that never block recording the in-app notification.
 
+**UI**: server-rendered Jinja2 + HTMX, styled only by `app/static/styles.css` (design tokens, automatic light/dark; no framework or build step, per constitution v1.3.0). Reusable macros live in `app/templates/partials/` (icons, forms, badges); the class and markup contract is in `specs/002-modern-ui/contracts/ui-contract.md`. `tests/test_ui_contrast.py` enforces WCAG contrast from the tokens.
+
 Consult `contracts/routes.md` for the full intended HTTP surface (page routes vs. HTMX partial-returning mutation routes) before adding or renaming a route.
 
 ## Codex config detected

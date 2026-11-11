@@ -1,31 +1,44 @@
 {% extends "layout.html" %}
 {% from "partials/component_tree.html" import render_tree %}
+{% import "partials/icons.html" as ui_icons %}
 
 {% block title %}{{ bike.name }} — Bike Maintenance Tracker{% endblock %}
 
 {% block content %}
-<h1>{{ bike.name }}</h1>
-<p>Type: {{ bike.bike_type or "—" }}</p>
-<p>Total mileage: {{ bike.total_mileage }} mi</p>
-<p>
-  <a href="/bikes/{{ bike.id }}/edit">Edit</a>
-  &middot;
-  <a href="/components/new?parent_bike_id={{ bike.id }}">Add component</a>
-  &middot;
-  <a href="/bikes/{{ bike.id }}/maintenance">Maintenance history</a>
-  &middot;
-  <a href="/bikes/{{ bike.id }}/schedules/new">Add schedule</a>
-</p>
+<div class="page-head">
+  <div>
+    <h1>{{ bike.name }}</h1>
+    <p class="text-muted">{{ bike.bike_type or "bike" }}</p>
+  </div>
+  <div class="stat"><small>Total mileage</small><strong>{{ "%.1f"|format(bike.total_mileage) }} mi</strong></div>
+</div>
+
+<div class="actions panel">
+  <a class="btn" href="/bikes/{{ bike.id }}/edit">Edit</a>
+  <a class="btn btn-primary" href="/components/new?parent_bike_id={{ bike.id }}">{{ ui_icons.plus() }}Add component</a>
+  <a class="btn" href="/bikes/{{ bike.id }}/maintenance">Maintenance history</a>
+  <a class="btn" href="/bikes/{{ bike.id }}/schedules/new">Add schedule</a>
+  <a class="btn" href="/bikes/{{ bike.id }}/mileage/adjust">Adjust mileage</a>
+  {% if not bike.strava_gear_id %}<a class="btn" href="/bikes/{{ bike.id }}/strava-pairing">Pair with Strava</a>{% endif %}
+</div>
 
 <h2>Installed components</h2>
 {% if tree %}
   {{ render_tree(tree) }}
 {% else %}
-  <p>Nothing installed yet.</p>
+<div class="empty-state">
+  <p class="empty-title">Nothing installed yet</p>
+  <p>Add a wheel, drivetrain or any part to build up this bike.</p>
+  <a class="btn btn-primary" href="/components/new?parent_bike_id={{ bike.id }}">Add component</a>
+</div>
 {% endif %}
 
 <h2>Delete this bike</h2>
-<form method="post" action="/bikes/{{ bike.id }}/delete">
-  <button type="submit">Delete</button>
-</form>
+<div class="panel danger-zone">
+  <form method="post" action="/bikes/{{ bike.id }}/delete"
+        hx-post="/bikes/{{ bike.id }}/delete" hx-target="#delete-area" hx-swap="innerHTML">
+    <button class="btn btn-danger" type="submit">{{ ui_icons.trash() }}Delete bike</button>
+  </form>
+  <div id="delete-area" aria-live="polite"></div>
+</div>
 {% endblock %}

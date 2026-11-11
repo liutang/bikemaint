@@ -3,17 +3,28 @@
 {% block title %}Maintenance due — Bike Maintenance Tracker{% endblock %}
 
 {% block content %}
-<h1>Maintenance due</h1>
+<div class="page-head">
+  <h1>Maintenance due</h1>
+</div>
 
-{% if notifications %}
-<section class="alerts">
-  <h2>Due soon</h2>
-  <ul>
-    {% for notification in notifications %}
-    <li>
-      Schedule #{{ notification.schedule_id }} is due around {{ notification.projected_due_at }}.
-      <form method="post" action="/notifications/{{ notification.id }}/acknowledge" style="display:inline">
-        <button type="submit">Dismiss</button>
+{% if alerts %}
+<section class="alerts" aria-labelledby="alerts-heading">
+  <h2 id="alerts-heading">Due-soon alerts</h2>
+  <ul class="alert-list">
+    {% for alert in alerts %}
+    <li class="alert">
+      <span>
+        {% if alert.item %}
+        <strong>{{ alert.item.schedule.name }}</strong> on {{ alert.item.owner_name }}
+        {% else %}
+        <strong>Schedule #{{ alert.notification.schedule_id }}</strong>
+        {% endif %}
+        is due around {{ alert.notification.projected_due_at }}.
+      </span>
+      <form method="post" action="/notifications/{{ alert.notification.id }}/acknowledge"
+            hx-post="/notifications/{{ alert.notification.id }}/acknowledge"
+            hx-target="closest li" hx-swap="outerHTML">
+        <button class="btn" type="submit">Dismiss</button>
       </form>
     </li>
     {% endfor %}
@@ -22,17 +33,29 @@
 {% endif %}
 
 {% if items %}
-<table>
-  <thead>
-    <tr><th>Item</th><th>Projected due</th><th>Remaining</th><th></th></tr>
-  </thead>
-  <tbody>
-    {% for item in items %}
-    {% include "partials/due_soon_row.html" %}
-    {% endfor %}
-  </tbody>
-</table>
+<div class="table-responsive">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Item</th>
+        <th scope="col">Status</th>
+        <th scope="col">Projected due</th>
+        <th scope="col">Remaining</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      {% include "partials/due_soon_row.html" %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
-<p>No maintenance schedules yet. Add one from a bike or component page.</p>
+<div class="empty-state">
+  <p class="empty-title">No maintenance schedules yet</p>
+  <p>Open a bike or component and choose “Add schedule” to start getting due-date projections.</p>
+  <a class="btn btn-primary" href="/">Go to your garage</a>
+</div>
 {% endif %}
 {% endblock %}

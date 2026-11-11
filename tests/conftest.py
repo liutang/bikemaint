@@ -30,3 +30,22 @@ def client(db_path):
     app = create_app()
     with TestClient(app, base_url="https://testserver") as test_client:
         yield test_client
+
+
+@pytest.fixture
+def signed_in_client(client, monkeypatch):
+    """A `TestClient` already signed in through the (stubbed) Strava OAuth callback."""
+    from app.services import strava_client
+
+    monkeypatch.setattr(
+        strava_client,
+        "exchange_code_for_token",
+        lambda code: {
+            "access_token": "access-token",
+            "refresh_token": "refresh-token",
+            "expires_at": 4102444800,
+            "athlete": {"id": 42},
+        },
+    )
+    client.get("/auth/strava/callback?code=auth-code", follow_redirects=False)
+    return client

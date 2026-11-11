@@ -1,47 +1,51 @@
 {% extends "layout.html" %}
 {% from "partials/component_tree.html" import render_tree %}
+{% import "partials/icons.html" as ui_icons %}
+{% from "partials/forms.html" import field, error_summary, submit %}
 
 {% block title %}{{ component.name }} — Bike Maintenance Tracker{% endblock %}
 
 {% block content %}
-<h1>{{ component.name }}</h1>
-<p>Type: {{ component.component_type }}</p>
-<p>Total mileage: {{ component.total_mileage }} mi</p>
-<p>
-  <a href="/components/{{ component.id }}/edit">Edit</a>
-  &middot;
-  <a href="/components/{{ component.id }}/maintenance">Maintenance history</a>
-  &middot;
-  <a href="/components/{{ component.id }}/schedules/new">Add schedule</a>
-</p>
+<div class="page-head">
+  <div>
+    <h1>{{ component.name }}</h1>
+    <p class="text-muted">{{ component.component_type }}</p>
+  </div>
+  <div class="stat"><small>Total mileage</small><strong>{{ "%.1f"|format(component.total_mileage) }} mi</strong></div>
+</div>
 
-{% if errors %}
-<ul class="errors">
-  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
-</ul>
-{% endif %}
+<div class="actions panel">
+  <a class="btn" href="/components/{{ component.id }}/edit">Edit</a>
+  <a class="btn" href="/components/{{ component.id }}/maintenance">Maintenance history</a>
+  <a class="btn" href="/components/{{ component.id }}/schedules/new">Add schedule</a>
+  <a class="btn" href="/components/{{ component.id }}/mileage/adjust">Adjust mileage</a>
+</div>
+
+{{ error_summary(errors) }}
 
 <h2>Move</h2>
-<form method="post" action="/components/{{ component.id }}/move">
-  <label>Parent bike ID
-    <input type="number" name="parent_bike_id" value="{{ component.parent_bike_id or '' }}">
-  </label>
-  <label>Parent component ID
-    <input type="number" name="parent_component_id" value="{{ component.parent_component_id or '' }}">
-  </label>
-  <button type="submit">Move</button>
-  <p><small>Leave both blank to move this component into storage.</small></p>
+<form class="panel form" method="post" action="/components/{{ component.id }}/move">
+  {{ field("parent_bike_id", "Parent bike ID", component.parent_bike_id, values, field_errors, type="number") }}
+  {{ field("parent_component_id", "Parent component ID", component.parent_component_id, values, field_errors, type="number", hint="Leave both blank to move this component into storage.") }}
+  {{ submit("Move") }}
 </form>
 
 <h2>Sub-components</h2>
 {% if tree %}
   {{ render_tree(tree) }}
 {% else %}
-  <p>Nothing nested here.</p>
+<div class="empty-state">
+  <p class="empty-title">Nothing nested here</p>
+  <p>Components installed inside this one will appear here.</p>
+</div>
 {% endif %}
 
 <h2>Delete</h2>
-<form method="post" action="/components/{{ component.id }}/delete">
-  <button type="submit">Delete</button>
-</form>
+<div class="panel danger-zone">
+  <form method="post" action="/components/{{ component.id }}/delete"
+        hx-post="/components/{{ component.id }}/delete" hx-target="#delete-area" hx-swap="innerHTML">
+    <button class="btn btn-danger" type="submit">{{ ui_icons.trash() }}Delete component</button>
+  </form>
+  <div id="delete-area" aria-live="polite"></div>
+</div>
 {% endblock %}

@@ -8,10 +8,11 @@ and `app/services/component_service.py`.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from pydantic import ValidationError
 
 from app.models.requests import BikeCreateRequest, BikeUpdateRequest
+from app.models.form_errors import error_context, message_context
 from app.services import bike_service, component_service, strava_client
 from app.services.auth_dependency import require_account
 
@@ -58,7 +59,7 @@ async def create_bike(request: Request, account=Depends(require_account)):
         return _render(
             request,
             "bikes/form.html",
-            {"bike": None, "errors": [error["msg"] for error in exc.errors()]},
+            {"bike": None, **error_context(form, exc)},
             status_code=422,
         )
     bike = bike_service.create_bike(**payload.model_dump())
@@ -103,7 +104,7 @@ async def update_bike(request: Request, bike_id: int, account=Depends(require_ac
         return _render(
             request,
             "bikes/form.html",
-            {"bike": bike, "errors": [error["msg"] for error in exc.errors()]},
+            {"bike": bike, **error_context(form, exc)},
             status_code=422,
         )
     bike = bike_service.update_bike(bike_id, **payload.model_dump())
@@ -134,7 +135,11 @@ async def pair_bike_to_strava_gear(request: Request, bike_id: int, account=Depen
         return _render(
             request,
             "bikes/strava_pairing.html",
-            {"bike": bike, "gear": [], "errors": ["Choose a Strava gear entry."]},
+            {
+                "bike": bike,
+                "gear": [],
+                **message_context(form, "Choose a Strava gear entry.", field="strava_gear_id"),
+            },
             status_code=422,
         )
     updated = bike_service.pair_to_strava_gear(bike_id, strava_gear_id)
@@ -148,14 +153,18 @@ async def delete_bike(request: Request, bike_id: int, account=Depends(require_ac
     try:
         bike_service.delete_bike(bike_id, confirmed=confirmed)
     except bike_service.ConfirmationRequiredError as exc:
-        return _render(
-            request,
-            "partials/confirm_delete.html",
-            {"item_type": "bike", "message": str(exc), "action": f"/bikes/{bike_id}/delete"},
+        context = {
+            "item_type": "bike",
+            "message": str(exc),
+            "action": f"/bikes/{bike_id}/delete",
+            "cancel_url": f"/bikes/{bike_id}",
+        }
+        template = (
+            "partials/confirm_delete.html"
+            if request.headers.get("hx-request") == "true"
+            else "confirm_delete_page.html"
         )
+        return _render(request, template, context)
     if request.headers.get("hx-request") == "true":
-        return _render(request, "bikes/list.html", {
-            "bikes": bike_service.list_bikes(),
-            "in_storage_components": component_service.list_in_storage(),
-        })
+        return Response(status_code=200, headers={"HX-Redirect": "/"})
     return RedirectResponse(url="/", status_code=303)

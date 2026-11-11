@@ -117,7 +117,7 @@ def test_scenario_2_strava_sync_adjustment_and_stale_connection(signed_in, monke
     with respx.mock:
         respx.post("https://www.strava.com/oauth/token").mock(return_value=httpx.Response(400))
         client.post("/sync/strava", follow_redirects=False)
-    assert "stale" in client.get("/settings").text
+    assert "stale" in client.get("/settings").text.lower()
     assert bike_service.get_bike(1).total_mileage == pytest.approx(25.0, abs=0.01)
 
 
@@ -158,7 +158,7 @@ def test_scenario_4_schedules_notifications_and_completion(signed_in, monkeypatc
     client.post("/components/1/schedules", data={"name": "Replace chain", "interval_miles": "1500"})
     dashboard = client.get("/maintenance/due").text
     assert "Replace chain" in dashboard
-    assert "low confidence" in dashboard
+    assert "low confidence" in dashboard.lower()
 
     # A time-interval schedule inside the lead-time window notifies exactly once per cycle.
     client.post("/bikes/1/schedules", data={"name": "Annual service", "interval_days": "10"})

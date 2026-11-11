@@ -7,8 +7,10 @@ queries — it only translates HTTP concerns to/from `app/services/component_ser
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from pydantic import ValidationError
+
+from app.models.form_errors import error_context, message_context
 
 from app.models.requests import (
     COMPONENT_TYPES,
@@ -93,7 +95,7 @@ async def create_component(request: Request, account=Depends(require_account)):
                 "component_types": COMPONENT_TYPES,
                 "parent_bike_id": parent_bike_id,
                 "parent_component_id": parent_component_id,
-                "errors": [error["msg"] for error in exc.errors()],
+                **error_context(form, exc),
             },
             status_code=422,
         )
@@ -108,7 +110,7 @@ async def create_component(request: Request, account=Depends(require_account)):
                 "component_types": COMPONENT_TYPES,
                 "parent_bike_id": parent_bike_id,
                 "parent_component_id": parent_component_id,
-                "errors": [str(exc)],
+                **message_context(form, str(exc)),
             },
             status_code=422,
         )
@@ -168,7 +170,7 @@ async def update_component(request: Request, component_id: int, account=Depends(
                 "component_types": COMPONENT_TYPES,
                 "parent_bike_id": existing.parent_bike_id,
                 "parent_component_id": existing.parent_component_id,
-                "errors": [error["msg"] for error in exc.errors()],
+                **error_context(form, exc),
             },
             status_code=422,
         )
@@ -183,7 +185,7 @@ async def update_component(request: Request, component_id: int, account=Depends(
                 "component_types": COMPONENT_TYPES,
                 "parent_bike_id": existing.parent_bike_id,
                 "parent_component_id": existing.parent_component_id,
-                "errors": [str(exc)],
+                **message_context(form, str(exc)),
             },
             status_code=422,
         )
@@ -208,7 +210,7 @@ async def move_component(request: Request, component_id: int, account=Depends(re
             {
                 "component": existing,
                 "tree": _subtree(existing),
-                "errors": [error["msg"] for error in exc.errors()],
+                **error_context(form, exc),
             },
             status_code=422,
         )
@@ -218,7 +220,7 @@ async def move_component(request: Request, component_id: int, account=Depends(re
         return _render(
             request,
             "components/detail.html",
-            {"component": existing, "tree": _subtree(existing), "errors": [str(exc)]},
+            {"component": existing, "tree": _subtree(existing), **message_context(form, str(exc))},
             status_code=422,
         )
     if request.headers.get("hx-request") == "true":
@@ -235,16 +237,18 @@ async def delete_component(request: Request, component_id: int, account=Depends(
     try:
         component_service.delete_component(component_id, confirmed=confirmed)
     except component_service.ConfirmationRequiredError as exc:
-        return _render(
-            request,
-            "partials/confirm_delete.html",
-            {
-                "item_type": "component",
-                "message": str(exc),
-                "action": f"/components/{component_id}/delete",
-            },
+        context = {
+            "item_type": "component",
+            "message": str(exc),
+            "action": f"/components/{component_id}/delete",
+            "cancel_url": f"/components/{component_id}",
+        }
+        template = (
+            "partials/confirm_delete.html"
+            if request.headers.get("hx-request") == "true"
+            else "confirm_delete_page.html"
         )
+        return _render(request, template, context)
     if request.headers.get("hx-request") == "true":
-        components = component_service.list_in_storage()
-        return _render(request, "components/list.html", {"components": components})
+        return Response(status_code=200, headers={"HX-Redirect": "/components"})
     return RedirectResponse(url="/components", status_code=303)

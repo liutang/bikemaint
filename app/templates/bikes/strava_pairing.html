@@ -1,29 +1,25 @@
 {% extends "layout.html" %}
+{% from "partials/forms.html" import select_field, error_summary, submit %}
 
 {% block title %}Pair {{ bike.name }} with Strava — Bike Maintenance Tracker{% endblock %}
 
 {% block content %}
 <h1>Pair "{{ bike.name }}" with a Strava gear entry</h1>
-
-{% if errors %}
-<ul class="errors">
-  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
-</ul>
-{% endif %}
+{{ error_summary(errors) }}
 
 {% if gear %}
-<form method="post" action="/bikes/{{ bike.id }}/strava-pairing">
-  <label>Strava gear
-    <select name="strava_gear_id">
-      {% for entry in gear %}
-      <option value="{{ entry.id }}">{{ entry.name or entry.id }}</option>
-      {% endfor %}
-    </select>
-  </label>
-  <button type="submit">Pair and import ride history</button>
+<form class="panel form" method="post" action="/bikes/{{ bike.id }}/strava-pairing">
+  {{ select_field("strava_gear_id", "Strava gear", gear|map(attribute="id")|map("string")|list, "", values, field_errors, hint="Pairing imports this gear's full ride history.") }}
+  <div class="actions">
+    {{ submit("Pair and import ride history") }}
+    <a class="btn" href="/bikes/{{ bike.id }}">Cancel</a>
+  </div>
 </form>
 {% else %}
-<p>No unpaired Strava gear found, or the Strava connection needs to be refreshed
-   (see <a href="/settings">Settings</a>).</p>
+<div class="empty-state">
+  <p class="empty-title">No unpaired Strava gear found</p>
+  <p>Either every gear entry is already paired, or the Strava connection needs to be refreshed.</p>
+  <a class="btn" href="/settings">Check Strava connection</a>
+</div>
 {% endif %}
 {% endblock %}

@@ -54,6 +54,21 @@ terminating proxy, or use `localhost` (browsers treat it as a secure context).
 pytest
 ```
 
+## UI and styling
+
+The interface is server-rendered Jinja2 with HTMX for in-place updates, styled by one hand-written
+stylesheet, `app/static/styles.css`, with no framework and no build step (constitution v1.3.0).
+
+- **Theme:** colors, spacing, radii and type sizes are CSS custom properties at the top of the file.
+  Light is the default; the dark values live in the `prefers-color-scheme: dark` block, so the app
+  follows the operating system automatically. Change a token there to re-theme everything.
+- **Contrast:** `tests/test_ui_contrast.py` reads those tokens and fails if a text/background pair
+  drops below WCAG AA in either theme, so check it after changing colors.
+- **Reusable markup:** `app/templates/partials/` holds the icon, form-field and status-badge macros.
+  The class vocabulary is documented in `specs/002-modern-ui/contracts/ui-contract.md`.
+- **No JavaScript to maintain:** the component tree uses native `<details>`, and HTMX is only used
+  for row updates and inline confirmations. Every flow still works with plain navigation.
+
 ## Layout
 
 | Path | Responsibility |

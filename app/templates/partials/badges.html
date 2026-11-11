@@ -1,0 +1,16 @@
+{# Status badges: always icon + text, never color alone (contracts/ui-contract.md §4). #}
+{% import "partials/icons.html" as ui_icons %}
+{% macro status_badge(status) -%}
+{%- if status == "overdue" -%}
+<span class="badge badge-overdue">{{ ui_icons.warning() }}Overdue</span>
+{%- elif status == "due_soon" -%}
+<span class="badge badge-soon">{{ ui_icons.clock() }}Due soon</span>
+{%- elif status == "on_track" -%}
+<span class="badge badge-ok">{{ ui_icons.check() }}On track</span>
+{%- else -%}
+<span class="badge badge-low">{{ ui_icons.question() }}No estimate yet</span>
+{%- endif -%}
+{%- endmacro %}
+{% macro low_confidence_badge() -%}
+<span class="badge badge-low" title="Not enough ride history for a reliable estimate">{{ ui_icons.question() }}Low confidence</span>
+{%- endmacro %}

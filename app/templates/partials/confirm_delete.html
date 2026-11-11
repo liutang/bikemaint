@@ -1,7 +1,10 @@
-<div class="confirm-delete">
+<div class="confirm" role="alert">
   <p>{{ message }} Delete this {{ item_type }} anyway?</p>
-  <form method="post" action="{{ action }}">
-    <input type="hidden" name="confirmed" value="true">
-    <button type="submit">Yes, delete</button>
-  </form>
+  <div class="actions">
+    <form method="post" action="{{ action }}">
+      <input type="hidden" name="confirmed" value="true">
+      <button class="btn btn-danger" type="submit">Yes, delete</button>
+    </form>
+    <a class="btn" href="{{ cancel_url }}">Cancel</a>
+  </div>
 </div>

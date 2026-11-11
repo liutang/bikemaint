@@ -1,15 +1,18 @@
 <!--
 Sync Impact Report
-Version change: 1.1.0 → 1.2.0
-Rationale: MINOR bump — new "Git Practices" guidance added under Development Workflow,
-  materially expanding governance guidance without redefining or removing any existing principle.
+Version change: 1.2.0 → 1.3.0
+Rationale: MINOR bump — Technology Stack materially expanded with an explicit Styling rule
+  so a modern, fast-loading UI is permitted without a further amendment. No principle is
+  removed or redefined; the ban on JS frameworks and runtime build pipelines is unchanged.
 Modified principles: none
-Added sections:
-  - Git Practices (new, appended to Development Workflow)
+Modified sections:
+  - Technology Stack (added the Styling rule)
+  - Project Structure (app/static/ bullet: committed CSS output is now permitted under the
+    Styling rule; other build output remains prohibited)
+Added sections: none
 Removed sections: none
 Deferred TODOs: none
-Templates requiring follow-up: none — this command only amends the constitution;
-  dependent templates (plan/spec/tasks) read it at runtime and are not modified here.
+Templates requiring follow-up: none — dependent templates read the constitution at runtime.
 -->
 
 # BikeMaint Constitution
@@ -68,6 +71,14 @@ justifying the change and its migration impact. Server-rendered HTML plus HTMX i
 default pattern for all interactive UI; introducing client-side JavaScript frameworks
 requires the same amendment process.
 
+**Styling.** The UI MUST be styled with plain CSS served from `app/static/`. Hand-written CSS
+(including design-token / CSS-custom-property systems) and vendored third-party CSS files,
+committed as static assets in the same way as `htmx.min.js`, are permitted. A dev-time CSS
+compile step (for example Tailwind's standalone CLI) is permitted only if its generated
+output is committed and the application needs no build step to run, test, or deploy. This
+rule does not relax the prohibitions above: client-side JavaScript frameworks and any
+runtime or deploy-time frontend build pipeline still require a constitution amendment.
+
 ## Project Structure
 
 The repository MUST follow a fixed top-level layout so that the module boundaries required by
@@ -81,7 +92,8 @@ Principle II are visible from the filesystem, not just from code review:
   - `app/models/` — Pydantic request/response schemas and SQLite row/table models.
   - `app/db/` — database connection setup, parameterized query functions, and migrations.
   - `app/templates/` — Jinja2 templates, including HTMX partial fragments.
-  - `app/static/` — CSS/JS/image assets served as-is; no build pipeline output is committed.
+  - `app/static/` — CSS/JS/image assets served as-is. Build output MUST NOT be committed,
+    except compiled CSS generated under the Styling rule in Technology Stack.
 - `tests/` — mirrors the `app/` layout (e.g., `tests/services/test_x.py` tests
   `app/services/x.py`) so every module has one obvious, discoverable test location.
 - `.specify/` — Spec Kit governance artifacts (constitution, specs, plans, scripts). It
@@ -135,4 +147,4 @@ untested behavior, stack deviations, or directory-structure violations are groun
 rejection. Use this document as the runtime source of truth for `/speckit-plan`,
 `/speckit-tasks`, and `/speckit-implement`.
 
-**Version**: 1.2.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-09-15
+**Version**: 1.3.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-11-10

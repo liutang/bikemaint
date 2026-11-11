@@ -2,10 +2,16 @@
 
 {% block title %}Sign in — Bike Maintenance Tracker{% endblock %}
 
-{% block nav %}{% endblock %}
+{% block header %}
+<header class="app-header">
+  <nav aria-label="Primary"><a class="brand" href="/login">BikeMaint</a></nav>
+</header>
+{% endblock %}
 
 {% block content %}
-<h1>Bike Maintenance Tracker</h1>
-<p>Track your bikes, components, and maintenance schedules with mileage synced from Strava.</p>
-<a href="{{ strava_authorize_url }}">Sign in with Strava</a>
+<section class="card signin">
+  <h1>Bike Maintenance Tracker</h1>
+  <p>Track your bikes, components, and maintenance schedules with mileage synced from Strava.</p>
+  <a class="btn btn-primary" href="{{ strava_authorize_url }}">Sign in with Strava</a>
+</section>
 {% endblock %}

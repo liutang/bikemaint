@@ -1,10 +1,26 @@
-{% macro render_tree(nodes) %}
-<ul>
+{% import "partials/icons.html" as ui_icons %}
+{% macro render_tree(nodes, root=true) %}
+<ul{% if root %} class="tree"{% endif %}>
   {% for node in nodes %}
   <li>
-    <a href="/components/{{ node.component.id }}">{{ node.component.name }}</a>
-    ({{ node.component.component_type }}, {{ node.component.total_mileage }} mi)
-    {% if node.children %}{{ render_tree(node.children) }}{% endif %}
+    {% if node.children %}
+    {# The link sits beside (not inside) <summary>: interactive content must not nest. #}
+    <details open>
+      <summary>
+        {{ ui_icons.chevron("icon chevron") }}
+        <span class="tree-name">{{ node.component.name }}</span>
+        <span class="meta">{{ node.component.component_type }} · {{ "%.1f"|format(node.component.total_mileage) }} mi</span>
+      </summary>
+      {{ render_tree(node.children, false) }}
+    </details>
+    <a class="tree-open" href="/components/{{ node.component.id }}">Open<span class="visually-hidden"> {{ node.component.name }}</span></a>
+    {% else %}
+    <div class="tree-row">
+      <span class="spacer" aria-hidden="true"></span>
+      <a href="/components/{{ node.component.id }}">{{ node.component.name }}</a>
+      <span class="meta">{{ node.component.component_type }} · {{ "%.1f"|format(node.component.total_mileage) }} mi</span>
+    </div>
+    {% endif %}
   </li>
   {% endfor %}
 </ul>

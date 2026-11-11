@@ -1,37 +1,52 @@
 {% extends "layout.html" %}
+{% import "partials/icons.html" as ui_icons %}
 
 {% block title %}Maintenance — {{ item.name }}{% endblock %}
 
 {% block content %}
-<h1>Maintenance history: {{ item.name }}</h1>
-<p>
-  <a href="/{{ item_kind }}s/{{ item.id }}">Back to {{ item_kind }}</a>
-  &middot;
-  <a href="/{{ item_kind }}s/{{ item.id }}/maintenance/new">Log maintenance</a>
-</p>
+<div class="page-head">
+  <div>
+    <h1>Maintenance history</h1>
+    <p class="text-muted"><a href="/{{ item_kind }}s/{{ item.id }}">{{ item.name }}</a></p>
+  </div>
+  <a class="btn btn-primary" href="/{{ item_kind }}s/{{ item.id }}/maintenance/new">{{ ui_icons.plus() }}Log maintenance</a>
+</div>
 
 {% if entries %}
-<table>
-  <thead>
-    <tr><th>Date</th><th>Description</th><th>Mileage at service</th><th></th></tr>
-  </thead>
-  <tbody>
-    {% for entry in entries %}
-    <tr>
-      <td>{{ entry.performed_at }}</td>
-      <td>{{ entry.description }}</td>
-      <td>{{ entry.mileage_at_service }} mi</td>
-      <td>
-        <a href="/maintenance/{{ entry.id }}/edit">Edit</a>
-        <form method="post" action="/maintenance/{{ entry.id }}/delete" style="display:inline">
-          <button type="submit">Delete</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+<div class="table-responsive">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Date</th>
+        <th scope="col">Description</th>
+        <th scope="col">Mileage at service</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+      <tr>
+        <td data-label="Date">{{ entry.performed_at }}</td>
+        <td data-label="Description">{{ entry.description }}</td>
+        <td data-label="Mileage at service">{{ "%.1f"|format(entry.mileage_at_service) }} mi</td>
+        <td data-label="Actions">
+          <div class="actions">
+            <a class="btn" href="/maintenance/{{ entry.id }}/edit">Edit</a>
+            <form method="post" action="/maintenance/{{ entry.id }}/delete">
+              <button class="btn btn-quiet" type="submit">Delete</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
 {% else %}
-<p>No maintenance logged yet.</p>
+<div class="empty-state">
+  <p class="empty-title">No maintenance logged yet</p>
+  <p>Record work you do so the history stays with this {{ item_kind }}.</p>
+  <a class="btn btn-primary" href="/{{ item_kind }}s/{{ item.id }}/maintenance/new">Log maintenance</a>
+</div>
 {% endif %}
 {% endblock %}

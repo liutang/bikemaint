@@ -8,9 +8,10 @@ and `app/services/notification_service.py`.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from pydantic import ValidationError
 
+from app.models.form_errors import error_context
 from app.models.requests import ScheduleRequest
 from app.services import (
     bike_service,
@@ -45,12 +46,16 @@ def _owner(kind: str, item_id: int):
     return bike_service.get_bike(item_id) if kind == "bike" else component_service.get_component(item_id)
 
 
-def _form_context(kind: str, owner, schedule, errors: list[str]) -> dict:
+def _form_context(
+    kind: str, owner, schedule, errors=(), field_errors=None, values=None
+) -> dict:
     return {
         "owner": owner,
         "owner_kind": kind,
         "schedule": schedule,
-        "errors": errors,
+        "errors": list(errors),
+        "field_errors": field_errors or {},
+        "values": values or {},
         "action": f"/schedules/{schedule.id}" if schedule else f"/{kind}s/{owner.id}/schedules",
     }
 
@@ -62,14 +67,13 @@ def _schedule_owner(schedule):
 
 @router.get("/maintenance/due", name="due_dashboard")
 def due_dashboard(request: Request, account=Depends(require_account)):
-    return _render(
-        request,
-        "schedules/due_dashboard.html",
-        {
-            "items": schedule_service.list_due_overview(),
-            "notifications": notification_service.list_unacknowledged(),
-        },
-    )
+    items = schedule_service.list_due_overview(lead_time_days=account.notification_lead_time_days)
+    items_by_schedule_id = {item.schedule.id: item for item in items}
+    alerts = [
+        {"notification": notification, "item": items_by_schedule_id.get(notification.schedule_id)}
+        for notification in notification_service.list_unacknowledged()
+    ]
+    return _render(request, "schedules/due_dashboard.html", {"items": items, "alerts": alerts})
 
 
 @router.post("/notifications/{notification_id}/acknowledge", name="acknowledge_notification")
@@ -77,6 +81,8 @@ def acknowledge_notification(
     request: Request, notification_id: int, account=Depends(require_account)
 ):
     notification_service.acknowledge(notification_id)
+    if request.headers.get("hx-request") == "true":
+        return HTMLResponse("")  # the dismissed alert is removed in place
     return RedirectResponse(url="/maintenance/due", status_code=303)
 
 
@@ -98,7 +104,7 @@ async def _create(request: Request, kind: str, item_id: int):
         return _render(
             request,
             "schedules/form.html",
-            _form_context(kind, owner, None, [e["msg"] for e in exc.errors()]),
+            _form_context(kind, owner, None, **error_context(form, exc)),
             status_code=422,
         )
     schedule_service.create_schedule(
@@ -156,7 +162,7 @@ async def update_schedule(request: Request, schedule_id: int, account=Depends(re
         return _render(
             request,
             "schedules/form.html",
-            _form_context(kind, owner, schedule, [e["msg"] for e in exc.errors()]),
+            _form_context(kind, owner, schedule, **error_context(form, exc)),
             status_code=422,
         )
     schedule_service.update_schedule(schedule_id, **payload.model_dump())
@@ -170,7 +176,9 @@ def complete_schedule(request: Request, schedule_id: int, account=Depends(requir
     except LookupError:
         return PlainTextResponse("Schedule not found", status_code=404)
     if request.headers.get("hx-request") == "true":
-        item = schedule_service.get_due_item(schedule_id)
+        item = schedule_service.get_due_item(
+            schedule_id, lead_time_days=account.notification_lead_time_days
+        )
         return _render(request, "partials/due_soon_row.html", {"item": item})
     return RedirectResponse(url="/maintenance/due", status_code=303)
 

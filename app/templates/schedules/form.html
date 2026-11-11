@@ -1,34 +1,24 @@
 {% extends "layout.html" %}
+{% from "partials/forms.html" import field, error_summary, submit %}
 
 {% block title %}{{ "Edit" if schedule else "New" }} schedule — {{ owner.name }}{% endblock %}
 
 {% block content %}
 <h1>{{ "Edit schedule" if schedule else "New maintenance schedule" }} for "{{ owner.name }}"</h1>
-
-{% if errors %}
-<ul class="errors">
-  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
-</ul>
-{% endif %}
-
-<form method="post" action="{{ action }}">
-  <label>Name (e.g. "Replace chain")
-    <input type="text" name="name" value="{{ schedule.name if schedule else '' }}" required>
-  </label>
-  <label>Every ___ miles
-    <input type="number" step="any" min="0" name="interval_miles"
-           value="{{ schedule.interval_miles if schedule and schedule.interval_miles is not none else '' }}">
-  </label>
-  <label>Every ___ days
-    <input type="number" step="1" min="0" name="interval_days"
-           value="{{ schedule.interval_days if schedule and schedule.interval_days is not none else '' }}">
-  </label>
-  <p><small>Set a mileage interval, a time interval, or both — whichever comes first is due.</small></p>
+{{ error_summary(errors) }}
+<form class="panel form" method="post" action="{{ action }}">
+  {{ field("name", "Name", schedule.name if schedule else "", values, field_errors, required=true, hint='For example "Replace chain".') }}
+  {{ field("interval_miles", "Every ___ miles", schedule.interval_miles if schedule else "", values, field_errors, type="number", step="any", min=0) }}
+  {{ field("interval_days", "Every ___ days", schedule.interval_days if schedule else "", values, field_errors, type="number", step="1", min=0, hint="Set a mileage interval, a time interval, or both — whichever comes first is due.") }}
   {% if schedule %}
-  <label>
-    <input type="checkbox" name="is_active" {{ "checked" if schedule.is_active }}> Active
-  </label>
+  <div class="field field-check">
+    <input id="is_active" type="checkbox" name="is_active"{% if schedule.is_active %} checked{% endif %}>
+    <label for="is_active">Active</label>
+  </div>
   {% endif %}
-  <button type="submit">Save</button>
+  <div class="actions">
+    {{ submit("Save") }}
+    <a class="btn" href="/maintenance/due">Cancel</a>
+  </div>
 </form>
 {% endblock %}

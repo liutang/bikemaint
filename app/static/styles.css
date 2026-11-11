@@ -1317,6 +1317,45 @@ input[type="radio"] {
   font-weight: 500;
 }
 
+.board-notice {
+  min-height: 1.5rem;
+  margin: 0 0 var(--space-3);
+  font-weight: 600;
+}
+
+.board-notice.is-success {
+  padding: var(--space-3) var(--space-4);
+  border-left: 6px solid var(--success);
+  border-radius: var(--radius-sm);
+  background: var(--badge-ok-bg);
+  color: var(--badge-ok-fg);
+}
+
+.is-just-done {
+  animation: just-done 2.5s ease-out;
+  outline: 2px solid var(--success);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes just-done {
+  from { background: var(--badge-ok-bg); }
+  to { background: transparent; }
+}
+
+button[disabled],
+.btn[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.part-icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  flex: none;
+  color: var(--link);
+}
+
 /* ---------- Bike builder (drag and drop) ---------- */
 .builder-message {
   min-height: 1.5rem;

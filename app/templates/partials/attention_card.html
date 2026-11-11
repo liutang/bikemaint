@@ -1,6 +1,6 @@
 {% from "partials/badges.html" import status_badge %}
 {% from "partials/ring.html" import ring %}
-<article class="attention-card status-{{ 'overdue' if item.status == 'overdue' else 'soon' }}" id="schedule-row-{{ item.schedule.id }}">
+<article class="attention-card status-{{ 'overdue' if item.status == 'overdue' else 'soon' }}{% if just_done == item.schedule.id %} is-just-done{% endif %}" id="schedule-row-{{ item.schedule.id }}">
   <div class="attention-main">
     {{ ring(item) }}
     <div class="attention-text">
@@ -13,7 +13,8 @@
     </div>
   </div>
   <form class="attention-actions" method="post" action="/schedules/{{ item.schedule.id }}/complete"
-        hx-post="/schedules/{{ item.schedule.id }}/complete" hx-target="#attention" hx-swap="outerHTML">
+        hx-post="/schedules/{{ item.schedule.id }}/complete" hx-target="#attention" hx-swap="outerHTML"
+        hx-disabled-elt="find button">
     {% if show_all %}<input type="hidden" name="all" value="1">{% endif %}
     <button class="btn {{ 'btn-primary' if item.status == 'overdue' else '' }}" type="submit">Mark done</button>
     <a class="btn btn-quiet" href="/schedules/{{ item.schedule.id }}/edit">Edit</a>

@@ -106,6 +106,10 @@ stylesheet, `app/static/styles.css`, with no framework and no build step (consti
   re-orders and unmounts parts; every drag has a keyboard/no-JS form equivalent ("Move to…",
   "Add to…", up/down, Garage, Trash). Actions post to `/builder/add|move|delete` with a `root`.
 
+- **History** records parts being added and removed (tagged "Parts") with date and time, alongside the
+  work you log; system-recorded times are shown in your local time (`app/static/localtime.js`).
+  **Mark done** confirms itself, shows the next due date, and ignores accidental double clicks.
+
 ## Running in Docker
 
 ```bash

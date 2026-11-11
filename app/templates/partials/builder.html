@@ -29,6 +29,7 @@
          data-ref="{{ node.ref }}" data-parent-ref="{{ node.parent_ref }}"
          data-accepts="{{ node.accepts|join(' ') }}">
       <span class="drag-handle" aria-hidden="true">{{ ui_icons.grip() }}</span>
+      {{ ui_icons.part(c.component_type, "icon part-icon") }}
       <a class="node-name" href="/components/{{ c.id }}">{{ c.name }}</a>
       <span class="chip">{{ c.component_type }}</span>
       <span class="node-actions">
@@ -97,6 +98,7 @@
           {% for item in view.storage %}
           <li class="side-item" draggable="true" data-source="storage" data-id="{{ item.component.id }}" data-type="{{ item.component.component_type }}">
             <span class="drag-handle" aria-hidden="true">{{ ui_icons.grip() }}</span>
+            {{ ui_icons.part(item.component.component_type, "icon part-icon") }}
             <span class="side-name">{{ item.component.name }} <span class="chip">{{ item.component.component_type }}</span></span>
             {% if item.targets %}
             <details class="side-more">
@@ -129,6 +131,7 @@
           {% for item in view.palette %}
           <li class="side-item" draggable="true" data-source="palette" data-type="{{ item.type }}">
             <span class="drag-handle" aria-hidden="true">{{ ui_icons.grip() }}</span>
+            {{ ui_icons.part(item.type, "icon part-icon") }}
             <span class="side-name">{{ item.label }}</span>
             {% if item.targets %}
             <details class="side-more">

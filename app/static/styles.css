@@ -1,56 +1,325 @@
+/* BikeMaint design system — plain CSS, design tokens, light/dark via the OS preference.
+   Sections: tokens · base · shell · buttons · (components appended per feature phase). */
+
+/* ---------- Tokens ---------- */
 :root {
-    color-scheme: light dark;
-    --gap: 1rem;
-    --border-color: #ccc;
+  color-scheme: light dark;
+
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --text: #14171f;
+  --text-muted: #4b5563;
+  --border: #d7dbe3;
+  --primary: #1d4ed8;
+  --primary-text: #ffffff;
+  --danger: #b42318;
+  --danger-text: #ffffff;
+  --success: #067647;
+  --warning: #b54708;
+  --info: #1d4ed8;
+  --focus: #1d4ed8;
+
+  --badge-overdue-bg: #fde8e8;
+  --badge-overdue-fg: #9b1c1c;
+  --badge-soon-bg: #fff1d6;
+  --badge-soon-fg: #8a4b00;
+  --badge-ok-bg: #dcf5e7;
+  --badge-ok-fg: #0b6b3a;
+  --badge-low-bg: #e7ebf3;
+  --badge-low-fg: #374151;
+
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --radius: 0.75rem;
+  --radius-sm: 0.5rem;
+  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 10%);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.75rem;
+  --tap-min: 2.75rem;
 }
 
-* {
-    box-sizing: border-box;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1218;
+    --surface: #181c25;
+    --surface-2: #212633;
+    --text: #e8ebf2;
+    --text-muted: #aab2c2;
+    --border: #2d3444;
+    --primary: #8ab4ff;
+    --primary-text: #0b1220;
+    --danger: #ff8a80;
+    --danger-text: #3b0a07;
+    --success: #7ddba4;
+    --warning: #f5b562;
+    --info: #8ab4ff;
+    --focus: #8ab4ff;
+
+    --badge-overdue-bg: #4a1b1b;
+    --badge-overdue-fg: #ffb4ab;
+    --badge-soon-bg: #4a3410;
+    --badge-soon-fg: #ffd599;
+    --badge-ok-bg: #14382a;
+    --badge-ok-fg: #9be5bd;
+    --badge-low-bg: #2a3142;
+    --badge-low-fg: #c9d1e3;
+
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 50%);
+  }
+}
+
+/* ---------- Base ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
-    font-family: system-ui, sans-serif;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  margin: 0 0 var(--space-3);
+  min-width: 0;
+}
+
+h1 {
+  font-size: var(--font-size-xl);
+}
+
+h2 {
+  font-size: var(--font-size-lg);
+  margin-top: var(--space-5);
+}
+
+p {
+  margin: 0 0 var(--space-3);
+}
+
+small,
+.text-muted {
+  color: var(--text-muted);
+}
+
+small {
+  font-size: var(--font-size-sm);
+}
+
+a {
+  color: var(--primary);
+  text-underline-offset: 0.18em;
+}
+
+ul {
+  padding-left: var(--space-5);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.container {
+  width: 100%;
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-6);
+  min-width: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-2);
+  top: -4rem;
+  z-index: 10;
+  padding: var(--space-2) var(--space-3);
+  background: var(--primary);
+  color: var(--primary-text);
+  border-radius: var(--radius-sm);
+}
+
+.skip-link:focus {
+  top: var(--space-2);
+}
+
+/* ---------- App shell ---------- */
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.app-header nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  max-width: 64rem;
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-4);
+}
+
+.app-header nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.app-header nav a:hover {
+  background: var(--surface-2);
+}
+
+.app-header nav a[aria-current="page"] {
+  background: var(--surface-2);
+  color: var(--primary);
+  box-shadow: inset 0 -3px 0 var(--primary);
+}
+
+.app-header .brand {
+  font-weight: 700;
+  font-size: var(--font-size-lg);
+  margin-right: var(--space-3);
+}
+
+.app-header form {
+  margin: 0 0 0 auto;
+}
+
+.app-header .icon,
+.btn .icon {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.btn:hover {
+  background: var(--surface-2);
+}
+
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-text);
+}
+
+.btn-primary:hover {
+  background: var(--primary);
+  filter: brightness(1.08);
+}
+
+.btn-quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text);
+}
+
+.btn-danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--danger-text);
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  filter: brightness(1.08);
+}
+
+/* ---------- Cards (base) ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--space-5);
+  min-width: 0;
+}
+
+.signin {
+  max-width: 28rem;
+  margin: var(--space-6) auto;
+  text-align: center;
+}
+
+.signin .btn {
+  margin-top: var(--space-2);
+}
+
+/* ---------- Responsive shell ---------- */
+@media (max-width: 40rem) {
+  .app-header nav {
+    padding: var(--space-2);
+  }
+
+  .app-header .brand {
+    flex-basis: 100%;
     margin: 0;
-    line-height: 1.5;
+  }
+
+  .app-header nav a {
+    padding: 0 var(--space-2);
+    font-size: var(--font-size-sm);
+  }
+
+  .container {
+    padding: var(--space-4) var(--space-3) var(--space-5);
+  }
 }
 
-nav {
-    display: flex;
-    align-items: center;
-    gap: var(--gap);
-    padding: var(--gap);
-    border-bottom: 1px solid var(--border-color);
-}
-
-main {
-    padding: var(--gap);
-    max-width: 60rem;
-    margin: 0 auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-th, td {
-    text-align: left;
-    padding: 0.5rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    max-width: 30rem;
-}
-
-.tree {
-    list-style: none;
-    padding-left: var(--gap);
-}
-
-.error {
-    color: #b00020;
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
 }

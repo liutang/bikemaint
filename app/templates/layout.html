@@ -1,20 +1,32 @@
+{% import "partials/icons.html" as ui_icons %}
+{% set path = request.url.path %}
+{% set section = "due" if path.startswith("/maintenance/due") or path.startswith("/schedules") else ("settings" if path.startswith("/settings") else "garage") %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
     <title>{% block title %}Bike Maintenance Tracker{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
     <script src="{{ url_for('static', path='htmx.min.js') }}" defer></script>
 </head>
 <body>
-    <nav>
-        <a href="/">Garage</a>
-        <a href="/maintenance/due">Maintenance due</a>
-        <a href="/settings">Settings</a>
-        {% block nav %}{% endblock %}
-    </nav>
-    <main>
+    <a class="skip-link" href="#main">Skip to content</a>
+    {% block header %}
+    <header class="app-header">
+        <nav aria-label="Primary">
+            <a class="brand" href="/">BikeMaint</a>
+            <a href="/"{% if section == "garage" %} aria-current="page"{% endif %}>{{ ui_icons.bike() }}Garage</a>
+            <a href="/maintenance/due"{% if section == "due" %} aria-current="page"{% endif %}>{{ ui_icons.wrench() }}Maintenance due</a>
+            <a href="/settings"{% if section == "settings" %} aria-current="page"{% endif %}>{{ ui_icons.settings() }}Settings</a>
+            <form method="post" action="/logout">
+                <button class="btn btn-quiet" type="submit">{{ ui_icons.sign_out() }}Sign out</button>
+            </form>
+        </nav>
+    </header>
+    {% endblock %}
+    <main id="main" class="container">
         {% block content %}{% endblock %}
     </main>
 </body>

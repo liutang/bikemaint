@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+
+{% block title %}In Storage — Bike Maintenance Tracker{% endblock %}
+
+{% block content %}
+<h1>In Storage</h1>
+<p><a href="/components/new">Add a component</a></p>
+<ul>
+  {% for component in components %}
+  <li>
+    <a href="/components/{{ component.id }}">{{ component.name }}</a>
+    ({{ component.component_type }}, {{ component.total_mileage }} mi)
+  </li>
+  {% else %}
+  <li>Nothing in storage.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

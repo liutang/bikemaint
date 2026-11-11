@@ -11,3 +11,22 @@ os.environ.setdefault("STRAVA_CLIENT_ID", "test-client-id")
 os.environ.setdefault("STRAVA_CLIENT_SECRET", "test-client-secret")
 os.environ.setdefault("SESSION_SECRET_KEY", "test-session-secret")
 os.environ.setdefault("DATABASE_PATH", ":memory:")
+
+import pytest
+from starlette.testclient import TestClient
+
+from app.main import create_app
+
+
+@pytest.fixture
+def db_path(tmp_path, monkeypatch):
+    path = tmp_path / "test.sqlite3"
+    monkeypatch.setenv("DATABASE_PATH", str(path))
+    return path
+
+
+@pytest.fixture
+def client(db_path):
+    app = create_app()
+    with TestClient(app, base_url="https://testserver") as test_client:
+        yield test_client

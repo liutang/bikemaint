@@ -13,7 +13,8 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db.connection import run_migrations
-from app.routers import auth
+from app.routers import auth, bikes, components, mileage, settings
+from app.services import scheduler
 from app.services.auth_dependency import AuthRequiredError
 
 APP_DIR = Path(__file__).parent
@@ -24,7 +25,9 @@ STATIC_DIR = APP_DIR / "static"
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     run_migrations()
+    scheduler.start()
     yield
+    scheduler.shutdown()
 
 
 def create_app() -> FastAPI:
@@ -45,6 +48,10 @@ def create_app() -> FastAPI:
         return RedirectResponse(url="/login", status_code=303)
 
     app.include_router(auth.router)
+    app.include_router(bikes.router)
+    app.include_router(components.router)
+    app.include_router(mileage.router)
+    app.include_router(settings.router)
 
     return app
 

@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+{% from "partials/component_tree.html" import render_tree %}
+
+{% block title %}{{ bike.name }} — Bike Maintenance Tracker{% endblock %}
+
+{% block content %}
+<h1>{{ bike.name }}</h1>
+<p>Type: {{ bike.bike_type or "—" }}</p>
+<p>Total mileage: {{ bike.total_mileage }} mi</p>
+<p>
+  <a href="/bikes/{{ bike.id }}/edit">Edit</a>
+  &middot;
+  <a href="/components/new?parent_bike_id={{ bike.id }}">Add component</a>
+</p>
+
+<h2>Installed components</h2>
+{% if tree %}
+  {{ render_tree(tree) }}
+{% else %}
+  <p>Nothing installed yet.</p>
+{% endif %}
+
+<h2>Delete this bike</h2>
+<form method="post" action="/bikes/{{ bike.id }}/delete">
+  <button type="submit">Delete</button>
+</form>
+{% endblock %}

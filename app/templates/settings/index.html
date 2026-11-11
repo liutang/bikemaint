@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+
+{% block title %}Settings — Bike Maintenance Tracker{% endblock %}
+
+{% block content %}
+<h1>Settings</h1>
+
+<h2>Strava connection</h2>
+{% if account.strava_connection_stale %}
+<p>Status: <strong>stale</strong> — mileage may not reflect recent rides.</p>
+<form method="post" action="/settings/strava/reconnect">
+  <button type="submit">Reconnect</button>
+</form>
+{% else %}
+<p>Status: connected since {{ account.strava_connected_at }}.</p>
+{% endif %}
+
+<h2>Notifications</h2>
+<p>Webhook URL: {{ account.notification_webhook_url or "not set" }}</p>
+<p>Lead time: {{ account.notification_lead_time_days }} days</p>
+{% endblock %}

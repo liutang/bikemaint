@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ "Edit" if bike else "New" }} Bike — Bike Maintenance Tracker{% endblock %}
+
+{% block content %}
+<h1>{{ "Edit" if bike else "Add" }} Bike</h1>
+<form method="post" action="{{ ('/bikes/' ~ bike.id) if bike else '/bikes' }}">
+  <label>Name
+    <input type="text" name="name" value="{{ bike.name if bike else '' }}" required>
+  </label>
+  <label>Type
+    <input type="text" name="bike_type" value="{{ bike.bike_type if bike else '' }}">
+  </label>
+  <label>Baseline mileage
+    <input type="number" step="0.1" min="0" name="manual_baseline_mileage"
+           value="{{ bike.manual_baseline_mileage if bike else 0 }}">
+  </label>
+  <button type="submit">Save</button>
+</form>
+{% if errors %}
+<ul class="errors">
+  {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

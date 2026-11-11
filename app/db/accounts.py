@@ -26,6 +26,41 @@ def get_by_strava_athlete_id(
     return Account.from_row(row) if row else None
 
 
+def get_singleton(conn: sqlite3.Connection) -> Account | None:
+    """The app's one connected account (spec Assumptions: single-user, single account)."""
+    row = conn.execute("SELECT * FROM account ORDER BY id LIMIT 1").fetchone()
+    return Account.from_row(row) if row else None
+
+
+def mark_connection_stale(conn: sqlite3.Connection, account_id: int) -> None:
+    conn.execute(
+        "UPDATE account SET strava_connection_stale = 1, updated_at = ? WHERE id = ?",
+        (_now(), account_id),
+    )
+
+
+def update_tokens(
+    conn: sqlite3.Connection,
+    account_id: int,
+    *,
+    access_token: str,
+    refresh_token: str,
+    expires_at: str,
+) -> Account:
+    conn.execute(
+        """
+        UPDATE account
+        SET strava_access_token = ?, strava_refresh_token = ?, strava_token_expires_at = ?,
+            strava_connection_stale = 0, updated_at = ?
+        WHERE id = ?
+        """,
+        (access_token, refresh_token, expires_at, _now(), account_id),
+    )
+    account = get_by_id(conn, account_id)
+    assert account is not None
+    return account
+
+
 def upsert_from_strava(
     conn: sqlite3.Connection,
     *,

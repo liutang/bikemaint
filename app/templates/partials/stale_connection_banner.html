@@ -1,0 +1,8 @@
+{% if account.strava_connection_stale %}
+<div class="stale-connection-banner">
+  <p>
+    Your Strava connection has expired or been revoked — mileage may be stale.
+    <a href="/settings">Reconnect</a> to resume syncing.
+  </p>
+</div>
+{% endif %}

@@ -64,24 +64,24 @@ Single project per plan.md's Structure Decision — `app/` and `tests/` at the r
 
 ### Tests for User Story 1 ⚠️ (write first, confirm they fail)
 
-- [ ] T014 [P] [US1] Service test for bike creation showing zero accumulated mileage (Acceptance Scenario 1), update, and soft-delete in `tests/services/test_bike_service.py`
-- [ ] T015 [P] [US1] Service test for component creation that rejects a second single-instance `component_type` under an already-occupied parent while allowing the hardcoded multi-instance types (spoke, bolt, pad, other) per FR-024 and research.md §3, in `tests/services/test_component_service.py`
-- [ ] T016 [P] [US1] Service test for moving a component between a bike, a different parent component, and storage, verifying `component_installation_period` rows open/close correctly and the component's own `total_mileage`/history are unchanged by the move (SC-006) in `tests/services/test_component_service.py`
-- [ ] T017 [P] [US1] DB test for the recursive component-tree fetch (e.g. bike → wheel → rim → tire, arbitrary depth per FR-003) using `WITH RECURSIVE` in `tests/db/test_components.py`
-- [ ] T018 [P] [US1] Router test asserting every bike/component route redirects an unauthenticated request to `/login` (FR-021) in `tests/routers/test_bikes.py` and `tests/routers/test_components.py`
+- [X] T014 [P] [US1] Service test for bike creation showing zero accumulated mileage (Acceptance Scenario 1), update, and soft-delete in `tests/services/test_bike_service.py`
+- [X] T015 [P] [US1] Service test for component creation that rejects a second single-instance `component_type` under an already-occupied parent while allowing the hardcoded multi-instance types (spoke, bolt, pad, other) per FR-024 and research.md §3, in `tests/services/test_component_service.py`
+- [X] T016 [P] [US1] Service test for moving a component between a bike, a different parent component, and storage, verifying `component_installation_period` rows open/close correctly and the component's own `total_mileage`/history are unchanged by the move (SC-006) in `tests/services/test_component_service.py`
+- [X] T017 [P] [US1] DB test for the recursive component-tree fetch (e.g. bike → wheel → rim → tire, arbitrary depth per FR-003) using `WITH RECURSIVE` in `tests/db/test_components.py`
+- [X] T018 [P] [US1] Router test asserting every bike/component route redirects an unauthenticated request to `/login` (FR-021) in `tests/routers/test_bikes.py` and `tests/routers/test_components.py`
 
 ### Implementation for User Story 1
 
-- [ ] T019 [P] [US1] Implement `app/db/bikes.py` parameterized query functions: `create`, `get_by_id`, `list_active` (excludes `is_deleted`), `update`, `soft_delete`
-- [ ] T020 [P] [US1] Implement `app/db/components.py` parameterized query functions: `create`, `get_by_id`, recursive tree fetch rooted at a bike or component, `update`, `move` (updates `parent_bike_id`/`parent_component_id`), recursive `soft_delete`, and `component_installation_period` open/close helpers
-- [ ] T021 [P] [US1] Implement `app/models/requests.py` request schemas: `BikeCreateRequest`/`BikeUpdateRequest` (`name` required non-empty, `bike_type` optional, `manual_baseline_mileage` >= 0 default 0) and `ComponentCreateRequest`/`ComponentUpdateRequest`/`ComponentMoveRequest` (`component_type` restricted to the curated vocabulary from data-model.md, exactly one of `parent_bike_id`/`parent_component_id`/neither)
-- [ ] T022 [P] [US1] Implement `app/services/bike_service.py`: `create_bike`, `update_bike`, `delete_bike` (soft-delete; requires `confirmed=true` when the bike has any installed components, per FR-020) — depends on T019, T021
-- [ ] T023 [P] [US1] Implement `app/services/component_service.py`: `create_component` (enforcing the FR-024 single-instance-per-type-per-parent rule), `update_component`, `move_component` (closes the current installation period, opens a new one, or none for storage), `delete_component` (recursive soft-delete of the installed sub-tree, per FR-020/Edge Cases) — depends on T020, T021
-- [ ] T024 [US1] Implement `app/routers/bikes.py`: `GET /`, `GET /bikes/{bike_id}`, `GET /bikes/new`, `POST /bikes`, `GET /bikes/{bike_id}/edit`, `POST /bikes/{bike_id}`, `POST /bikes/{bike_id}/delete` per contracts/routes.md, gated by `require_account` — depends on T011, T022
-- [ ] T025 [US1] Implement `app/routers/components.py`: `GET /components`, `GET /components/new`, `POST /components`, `GET /components/{component_id}`, `GET /components/{component_id}/edit`, `POST /components/{component_id}`, `POST /components/{component_id}/move`, `POST /components/{component_id}/delete` per contracts/routes.md, gated by `require_account` — depends on T011, T023
-- [ ] T026 [P] [US1] Create `app/templates/bikes/{list,detail,form}.html` and `app/templates/partials/bike_row.html`
-- [ ] T027 [P] [US1] Create `app/templates/components/{list,detail,form}.html` and `app/templates/partials/{component_tree.html,confirm_delete.html}`
-- [ ] T028 [US1] Wire the bikes and components routers into `app/main.py` — depends on T024, T025, T012
+- [X] T019 [P] [US1] Implement `app/db/bikes.py` parameterized query functions: `create`, `get_by_id`, `list_active` (excludes `is_deleted`), `update`, `soft_delete`
+- [X] T020 [P] [US1] Implement `app/db/components.py` parameterized query functions: `create`, `get_by_id`, recursive tree fetch rooted at a bike or component, `update`, `move` (updates `parent_bike_id`/`parent_component_id`), recursive `soft_delete`, and `component_installation_period` open/close helpers
+- [X] T021 [P] [US1] Implement `app/models/requests.py` request schemas: `BikeCreateRequest`/`BikeUpdateRequest` (`name` required non-empty, `bike_type` optional, `manual_baseline_mileage` >= 0 default 0) and `ComponentCreateRequest`/`ComponentUpdateRequest`/`ComponentMoveRequest` (`component_type` restricted to the curated vocabulary from data-model.md, exactly one of `parent_bike_id`/`parent_component_id`/neither)
+- [X] T022 [P] [US1] Implement `app/services/bike_service.py`: `create_bike`, `update_bike`, `delete_bike` (soft-delete; requires `confirmed=true` when the bike has any installed components, per FR-020) — depends on T019, T021
+- [X] T023 [P] [US1] Implement `app/services/component_service.py`: `create_component` (enforcing the FR-024 single-instance-per-type-per-parent rule), `update_component`, `move_component` (closes the current installation period, opens a new one, or none for storage), `delete_component` (recursive soft-delete of the installed sub-tree, per FR-020/Edge Cases) — depends on T020, T021
+- [X] T024 [US1] Implement `app/routers/bikes.py`: `GET /`, `GET /bikes/{bike_id}`, `GET /bikes/new`, `POST /bikes`, `GET /bikes/{bike_id}/edit`, `POST /bikes/{bike_id}`, `POST /bikes/{bike_id}/delete` per contracts/routes.md, gated by `require_account` — depends on T011, T022
+- [X] T025 [US1] Implement `app/routers/components.py`: `GET /components`, `GET /components/new`, `POST /components`, `GET /components/{component_id}`, `GET /components/{component_id}/edit`, `POST /components/{component_id}`, `POST /components/{component_id}/move`, `POST /components/{component_id}/delete` per contracts/routes.md, gated by `require_account` — depends on T011, T023
+- [X] T026 [P] [US1] Create `app/templates/bikes/{list,detail,form}.html` and `app/templates/partials/bike_row.html`
+- [X] T027 [P] [US1] Create `app/templates/components/{list,detail,form}.html` and `app/templates/partials/{component_tree.html,confirm_delete.html}`
+- [X] T028 [US1] Wire the bikes and components routers into `app/main.py` — depends on T024, T025, T012
 
 **Checkpoint**: User Story 1 is fully functional and independently testable.
 
@@ -95,28 +95,28 @@ Single project per plan.md's Structure Decision — `app/` and `tests/` at the r
 
 ### Tests for User Story 2 ⚠️ (write first, confirm they fail)
 
-- [ ] T029 [P] [US2] Service test for `strava_client` activity/gear fetch and for a token-refresh failure marking `account.strava_connection_stale` (mocked via `respx`) in `tests/services/test_strava_client.py`
-- [ ] T030 [P] [US2] Service test that a ride only credits mileage to components installed on the mapped bike at the ride's `occurred_at` per their `component_installation_period` (Acceptance Scenario US2-2) in `tests/services/test_sync_service.py`
-- [ ] T031 [P] [US2] Service test for the one-time full-history backfill triggered on gear pairing (FR-022) in `tests/services/test_sync_service.py`
-- [ ] T032 [P] [US2] Service test for a manual `mileage_adjustment` (signed `delta_miles`, optional `reason`) updating `total_mileage` and leaving an audit row (FR-009) in `tests/services/test_sync_service.py`
-- [ ] T033 [P] [US2] DB test that re-syncing the same `strava_activity_id` does not create a duplicate `ride_activity` row (idempotent upsert) in `tests/db/test_mileage.py`
-- [ ] T034 [P] [US2] Router test that `/bikes/{id}/strava-pairing` and `/sync/strava` require an authenticated session in `tests/routers/test_mileage.py`
+- [X] T029 [P] [US2] Service test for `strava_client` activity/gear fetch and for a token-refresh failure marking `account.strava_connection_stale` (mocked via `respx`) in `tests/services/test_strava_client.py`
+- [X] T030 [P] [US2] Service test that a ride only credits mileage to components installed on the mapped bike at the ride's `occurred_at` per their `component_installation_period` (Acceptance Scenario US2-2) in `tests/services/test_sync_service.py`
+- [X] T031 [P] [US2] Service test for the one-time full-history backfill triggered on gear pairing (FR-022) in `tests/services/test_sync_service.py`
+- [X] T032 [P] [US2] Service test for a manual `mileage_adjustment` (signed `delta_miles`, optional `reason`) updating `total_mileage` and leaving an audit row (FR-009) in `tests/services/test_sync_service.py`
+- [X] T033 [P] [US2] DB test that re-syncing the same `strava_activity_id` does not create a duplicate `ride_activity` row (idempotent upsert) in `tests/db/test_mileage.py`
+- [X] T034 [P] [US2] Router test that `/bikes/{id}/strava-pairing` and `/sync/strava` require an authenticated session in `tests/routers/test_mileage.py`
 
 ### Implementation for User Story 2
 
-- [ ] T035 [US2] Create `app/db/migrations/0002_ride_activity_and_mileage_adjustment.sql` creating the `ride_activity` and `mileage_adjustment` tables exactly as specified in data-model.md (`ride_activity.strava_activity_id UNIQUE NOT NULL`, `ride_activity.bike_id NULLABLE` for unmapped gear, `mileage_adjustment` requiring exactly one of `bike_id`/`component_id` set)
-- [ ] T036 [P] [US2] Implement `app/db/mileage.py`: `ride_activity` upsert keyed on `strava_activity_id`, `mileage_adjustment` insert, and `total_mileage` recompute (baseline + attributed rides + adjustments) for a bike or component
-- [ ] T037 [US2] Extend `app/services/strava_client.py` with `get_athlete_gear()` and `get_activities(after_cursor)` (paginated) — depends on T009
-- [ ] T038 [US2] Implement `app/services/sync_service.py`: incremental sync from the account's last-synced cursor, the pairing backfill sync, mileage attribution walking `component_installation_period` by ride `occurred_at`, and `total_mileage` recompute for every affected bike/component — depends on T036, T037
-- [ ] T039 [US2] Extend `app/services/bike_service.py` with `pair_to_strava_gear(bike_id, strava_gear_id)`, recording `strava_gear_id`/`strava_paired_at` and triggering T038's backfill — depends on T022, T038
-- [ ] T040 [US2] Extend `app/services/sync_service.py` (or a sibling module) with `adjust_bike_mileage`/`adjust_component_mileage` recording a `mileage_adjustment` row (FR-009) — depends on T036
-- [ ] T041 [US2] Implement `app/services/scheduler.py` registering an APScheduler interval job (default 30 min, env-configurable) that calls `sync_service`'s incremental sync — depends on T038
-- [ ] T042 [US2] Register the scheduler's start/shutdown in `app/main.py`'s `startup`/`shutdown` events — depends on T041, T012
-- [ ] T043 [US2] Extend `app/routers/bikes.py` with `GET`/`POST /bikes/{bike_id}/strava-pairing` — depends on T039, T024
-- [ ] T044 [US2] Implement `app/routers/mileage.py`: `POST /sync/strava`, `GET`/`POST /bikes/{bike_id}/mileage/adjust`, `GET`/`POST /components/{component_id}/mileage/adjust` — depends on T040, T011
-- [ ] T045 [US2] Implement `app/routers/settings.py`: `GET /settings` (connection status incl. stale flag), `POST /settings/strava/reconnect` — depends on T037, T011
-- [ ] T046 [P] [US2] Create `app/templates/bikes/strava_pairing.html`, `app/templates/partials/stale_connection_banner.html`, `app/templates/mileage_adjust_form.html`, `app/templates/settings/index.html`
-- [ ] T047 [US2] Wire the mileage and settings routers into `app/main.py` — depends on T044, T045, T028
+- [X] T035 [US2] Create `app/db/migrations/0002_ride_activity_and_mileage_adjustment.sql` creating the `ride_activity` and `mileage_adjustment` tables exactly as specified in data-model.md (`ride_activity.strava_activity_id UNIQUE NOT NULL`, `ride_activity.bike_id NULLABLE` for unmapped gear, `mileage_adjustment` requiring exactly one of `bike_id`/`component_id` set)
+- [X] T036 [P] [US2] Implement `app/db/mileage.py`: `ride_activity` upsert keyed on `strava_activity_id`, `mileage_adjustment` insert, and `total_mileage` recompute (baseline + attributed rides + adjustments) for a bike or component
+- [X] T037 [US2] Extend `app/services/strava_client.py` with `get_athlete_gear()` and `get_activities(after_cursor)` (paginated) — depends on T009
+- [X] T038 [US2] Implement `app/services/sync_service.py`: incremental sync from the account's last-synced cursor, the pairing backfill sync, mileage attribution walking `component_installation_period` by ride `occurred_at`, and `total_mileage` recompute for every affected bike/component — depends on T036, T037
+- [X] T039 [US2] Extend `app/services/bike_service.py` with `pair_to_strava_gear(bike_id, strava_gear_id)`, recording `strava_gear_id`/`strava_paired_at` and triggering T038's backfill — depends on T022, T038
+- [X] T040 [US2] Extend `app/services/sync_service.py` (or a sibling module) with `adjust_bike_mileage`/`adjust_component_mileage` recording a `mileage_adjustment` row (FR-009) — depends on T036
+- [X] T041 [US2] Implement `app/services/scheduler.py` registering an APScheduler interval job (default 30 min, env-configurable) that calls `sync_service`'s incremental sync — depends on T038
+- [X] T042 [US2] Register the scheduler's start/shutdown in `app/main.py`'s `startup`/`shutdown` events — depends on T041, T012
+- [X] T043 [US2] Extend `app/routers/bikes.py` with `GET`/`POST /bikes/{bike_id}/strava-pairing` — depends on T039, T024
+- [X] T044 [US2] Implement `app/routers/mileage.py`: `POST /sync/strava`, `GET`/`POST /bikes/{bike_id}/mileage/adjust`, `GET`/`POST /components/{component_id}/mileage/adjust` — depends on T040, T011
+- [X] T045 [US2] Implement `app/routers/settings.py`: `GET /settings` (connection status incl. stale flag), `POST /settings/strava/reconnect` — depends on T037, T011
+- [X] T046 [P] [US2] Create `app/templates/bikes/strava_pairing.html`, `app/templates/partials/stale_connection_banner.html`, `app/templates/mileage_adjust_form.html`, `app/templates/settings/index.html`
+- [X] T047 [US2] Wire the mileage and settings routers into `app/main.py` — depends on T044, T045, T028
 
 **Checkpoint**: User Stories 1 AND 2 both work independently.
 

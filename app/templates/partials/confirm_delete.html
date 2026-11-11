@@ -1,0 +1,7 @@
+<div class="confirm-delete">
+  <p>{{ message }} Delete this {{ item_type }} anyway?</p>
+  <form method="post" action="{{ action }}">
+    <input type="hidden" name="confirmed" value="true">
+    <button type="submit">Yes, delete</button>
+  </form>
+</div>

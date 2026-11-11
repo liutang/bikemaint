@@ -118,3 +118,49 @@ class ComponentInstallationPeriod:
             installed_at=row["installed_at"],
             removed_at=row["removed_at"],
         )
+
+
+@dataclass(frozen=True)
+class RideActivity:
+    id: int
+    strava_activity_id: int
+    strava_gear_id: str | None
+    bike_id: int | None
+    distance_miles: float
+    occurred_at: str
+    is_deleted_upstream: bool
+    synced_at: str
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> RideActivity:
+        return cls(
+            id=row["id"],
+            strava_activity_id=row["strava_activity_id"],
+            strava_gear_id=row["strava_gear_id"],
+            bike_id=row["bike_id"],
+            distance_miles=row["distance_miles"],
+            occurred_at=row["occurred_at"],
+            is_deleted_upstream=bool(row["is_deleted_upstream"]),
+            synced_at=row["synced_at"],
+        )
+
+
+@dataclass(frozen=True)
+class MileageAdjustment:
+    id: int
+    bike_id: int | None
+    component_id: int | None
+    delta_miles: float
+    reason: str | None
+    created_at: str
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> MileageAdjustment:
+        return cls(
+            id=row["id"],
+            bike_id=row["bike_id"],
+            component_id=row["component_id"],
+            delta_miles=row["delta_miles"],
+            reason=row["reason"],
+            created_at=row["created_at"],
+        )

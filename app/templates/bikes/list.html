@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+
+{% block title %}Garage — Bike Maintenance Tracker{% endblock %}
+
+{% block content %}
+<h1>Garage</h1>
+<p><a href="/bikes/new">Add a bike</a></p>
+<ul id="bike-list">
+  {% for bike in bikes %}
+  {% include "partials/bike_row.html" %}
+  {% else %}
+  <li>No bikes yet.</li>
+  {% endfor %}
+</ul>
+
+<h2>In storage</h2>
+<ul>
+  {% for component in in_storage_components %}
+  <li>
+    <a href="/components/{{ component.id }}">{{ component.name }}</a>
+    ({{ component.component_type }})
+  </li>
+  {% else %}
+  <li>Nothing in storage.</li>
+  {% endfor %}
+</ul>
+<p><a href="/components/new">Add a component to storage</a></p>
+{% endblock %}

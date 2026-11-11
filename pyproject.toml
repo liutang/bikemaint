@@ -10,6 +10,7 @@ dependencies = [
     "httpx",
     "apscheduler",
     "itsdangerous",
+    "python-multipart",
 ]
 
 [project.optional-dependencies]
@@ -20,6 +21,10 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# TDD workflow stages tests for not-yet-implemented modules ahead of their code
+# (constitution Principle III); those files' import errors shouldn't block the
+# rest of the suite from collecting and running.
+addopts = "--continue-on-collection-errors"
 
 [build-system]
 requires = ["setuptools>=68"]

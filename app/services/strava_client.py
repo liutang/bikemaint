@@ -57,14 +57,25 @@ def refresh_access_token(refresh_token: str) -> dict:
     return response.json()
 
 
+class StravaGearAccessError(Exception):
+    """Strava answered but left the gear list out: the token lacks the `profile:read_all` scope."""
+
+
 def get_athlete_gear(access_token: str) -> list[dict]:
-    """Fetch the connected athlete's Strava gear entries (research.md §2: `GET /athlete` → `bikes[]`)."""
+    """Fetch the connected athlete's Strava gear entries (research.md §2: `GET /athlete` → `bikes[]`).
+
+    Strava only includes `bikes` when the token was granted `profile:read_all`; a missing key
+    (as opposed to an empty list) means the rider must sign in again to approve that access.
+    """
     response = httpx.get(
         f"{STRAVA_API_BASE_URL}/athlete",
         headers={"Authorization": f"Bearer {access_token}"},
     )
     response.raise_for_status()
-    return response.json().get("bikes", [])
+    bikes = response.json().get("bikes")
+    if bikes is None:
+        raise StravaGearAccessError("Strava did not include the gear list (profile:read_all missing)")
+    return bikes
 
 
 def get_activities(

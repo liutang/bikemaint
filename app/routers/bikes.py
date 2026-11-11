@@ -167,12 +167,19 @@ def strava_pairing_form(request: Request, bike_id: int, account=Depends(require_
     bike = bike_service.get_bike(bike_id)
     if bike is None:
         return PlainTextResponse("Bike not found", status_code=404)
+    needs_profile_access = False
     try:
         access_token = strava_client.ensure_fresh_access_token(account)
         gear = bike_service.unpaired_gear(strava_client.get_athlete_gear(access_token))
     except strava_client.StravaTokenRefreshError:
         gear = []
-    return _render(request, "bikes/strava_pairing.html", {"bike": bike, "gear": gear, "errors": []})
+    except strava_client.StravaGearAccessError:
+        gear, needs_profile_access = [], True
+    return _render(
+        request,
+        "bikes/strava_pairing.html",
+        {"bike": bike, "gear": gear, "needs_profile_access": needs_profile_access, "errors": []},
+    )
 
 
 @router.post("/bikes/{bike_id}/strava-pairing", name="pair_bike_to_strava_gear")

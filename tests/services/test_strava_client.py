@@ -195,3 +195,36 @@ def test_ensure_fresh_access_token_marks_account_stale_on_refresh_failure(db_pat
     with connection.get_connection() as conn:
         refreshed = accounts.get_by_id(conn, account.id)
     assert refreshed.strava_connection_stale is True
+
+
+# ------------------------------------------------ gear needs profile access (specs: Strava gear scope)
+
+
+@respx.mock
+def test_missing_bikes_key_means_strava_did_not_share_gear():
+    # Without the profile:read_all scope Strava omits `bikes` from the athlete entirely.
+    respx.get("https://www.strava.com/api/v3/athlete").mock(
+        return_value=httpx.Response(200, json={"id": 1, "firstname": "Sam"})
+    )
+
+    with pytest.raises(strava_client.StravaGearAccessError):
+        strava_client.get_athlete_gear("access-token")
+
+
+@respx.mock
+def test_null_bikes_is_treated_the_same_way():
+    respx.get("https://www.strava.com/api/v3/athlete").mock(
+        return_value=httpx.Response(200, json={"id": 1, "bikes": None})
+    )
+
+    with pytest.raises(strava_client.StravaGearAccessError):
+        strava_client.get_athlete_gear("access-token")
+
+
+@respx.mock
+def test_an_athlete_with_no_bikes_is_an_empty_list_not_an_error():
+    respx.get("https://www.strava.com/api/v3/athlete").mock(
+        return_value=httpx.Response(200, json={"id": 1, "bikes": []})
+    )
+
+    assert strava_client.get_athlete_gear("access-token") == []

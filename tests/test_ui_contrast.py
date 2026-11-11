@@ -1,4 +1,4 @@
-"""Design-token checks for the stylesheet (specs/002-modern-ui, FR-002/004/012/013, SC-001/004).
+"""Design-token checks for the stylesheet (specs/002-modern-ui and specs/003-cockpit-theme).
 
 Parses the CSS custom properties out of `app/static/styles.css` and verifies WCAG contrast in
 both themes, plus the presence of the rules the UI contract requires.
@@ -13,20 +13,30 @@ STATIC = Path(__file__).parent.parent / "app" / "static"
 CSS = (STATIC / "styles.css").read_text()
 
 
-def _blocks(css: str) -> list[str]:
-    return re.findall(r":root\s*\{([^}]*)\}", css)
-
-
 def _tokens(block: str) -> dict[str, str]:
-    return dict(re.findall(r"(--[\w-]+)\s*:\s*([^;]+);", block))
+    return dict(re.findall(r"(--[\w-]+|color-scheme)\s*:\s*([^;]+);", block))
+
+
+def _rule(selector: str) -> dict[str, str]:
+    match = re.search(re.escape(selector) + r"\s*\{([^}]*)\}", CSS)
+    assert match, f"no rule for {selector}"
+    return _tokens(match.group(1))
 
 
 def _themes() -> dict[str, dict[str, str]]:
-    blocks = _blocks(CSS)
-    assert len(blocks) >= 2, "expected a light :root block and a dark override block"
-    light = _tokens(blocks[0])
-    dark = {**light, **_tokens(blocks[1])}
+    light = _rule(":root")
+    dark = {**light, **_rule(':root:not([data-theme="light"])')}
     return {"light": light, "dark": dark}
+
+
+def test_forced_dark_theme_has_the_same_tokens_as_the_automatic_one():
+    auto = _rule(':root:not([data-theme="light"])')
+    forced = _rule(':root[data-theme="dark"]')
+    assert {k: v for k, v in auto.items() if k != "color-scheme"} == {
+        k: v for k, v in forced.items() if k != "color-scheme"
+    }
+    assert _rule(':root[data-theme="light"]')["color-scheme"] == "light"
+    assert forced["color-scheme"] == "dark"
 
 
 def _luminance(hex_color: str) -> float:
@@ -46,16 +56,24 @@ def contrast(fg: str, bg: str) -> float:
 TEXT_PAIRS = [
     ("--text", "--bg"),
     ("--text", "--surface"),
+    ("--text", "--surface-2"),
     ("--text-muted", "--surface"),
     ("--text-muted", "--bg"),
     ("--primary-text", "--primary"),
     ("--danger-text", "--danger"),
     ("--danger", "--surface"),
-    ("--primary", "--surface"),
+    ("--link", "--surface"),
+    ("--link", "--bg"),
     ("--badge-overdue-fg", "--badge-overdue-bg"),
     ("--badge-soon-fg", "--badge-soon-bg"),
     ("--badge-ok-fg", "--badge-ok-bg"),
     ("--badge-low-fg", "--badge-low-bg"),
+]
+
+GRAPHIC_PAIRS = [
+    ("--ring-overdue", "--surface"),
+    ("--ring-soon", "--surface"),
+    ("--ring-ok", "--surface"),
 ]
 
 
@@ -65,6 +83,50 @@ def test_text_contrast_meets_wcag_aa(theme, fg, bg):
     tokens = _themes()[theme]
     ratio = contrast(tokens[fg], tokens[bg])
     assert ratio >= 4.5, f"{theme}: {fg} on {bg} is {ratio:.2f}:1 (needs 4.5:1)"
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("fg,bg", GRAPHIC_PAIRS)
+def test_ring_colors_are_visible_graphics(theme, fg, bg):
+    tokens = _themes()[theme]
+    assert contrast(tokens[fg], tokens[bg]) >= 3.0, f"{theme}: {fg} on {bg}"
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_ring_track_is_distinguishable_from_the_surface(theme):
+    tokens = _themes()[theme]
+    assert contrast(tokens["--ring-track"], tokens["--surface"]) >= 1.15
+
+
+def _hue(hex_color: str) -> float:
+    import colorsys
+
+    value = hex_color.strip().lstrip("#")
+    r, g, b = (int(value[i : i + 2], 16) / 255 for i in (0, 2, 4))
+    return colorsys.rgb_to_hls(r, g, b)[0] * 360
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_due_soon_gold_is_visibly_different_from_the_brand_accent(theme):
+    tokens = _themes()[theme]
+    assert abs(_hue(tokens["--ring-soon"]) - _hue(tokens["--primary"])) >= 8
+
+
+def test_brand_accent_and_dark_charcoal_values():
+    light, dark = _themes()["light"], _themes()["dark"]
+    assert light["--primary"].lower() == dark["--primary"].lower() == "#ffa800"
+    assert dark["--bg"].lower() == "#1b1e25"  # softened charcoal, never near-black
+    assert _luminance(dark["--bg"]) > _luminance("#0d0f12")
+    assert light["--bg"].lower() == "#f2f4f8"
+    assert contrast(light["--primary-text"], light["--primary"]) >= 7
+
+
+def test_fonts_are_self_hosted():
+    assert CSS.count("@font-face") >= 2
+    assert "http://" not in CSS and "https://" not in CSS
+    assert "Space Grotesk" in CSS and "Inter" in CSS
+    for name in re.findall(r"url\(['\"]?([^'\")]+)['\"]?\)", CSS):
+        assert (STATIC / name.removeprefix("/static/")).exists(), f"missing font file {name}"
 
 
 @pytest.mark.parametrize("theme", ["light", "dark"])
@@ -104,6 +166,30 @@ def test_long_text_wraps_instead_of_breaking_the_layout():
 
 def test_asset_budget():
     css_size = (STATIC / "styles.css").stat().st_size
-    htmx_size = (STATIC / "htmx.min.js").stat().st_size
+    font_size = sum(p.stat().st_size for p in (STATIC / "fonts").glob("*.woff2"))
     assert css_size <= 40 * 1024
-    assert css_size + htmx_size <= 150 * 1024
+    assert css_size + font_size <= 250 * 1024
+
+
+@pytest.mark.parametrize("name", ["overdue", "soon", "ok", "low"])
+def test_status_badge_rules_use_their_status_tokens(name):
+    rule = re.search(rf"\.badge-{name}\s*\{{([^}}]*)\}}", CSS)
+    assert rule, f"no .badge-{name} rule"
+    assert f"var(--badge-{name}-bg)" in rule.group(1) and f"var(--badge-{name}-fg)" in rule.group(1)
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_due_soon_badge_text_is_not_the_brand_amber(theme):
+    tokens = _themes()[theme]
+    assert abs(_hue(tokens["--badge-soon-fg"]) - _hue(tokens["--primary"])) >= 8
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_status_hues_are_mutually_distinct(theme):
+    tokens = _themes()[theme]
+    hues = [_hue(tokens[f"--ring-{n}"]) for n in ("overdue", "soon", "ok")]
+    assert min(abs(a - b) for i, a in enumerate(hues) for b in hues[i + 1 :]) >= 20
+
+
+def test_text_input_rule_does_not_stretch_checkboxes_or_radios():
+    assert 'input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"])' in CSS

@@ -34,6 +34,33 @@ def test_garage_shows_bikes_as_cards_with_quick_actions(signed_in_client):
     assert "View" in body
 
 
+def test_garage_bike_card_uses_the_cockpit_card_layout(signed_in_client):
+    _add_bike(signed_in_client)
+
+    html = signed_in_client.get("/").text
+
+    card = re.search(r'<article class="card bike-card" id="bike-1">(.*?)</article>', html, re.S).group(1)
+    assert re.search(r'<span class="bike-card-stat"><strong>12.5 mi</strong>', card)
+    assert re.search(r'<span class="chip">road</span>', card)
+    assert re.search(r'<a class="btn btn-primary" href="/bikes/1">View</a>', card)
+    # secondary actions are quiet, so View is the one primary action on the card
+    assert card.count("btn-primary") == 1
+    assert 'class="btn btn-quiet" href="/components/new?parent_bike_id=1"' in card
+    assert 'class="btn btn-quiet" href="/bikes/1/maintenance"' in card
+
+
+def test_storage_components_use_the_same_card_style_on_garage_and_storage_pages(signed_in_client):
+    _add_component(signed_in_client, "Spare Tire", "tire")
+
+    for path in ("/", "/components"):
+        html = signed_in_client.get(path).text
+        card = re.search(r'<article class="card bike-card is-storage"[^>]*>(.*?)</article>', html, re.S)
+        assert card, path
+        assert 'href="/components/1"' in card.group(1) and "Spare Tire" in card.group(1)
+        assert '<span class="chip">tire</span>' in card.group(1)
+        assert 'class="bike-card-stat"' in card.group(1)
+
+
 def test_garage_lists_storage_under_its_own_heading(signed_in_client):
     _add_component(signed_in_client, "Spare Tire", "tire")
 
@@ -166,7 +193,12 @@ from app.services import notification_service, schedule_service  # noqa: E402
 
 
 def _row(html: str, schedule_id: int) -> str:
-    match = re.search(rf'<tr id="schedule-row-{schedule_id}".*?</tr>', html, re.S)
+    # Urgent tasks render as cards, the rest as compact list rows (specs/003-cockpit-theme).
+    match = re.search(
+        rf'<(article|li) class="(?:attention-card|other-row)[^"]*" id="schedule-row-{schedule_id}">.*?</\1>',
+        html,
+        re.S,
+    )
     assert match, f"row {schedule_id} not found"
     return match.group(0)
 
@@ -211,15 +243,14 @@ def test_dashboard_rows_carry_status_badges_with_text_and_icon(signed_in_client)
     assert "Low confidence" not in _row(html, 3)
 
 
-def test_dashboard_table_is_semantic_and_stackable(signed_in_client):
+def test_dashboard_urgent_cards_and_list_are_semantic(signed_in_client):
     _seed_schedules()
 
     html = signed_in_client.get("/maintenance/due").text
 
-    assert 'class="table-responsive"' in html
-    assert html.count('<th scope="col"') >= 4
-    row = _row(html, 2)
-    assert row.count("<td") == row.count("data-label=")
+    assert '<section id="attention" aria-labelledby="attention-heading"' in html
+    assert 'class="other-list"' in html
+    assert html.count('<article class="attention-card') == 2  # overdue + due soon
 
 
 def test_dashboard_with_no_schedules_shows_an_empty_state(signed_in_client):
@@ -238,18 +269,14 @@ def _make_alert():
     return notification_service.check_due_schedules()
 
 
-def test_alerts_are_dismissible_in_place(signed_in_client):
+def test_due_page_shows_no_alerts_list_even_with_unacknowledged_notifications(signed_in_client):
     _make_alert()
 
     html = signed_in_client.get("/maintenance/due").text
 
-    alert = re.search(r'<li class="alert[^"]*"[^>]*>(.*?)</li>', html, re.S)
-    assert alert, "alert should render as a list item with class alert"
-    body = alert.group(1)
-    assert "Chain swap" in body and "Alert Bike" in body
-    assert 'hx-post="/notifications/1/acknowledge"' in body
-    assert 'hx-target="closest li"' in body
-    assert 'hx-swap="outerHTML"' in body
+    assert "Due-soon alerts" not in html
+    assert 'class="alert' not in html
+    assert "alert-list" not in html
 
 
 def test_acknowledge_with_htmx_returns_an_empty_fragment(signed_in_client):
@@ -273,16 +300,16 @@ def test_acknowledge_without_htmx_still_redirects(signed_in_client):
     assert response.headers["location"] == "/maintenance/due"
 
 
-def test_mark_done_with_htmx_returns_only_the_updated_row(signed_in_client):
+def test_mark_done_with_htmx_returns_the_updated_board(signed_in_client):
     _seed_schedules()
 
     response = signed_in_client.post("/schedules/1/complete", headers={"hx-request": "true"})
 
     html = response.text
-    assert html.lstrip().startswith('<tr id="schedule-row-1"')
+    assert html.lstrip().startswith('<section id="attention"')
     assert "<html" not in html
     # Completing the overdue 10-day job restarts its cycle, so it is no longer overdue.
-    assert "badge-ok" in html and "badge-overdue" not in html
+    assert "badge-ok" in _row(html, 1) and "badge-overdue" not in _row(html, 1)
 
 
 # ------------------------------------------------------------ User Story 4: forms

@@ -1,0 +1,24 @@
+{# Progress ring for an urgent task. Meaning is always in text (aria-label + visible value), never color alone. #}
+{% macro ring(item) -%}
+{%- set d = item.days_until -%}
+{%- if item.status == "overdue" -%}
+  {%- if d is none or d >= 0 -%}
+    {%- set value, caption, label = "Late", "", "Overdue" -%}
+  {%- else -%}
+    {%- set value, caption, label = (-d ~ "d"), "late", ("Overdue by " ~ (-d) ~ (" day" if d == -1 else " days")) -%}
+  {%- endif -%}
+{%- elif d is none or d <= 0 -%}
+  {%- set value, caption, label = "Today", "", "Due today" -%}
+{%- else -%}
+  {%- set value, caption, label = (d ~ "d"), "left", ("Due in " ~ d ~ (" day" if d == 1 else " days")) -%}
+{%- endif -%}
+<div class="ring-wrap">
+  <svg class="ring" viewBox="0 0 96 96" role="img" aria-label="{{ label }}">
+    <circle class="ring-track" cx="48" cy="48" r="40" fill="none" stroke-width="10"/>
+    <circle class="ring-progress" stroke-width="10" fill="none" stroke-linecap="round" cx="48" cy="48" r="40" stroke-dasharray="251.3" stroke-dashoffset="{{ '%.1f'|format(251.3 * (1 - item.ring)) }}" transform="rotate(-90 48 48)"/>
+  </svg>
+  <div class="ring-text" aria-hidden="true">
+    <span class="ring-value">{{ value }}</span>{% if caption %}<span class="ring-caption">{{ caption }}</span>{% endif %}
+  </div>
+</div>
+{%- endmacro %}

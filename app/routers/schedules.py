@@ -7,7 +7,7 @@ and `app/services/notification_service.py`.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse
 from pydantic import ValidationError
 
@@ -65,15 +65,23 @@ def _schedule_owner(schedule):
     return kind, _owner(kind, schedule.bike_id if kind == "bike" else schedule.component_id)
 
 
-@router.get("/maintenance/due", name="due_dashboard")
-def due_dashboard(request: Request, account=Depends(require_account)):
+def _board_context(account, show_all: bool) -> dict:
     items = schedule_service.list_due_overview(lead_time_days=account.notification_lead_time_days)
-    items_by_schedule_id = {item.schedule.id: item for item in items}
-    alerts = [
-        {"notification": notification, "item": items_by_schedule_id.get(notification.schedule_id)}
-        for notification in notification_service.list_unacknowledged()
-    ]
-    return _render(request, "schedules/due_dashboard.html", {"items": items, "alerts": alerts})
+    return {
+        "items": items,
+        "board": schedule_service.split_attention(items, show_all=show_all),
+        "show_all": show_all,
+    }
+
+
+@router.get("/maintenance/due", name="due_dashboard")
+def due_dashboard(
+    request: Request,
+    account=Depends(require_account),
+    all_tasks: str | None = Query(default=None, alias="all"),
+):
+    context = _board_context(account, show_all=all_tasks == "1")  # only "1" turns it on
+    return _render(request, "schedules/due_dashboard.html", context)
 
 
 @router.post("/notifications/{notification_id}/acknowledge", name="acknowledge_notification")
@@ -170,16 +178,20 @@ async def update_schedule(request: Request, schedule_id: int, account=Depends(re
 
 
 @router.post("/schedules/{schedule_id}/complete", name="complete_schedule")
-def complete_schedule(request: Request, schedule_id: int, account=Depends(require_account)):
+def complete_schedule(
+    request: Request,
+    schedule_id: int,
+    account=Depends(require_account),
+    all_tasks: str | None = Form(default=None, alias="all"),
+):
     try:
         schedule_service.complete_schedule(schedule_id)
     except LookupError:
         return PlainTextResponse("Schedule not found", status_code=404)
     if request.headers.get("hx-request") == "true":
-        item = schedule_service.get_due_item(
-            schedule_id, lead_time_days=account.notification_lead_time_days
-        )
-        return _render(request, "partials/due_soon_row.html", {"item": item})
+        # Re-render the whole board so the completed task moves to its new place.
+        context = _board_context(account, show_all=all_tasks == "1")
+        return _render(request, "partials/attention_board.html", context)
     return RedirectResponse(url="/maintenance/due", status_code=303)
 
 

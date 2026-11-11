@@ -11,13 +11,7 @@
 {% if components %}
 <div class="card-grid">
   {% for component in components %}
-  <article class="card">
-    <h3><a href="/components/{{ component.id }}">{{ component.name }}</a></h3>
-    <p class="meta">
-      <span>{{ component.component_type }}</span>
-      <span>{{ "%.1f"|format(component.total_mileage) }} mi</span>
-    </p>
-  </article>
+    {% include "partials/storage_card.html" %}
   {% endfor %}
 </div>
 {% else %}

@@ -1,0 +1,28 @@
+{% from "partials/icons.html" import arrow_right %}
+{%- set tiles = board.shown|length + (1 if board.overflow_count else 0) -%}
+<section id="attention" aria-labelledby="attention-heading">
+  <h2 id="attention-heading" class="visually-hidden">Needs action</h2>
+  {% if board.urgent_total %}
+  <div class="attention-grid {{ 'cols-3' if tiles > 3 else 'cols-2' }}">
+    {% for item in board.shown %}{% include "partials/attention_card.html" %}{% endfor %}
+    {% if board.overflow_count %}
+    <a class="attention-more" href="/maintenance/due?all=1">
+      <span class="attention-more-count">+{{ board.overflow_count }} more tasks</span>
+      <span class="attention-more-cta">View all {{ arrow_right() }}</span>
+    </a>
+    {% endif %}
+  </div>
+  {% if show_all and board.urgent_total > 6 %}
+  <p class="attention-collapse"><a href="/maintenance/due">Show fewer</a></p>
+  {% endif %}
+  {% else %}
+  <p class="all-clear"><strong>Nothing needs attention</strong> right now. Everything below is on track or waiting for an estimate.</p>
+  {% endif %}
+
+  {% if board.others %}
+  <h2 id="others-heading" class="section-title">Everything else</h2>
+  <ul class="other-list" aria-labelledby="others-heading">
+    {% for item in board.others %}{% include "partials/other_row.html" %}{% endfor %}
+  </ul>
+  {% endif %}
+</section>

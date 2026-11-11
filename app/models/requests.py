@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -120,3 +121,7 @@ class WebhookSettingsRequest(BaseModel):
 
 class LeadTimeSettingsRequest(BaseModel):
     notification_lead_time_days: int = Field(ge=0, le=365)
+
+
+class ThemeSettingsRequest(BaseModel):
+    theme: Literal["system", "light", "dark"]

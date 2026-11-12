@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% from "partials/forms.html" import field, select_field, error_summary, submit %}
+
+{% block title %}{{ "Edit" if period else "Log" }} period — {{ component.name }}{% endblock %}
+
+{% block content %}
+{% include "partials/breadcrumb.html" %}
+<h1>{{ "Edit period" if period else "Log a past period" }}</h1>
+{{ error_summary(errors) }}
+<form class="panel form" method="post" action="{{ action }}">
+  {{ select_field("bike_id", "Bike", bike_options, period.parent_bike_id if period else "", values, field_errors, hint="The bike the part was on.") }}
+  {{ field("parent_component_id", "Inside part (optional)", period.parent_component_id if period and period.parent_component_id else "", values, field_errors, type="number", min=1, hint="Part number it was mounted in, for example a wheel. Leave blank for the frame or bike.") }}
+  {{ field("installed_date", "Installed on", period.installed_at[:10] if period else "", values, field_errors, type="date", required=true) }}
+  {{ field("installed_time", "Time (optional)", period.installed_at[11:16] if period else "", values, field_errors, type="time", hint="Blank counts as midnight.") }}
+  {% if period and not period.removed_at %}
+  <p class="text-muted">Still installed. To end this period, remove the part from the bike.</p>
+  {% else %}
+  {{ field("removed_date", "Removed on", period.removed_at[:10] if period and period.removed_at else "", values, field_errors, type="date", required=true) }}
+  {{ field("removed_time", "Time (optional)", period.removed_at[11:16] if period and period.removed_at else "", values, field_errors, type="time", hint="Blank counts as midnight.") }}
+  {% endif %}
+  <div class="actions">
+    {{ submit("Save") }}
+    <a class="btn" href="/components/{{ component.id }}/install-history">Cancel</a>
+  </div>
+</form>
+{% endblock %}

@@ -14,9 +14,11 @@ from datetime import datetime, timezone
 from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db import maintenance as maintenance_db
+from app.db import mileage as mileage_db
 from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models import component_kinds
+from app.services import component_history_service as history_service
 from app.models.component_kinds import BIKE, MULTI_INSTANCE_COMPONENT_TYPES
 from app.models.rows import Component
 
@@ -226,7 +228,11 @@ def create_component(
     parent_bike_id: int | None = None,
     parent_component_id: int | None = None,
     manual_baseline_mileage: float = 0.0,
+    installed_at: str | None = None,
 ) -> Component:
+    """Create a component; when mounted, `installed_at` (default now) opens its first period."""
+    if installed_at is not None:
+        history_service.check_not_future(installed_at)
     with get_connection() as conn:
         _validate_nesting(
             conn,
@@ -252,9 +258,13 @@ def create_component(
                 component.id,
                 parent_bike_id=top_bike_id,
                 parent_component_id=parent_component_id,
-                installed_at=_now(),
+                installed_at=installed_at or _now(),
             )
             _log_added(conn, component, parent_bike_id, parent_component_id)
+            if installed_at is not None:
+                # Back-dated: rides since then already belong to this part.
+                mileage_db.recompute_component_total_mileage(conn, component.id)
+                component = components_db.get_by_id(conn, component.id)
         return component
 
 
@@ -451,6 +461,7 @@ def mount_new_component(
     parent_bike_id: int | None = None,
     parent_component_id: int | None = None,
     before_component_id: int | None = None,
+    installed_at: str | None = None,
 ) -> Component:
     """Create a part of `component_type` (default name) mounted on a parent, optionally ordered."""
     kind = component_kinds.COMPONENT_KINDS.get(component_type)
@@ -468,6 +479,7 @@ def mount_new_component(
         component_type=component_type,
         parent_bike_id=parent_bike_id,
         parent_component_id=parent_component_id,
+        installed_at=installed_at,
     )
     if before_component_id is not None:
         with get_connection() as conn:

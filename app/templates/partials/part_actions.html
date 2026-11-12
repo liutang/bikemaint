@@ -21,6 +21,9 @@
   </form>
   {% endif %}
   {% if component %}
+  <a class="btn" href="{{ base }}/install-history">Install history</a>
+  {% endif %}
+  {% if component %}
   {% set mounted = component.parent_bike_id is not none or component.parent_component_id is not none %}
   {% if mounted %}
   <form method="post" action="/builder/move" hx-post="/builder/move" hx-target="#builder" hx-swap="outerHTML">

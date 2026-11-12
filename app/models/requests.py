@@ -142,6 +142,8 @@ class MoveTargetRequest(BaseModel):
 
 
 _ROOT_PATTERN = r"^(bike|component):[0-9]{1,9}$"
+_DATE_PATTERN = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+_TIME_PATTERN = r"^([01][0-9]|2[0-3]):[0-5][0-9]$"
 
 
 class BuilderAddRequest(BaseModel):
@@ -151,6 +153,13 @@ class BuilderAddRequest(BaseModel):
     component_type: str
     target: str = Field(pattern=r"^(storage|bike:[0-9]{1,9}|component:[0-9]{1,9})$")
     before_component_id: int | None = Field(default=None, ge=1)
+    installed_date: str | None = Field(default=None, pattern=_DATE_PATTERN)
+    installed_time: str | None = Field(default=None, pattern=_TIME_PATTERN)
+
+    @field_validator("installed_date", "installed_time", mode="before")
+    @classmethod
+    def _blank_is_none(cls, value):
+        return None if isinstance(value, str) and not value.strip() else value
 
     @field_validator("component_type")
     @classmethod
@@ -241,6 +250,24 @@ class RideRequest(BaseModel):
     bike_id: int | None = Field(default=None, ge=1)
 
     @field_validator("ride_time", "note", "bike_id", mode="before")
+    @classmethod
+    def _blank_is_none(cls, value):
+        return None if isinstance(value, str) and not value.strip() else value
+
+
+class InstallPeriodRequest(BaseModel):
+    """Log or edit a past installation period (specs/015): where, and from when to when."""
+
+    bike_id: int = Field(ge=1)
+    parent_component_id: int | None = Field(default=None, ge=1)
+    installed_date: str = Field(pattern=_DATE_PATTERN)
+    installed_time: str | None = Field(default=None, pattern=_TIME_PATTERN)
+    removed_date: str | None = Field(default=None, pattern=_DATE_PATTERN)
+    removed_time: str | None = Field(default=None, pattern=_TIME_PATTERN)
+
+    @field_validator(
+        "parent_component_id", "installed_time", "removed_date", "removed_time", mode="before"
+    )
     @classmethod
     def _blank_is_none(cls, value):
         return None if isinstance(value, str) and not value.strip() else value

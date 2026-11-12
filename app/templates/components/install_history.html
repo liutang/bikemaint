@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+{% import "partials/icons.html" as ui_icons %}
+
+{% block title %}Install history — {{ component.name }}{% endblock %}
+
+{% block content %}
+{% include "partials/breadcrumb.html" %}
+<div class="page-head">
+  <div>
+    <h1>Install history</h1>
+    <p class="text-muted"><a href="/components/{{ component.id }}">{{ component.name }}</a> — {{ "%.1f"|format(component.total_mileage) }} mi in total</p>
+  </div>
+  <a class="btn btn-primary" href="/components/{{ component.id }}/install-history/new">{{ ui_icons.plus() }}Log a period</a>
+</div>
+<p class="text-muted">Back-fill where this part has been. Its mileage is the rides on each bike between install and removal, added together.</p>
+
+{% if rows %}
+<div class="table-responsive">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Installed on</th>
+        <th scope="col">Installed</th>
+        <th scope="col">Removed</th>
+        <th scope="col">Miles</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td data-label="Installed on">{{ row.place }}</td>
+        <td data-label="Installed">{{ row.period.installed_at[:10] }} {{ row.period.installed_at[11:16] }}</td>
+        <td data-label="Removed">{% if row.period.removed_at %}{{ row.period.removed_at[:10] }} {{ row.period.removed_at[11:16] }}{% else %}Still installed{% endif %}</td>
+        <td data-label="Miles">{{ "%.1f"|format(row.miles) }} mi</td>
+        <td data-label="Actions">
+          <div class="actions">
+            <a class="btn" href="/install-periods/{{ row.period.id }}/edit">Edit</a>
+            {% if row.period.removed_at %}
+            <form method="post" action="/install-periods/{{ row.period.id }}/delete">
+              <button class="btn btn-quiet" type="submit">Delete</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p class="empty-title">No installs recorded yet</p>
+  <p>Log the bikes this part has been on to include their past rides in its mileage.</p>
+  <a class="btn btn-primary" href="/components/{{ component.id }}/install-history/new">Log a period</a>
+</div>
+{% endif %}
+{% endblock %}

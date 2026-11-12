@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from app.models.requests import BuilderAddRequest, BuilderDeleteRequest, BuilderMoveRequest
 from app.routers.screen import redirect_to, render_screen, screen_url
 from app.services import builder_service
+from app.services import component_history_service as history_service
 from app.services.auth_dependency import require_account
 from app.services.component_service import (
     ComponentNestingConflictError,
@@ -62,9 +63,20 @@ async def builder_add(request: Request, account=Depends(require_account)):
             component_type=form.get("component_type", ""),
             target=form.get("target", ""),
             before_component_id=_optional_text(form, "before_component_id"),
+            installed_date=_optional_text(form, "installed_date"),
+            installed_time=_optional_text(form, "installed_time"),
+        )
+        installed_at = (
+            history_service.moment(payload.installed_date, payload.installed_time)
+            if payload.installed_date or payload.installed_time
+            else None
         )
         builder_service.add_part(
-            payload.root, payload.component_type, payload.parents(), payload.before_component_id
+            payload.root,
+            payload.component_type,
+            payload.parents(),
+            payload.before_component_id,
+            installed_at=installed_at,
         )
     except ValidationError:
         return _refuse(request, root, NOT_UNDERSTOOD)

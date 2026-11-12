@@ -18,6 +18,7 @@ from app.routers import (
     auth,
     bikes,
     builder,
+    component_history,
     components,
     maintenance,
     mileage,
@@ -72,6 +73,7 @@ def create_app() -> FastAPI:
     app.include_router(bikes.router)
     app.include_router(builder.router)
     app.include_router(components.router)
+    app.include_router(component_history.router)
     app.include_router(mileage.router)
     app.include_router(rides.router)
     app.include_router(maintenance.router)

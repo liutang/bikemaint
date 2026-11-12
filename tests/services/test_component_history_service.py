@@ -1,0 +1,215 @@
+"""Manual parts history and install dates (specs/015-component-install-history)."""
+
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
+from app.db import connection, mileage as mileage_db
+from app.services import bike_service, component_history_service as history, component_service
+
+
+@pytest.fixture
+def db_path(tmp_path, monkeypatch):
+    path = tmp_path / "test.sqlite3"
+    monkeypatch.setenv("DATABASE_PATH", str(path))
+    connection.run_migrations()
+    return path
+
+
+def _ride(bike, activity_id, miles, when):
+    with connection.get_connection() as conn:
+        mileage_db.upsert_ride_activity(
+            conn, strava_activity_id=activity_id, strava_gear_id="g", bike_id=bike.id,
+            distance_miles=miles, occurred_at=when,
+        )
+
+
+def _miles(component_id):
+    return component_service.get_component(component_id).total_mileage
+
+
+def _saddle():
+    return component_service.create_component(name="Saddle", component_type="saddle")
+
+
+def test_moment_defaults_and_formats():
+    assert history.moment("2025-01-01", "08:30") == "2025-01-01T08:30:00.000000Z"
+    assert history.moment("2025-01-01", None) == "2025-01-01T00:00:00.000000Z"
+    assert history.moment(None, None).endswith("Z")
+    with pytest.raises(ValueError):
+        history.moment(None, "08:30")
+
+
+def test_saddle_across_two_bikes_adds_each_window(db_path):
+    bike_a = bike_service.create_bike(name="A")
+    bike_b = bike_service.create_bike(name="B")
+    saddle = _saddle()
+    _ride(bike_a, 1, 10, "2024-12-15T08:00:00.000000Z")  # before install
+    _ride(bike_a, 2, 20, "2025-03-01T08:00:00.000000Z")
+    _ride(bike_a, 3, 30, "2025-08-01T08:00:00.000000Z")  # after removal
+    _ride(bike_b, 4, 40, "2025-08-15T08:00:00.000000Z")  # between
+    _ride(bike_b, 5, 50, "2025-10-01T08:00:00.000000Z")
+    history.log_period(
+        saddle.id, bike_id=bike_a.id, installed_at="2025-01-01T00:00:00.000000Z",
+        removed_at="2025-07-01T00:00:00.000000Z",
+    )
+    assert _miles(saddle.id) == 20
+    history.log_period(
+        saddle.id, bike_id=bike_b.id, installed_at="2025-09-01T00:00:00.000000Z", removed_at="2025-12-01T00:00:00.000000Z",
+    )
+    assert _miles(saddle.id) == 70
+
+
+def test_baseline_and_open_period_still_count(db_path):
+    bike = bike_service.create_bike(name="A")
+    saddle = component_service.create_component(
+        name="Saddle", component_type="saddle", manual_baseline_mileage=5
+    )
+    _ride(bike, 1, 7, "2025-02-01T08:00:00.000000Z")
+    with connection.get_connection() as conn:
+        from app.db import components as components_db
+
+        components_db.set_parent(conn, saddle.id, parent_bike_id=bike.id, parent_component_id=None)
+        components_db.open_installation_period(
+            conn, saddle.id, parent_bike_id=bike.id, parent_component_id=None,
+            installed_at="2025-01-01T00:00:00.000000Z",
+        )
+    history.recompute(saddle.id)
+    assert _miles(saddle.id) == 12
+
+
+def test_overlapping_period_is_rejected(db_path):
+    bike = bike_service.create_bike(name="A")
+    other = bike_service.create_bike(name="B")
+    saddle = _saddle()
+    history.log_period(
+        saddle.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at="2025-03-01T00:00:00.000000Z",
+    )
+    with pytest.raises(ValueError, match="overlap"):
+        history.log_period(
+            saddle.id, bike_id=other.id, installed_at="2025-02-01T00:00:00.000000Z",
+            removed_at="2025-04-01T00:00:00.000000Z",
+        )
+    # touching ends are fine
+    history.log_period(
+        saddle.id, bike_id=other.id, installed_at="2025-03-01T00:00:00.000000Z", removed_at="2025-04-01T00:00:00.000000Z",
+    )
+    assert len(history.list_history(saddle.id)) == 2
+
+
+def test_removal_must_follow_install_and_not_be_in_the_future(db_path):
+    bike = bike_service.create_bike(name="A")
+    saddle = _saddle()
+    with pytest.raises(ValueError, match="after"):
+        history.log_period(
+            saddle.id, bike_id=bike.id, installed_at="2025-03-01T00:00:00.000000Z", removed_at="2025-03-01T00:00:00.000000Z",
+        )
+    future = (datetime.now(timezone.utc) + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:00.000000Z")
+    with pytest.raises(ValueError, match="future"):
+        history.log_period(
+            saddle.id, bike_id=bike.id, installed_at="2025-03-01T00:00:00.000000Z", removed_at=future,
+        )
+
+
+def test_unknown_bike_parent_or_part_is_rejected(db_path):
+    bike = bike_service.create_bike(name="A")
+    saddle = _saddle()
+    window = dict(installed_at="2025-01-01T00:00:00.000000Z", removed_at="2025-02-01T00:00:00.000000Z")
+    with pytest.raises(LookupError):
+        history.log_period(saddle.id, bike_id=99, **window)
+    with pytest.raises(LookupError):
+        history.log_period(saddle.id, bike_id=bike.id, parent_component_id=99, **window)
+    with pytest.raises(LookupError):
+        history.log_period(99, bike_id=bike.id, **window)
+
+
+def test_update_period_recomputes_and_rechecks_overlap(db_path):
+    bike = bike_service.create_bike(name="A")
+    saddle = _saddle()
+    _ride(bike, 1, 10, "2025-02-01T08:00:00.000000Z")
+    _ride(bike, 2, 20, "2025-05-01T08:00:00.000000Z")
+    first = history.log_period(
+        saddle.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at="2025-03-01T00:00:00.000000Z",
+    )
+    second = history.log_period(
+        saddle.id, bike_id=bike.id, installed_at="2025-04-01T00:00:00.000000Z", removed_at="2025-06-01T00:00:00.000000Z",
+    )
+    assert _miles(saddle.id) == 30
+    history.update_period(
+        first.id, bike_id=bike.id, installed_at="2025-03-01T00:00:00.000000Z", removed_at="2025-03-10T00:00:00.000000Z",
+    )
+    assert _miles(saddle.id) == 20
+    with pytest.raises(ValueError, match="overlap"):
+        history.update_period(
+            second.id, bike_id=bike.id, installed_at="2025-03-05T00:00:00.000000Z", removed_at="2025-06-01T00:00:00.000000Z",
+        )
+
+
+def test_delete_period_recomputes(db_path):
+    bike = bike_service.create_bike(name="A")
+    saddle = _saddle()
+    _ride(bike, 1, 10, "2025-02-01T08:00:00.000000Z")
+    period = history.log_period(
+        saddle.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at="2025-03-01T00:00:00.000000Z",
+    )
+    assert _miles(saddle.id) == 10
+    history.delete_period(period.id)
+    assert _miles(saddle.id) == 0
+    assert history.list_history(saddle.id) == []
+
+
+def test_open_period_edit_changes_only_install_and_place(db_path):
+    bike = bike_service.create_bike(name="A")
+    saddle = component_service.create_component(
+        name="Saddle", component_type="saddle", parent_bike_id=bike.id
+    )
+    _ride(bike, 1, 10, "2025-02-01T08:00:00.000000Z")
+    open_period = history.list_history(saddle.id)[0]
+    assert open_period.removed_at is None
+    history.update_period(
+        open_period.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at=None
+    )
+    assert _miles(saddle.id) == 10
+    with pytest.raises(ValueError, match="still installed"):
+        history.update_period(
+            open_period.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z",
+            removed_at="2025-03-01T00:00:00.000000Z",
+        )
+    with pytest.raises(ValueError, match="removal"):
+        history.log_period(
+            saddle.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at=None
+        )
+
+
+def test_logging_leaves_dated_parts_events(db_path):
+    bike = bike_service.create_bike(name="A")
+    saddle = _saddle()
+    history.log_period(
+        saddle.id, bike_id=bike.id, installed_at="2025-01-01T08:30:00.000000Z", removed_at="2025-03-01T00:00:00.000000Z",
+    )
+    from app.services import maintenance_service
+
+    entries = maintenance_service.list_for_component(saddle.id)
+    texts = [(e.performed_at, e.performed_time, e.description) for e in entries]
+    assert ("2025-01-01", "08:30", "Installed on A") in texts
+    assert ("2025-03-01", "00:00", "Removed from A") in texts
+
+
+def test_installed_at_on_create_backdates_and_counts_rides(db_path):
+    bike = bike_service.create_bike(name="A")
+    _ride(bike, 1, 10, "2025-01-15T08:00:00.000000Z")
+    _ride(bike, 2, 5, "2025-03-15T08:00:00.000000Z")
+    saddle = component_service.create_component(
+        name="Saddle", component_type="saddle", parent_bike_id=bike.id,
+        installed_at="2025-03-01T00:00:00.000000Z",
+    )
+    assert _miles(saddle.id) == 5
+
+
+def test_installed_at_in_the_future_is_rejected_on_create(db_path):
+    bike = bike_service.create_bike(name="A")
+    future = (datetime.now(timezone.utc) + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:00.000000Z")
+    with pytest.raises(ValueError, match="future"):
+        component_service.create_component(
+            name="Saddle", component_type="saddle", parent_bike_id=bike.id, installed_at=future
+        )

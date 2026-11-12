@@ -144,6 +144,10 @@
                 <select id="add-{{ item.type }}" name="target">
                   {% for t in item.targets %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
                 </select>
+                <label class="visually-hidden" for="add-date-{{ item.type }}">Installed on (optional)</label>
+                <input id="add-date-{{ item.type }}" name="installed_date" type="date" title="Installed on (blank = now)">
+                <label class="visually-hidden" for="add-time-{{ item.type }}">Installed at (optional)</label>
+                <input id="add-time-{{ item.type }}" name="installed_time" type="time" title="Time (blank = midnight when a date is set)">
                 <button class="btn" type="submit">Add</button>
               </form>
             </details>

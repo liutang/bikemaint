@@ -256,3 +256,14 @@ def test_an_athlete_with_no_bikes_is_an_empty_list_not_an_error():
     )
 
     assert strava_client.get_athlete_gear("access-token") == []
+
+
+@respx.mock
+def test_get_activities_allows_slow_strava_responses():
+    route = respx.get("https://www.strava.com/api/v3/athlete/activities").mock(
+        return_value=httpx.Response(200, json=[])
+    )
+
+    strava_client.get_activities("token")
+
+    assert route.calls.last.request.extensions["timeout"]["read"] >= 30

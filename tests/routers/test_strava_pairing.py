@@ -143,3 +143,19 @@ def test_unpair_clears_the_gear_but_keeps_the_rides(signed_in_client, monkeypatc
 def test_unpair_on_an_unpaired_bike_is_rejected(signed_in_client):
     bike = _bike()
     assert signed_in_client.post(f"/bikes/{bike.id}/strava-unpair", follow_redirects=False).status_code == 409
+
+
+def test_reimport_reports_a_strava_timeout_instead_of_crashing(signed_in_client, monkeypatch):
+    import httpx
+
+    paired = _paired_bike(monkeypatch)
+
+    def slow(bike_id):
+        raise httpx.ReadTimeout("The read operation timed out")
+
+    monkeypatch.setattr("app.services.sync_service.backfill_bike", slow)
+
+    response = signed_in_client.post(f"/bikes/{paired.id}/strava-reimport", follow_redirects=False)
+
+    assert response.status_code == 502
+    assert "Strava" in response.text and "try again" in response.text.lower()

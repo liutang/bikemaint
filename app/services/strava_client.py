@@ -61,6 +61,9 @@ class StravaGearAccessError(Exception):
     """Strava answered but left the gear list out: the token lacks the `profile:read_all` scope."""
 
 
+ACTIVITIES_TIMEOUT_SECONDS = 60.0
+
+
 def get_athlete_gear(access_token: str) -> list[dict]:
     """Fetch the connected athlete's Strava gear entries (research.md §2: `GET /athlete` → `bikes[]`).
 
@@ -94,6 +97,7 @@ def get_activities(
             f"{STRAVA_API_BASE_URL}/athlete/activities",
             headers={"Authorization": f"Bearer {access_token}"},
             params=params,
+            timeout=ACTIVITIES_TIMEOUT_SECONDS,  # full-history pages can take longer than httpx's 5s
         )
         response.raise_for_status()
         batch = response.json()

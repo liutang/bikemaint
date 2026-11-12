@@ -222,13 +222,20 @@ def add_part(
     component_type: str,
     parents: dict[str, int | None],
     before_component_id: int | None = None,
+    installed_at: str | None = None,
 ) -> Component:
-    """Create a new part from the palette inside this screen's scope, or in storage."""
+    """Create a new part from the palette inside this screen's scope, or in storage.
+
+    `installed_at` (default now) is when it went on the parent; it is ignored for storage.
+    """
     ids = scope_component_ids(root)
     _check_parent_in_scope(root, ids, parents)  # storage (no parent) is always allowed
     try:
         return component_service.mount_new_component(
-            component_type, before_component_id=before_component_id, **parents
+            component_type,
+            before_component_id=before_component_id,
+            installed_at=installed_at if any(parents.values()) else None,
+            **parents,
         )
     except LookupError as exc:
         raise ValueError("That place no longer exists.") from exc

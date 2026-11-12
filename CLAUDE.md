@@ -70,3 +70,5 @@ Consult `contracts/routes.md` for the full intended HTTP surface (page routes vs
 A Codex CLI config was found at `~/.codex/config.toml`. If you want to import any of it (MCP servers, slash commands, subagents, skills, instructions) into Claude Code, run `/import` to see what's importable, then `/import --yes=<digest>` to apply it.
 
 Ride log (feature 006 M3): rides live in `ride_activity` (source `strava`|`manual`, `user_modified`, `deleted_by_user`); Strava upserts never overwrite a user-modified or user-deleted ride; `ride_service` owns CRUD and recomputes bike and part mileage.
+
+Install history (feature 015): `component_history_service` owns install dates (`moment`, `installed_at` on add via `/builder/add`) and manual periods at `/components/{id}/install-history` and `/install-periods/{id}`; periods of one part may not overlap and mileage is recomputed after every change.

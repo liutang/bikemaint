@@ -291,3 +291,94 @@ def resolve_top_bike_id(conn: sqlite3.Connection, parent_component_id: int) -> i
             return row["parent_bike_id"]
         current_id = row["parent_component_id"]
     return None
+
+
+def list_periods(conn: sqlite3.Connection, component_id: int) -> list[ComponentInstallationPeriod]:
+    """Every installation period of a component, oldest first."""
+    rows = conn.execute(
+        "SELECT * FROM component_installation_period WHERE component_id = ? "
+        "ORDER BY installed_at, id",
+        (component_id,),
+    ).fetchall()
+    return [ComponentInstallationPeriod.from_row(row) for row in rows]
+
+
+def get_period(conn: sqlite3.Connection, period_id: int) -> ComponentInstallationPeriod | None:
+    row = conn.execute(
+        "SELECT * FROM component_installation_period WHERE id = ?", (period_id,)
+    ).fetchone()
+    return ComponentInstallationPeriod.from_row(row) if row else None
+
+
+def insert_period(
+    conn: sqlite3.Connection,
+    component_id: int,
+    *,
+    parent_bike_id: int | None,
+    parent_component_id: int | None,
+    installed_at: str,
+    removed_at: str | None,
+) -> ComponentInstallationPeriod:
+    cursor = conn.execute(
+        """
+        INSERT INTO component_installation_period (
+            component_id, parent_bike_id, parent_component_id, installed_at, removed_at
+        ) VALUES (?, ?, ?, ?, ?)
+        """,
+        (component_id, parent_bike_id, parent_component_id, installed_at, removed_at),
+    )
+    period = get_period(conn, cursor.lastrowid)
+    assert period is not None
+    return period
+
+
+def update_period(
+    conn: sqlite3.Connection,
+    period_id: int,
+    *,
+    parent_bike_id: int | None,
+    parent_component_id: int | None,
+    installed_at: str,
+    removed_at: str | None,
+) -> ComponentInstallationPeriod:
+    conn.execute(
+        """
+        UPDATE component_installation_period
+        SET parent_bike_id = ?, parent_component_id = ?, installed_at = ?, removed_at = ?
+        WHERE id = ?
+        """,
+        (parent_bike_id, parent_component_id, installed_at, removed_at, period_id),
+    )
+    period = get_period(conn, period_id)
+    assert period is not None
+    return period
+
+
+def delete_period(conn: sqlite3.Connection, period_id: int) -> None:
+    conn.execute("DELETE FROM component_installation_period WHERE id = ?", (period_id,))
+
+
+def find_overlapping_period(
+    conn: sqlite3.Connection,
+    component_id: int,
+    *,
+    installed_at: str,
+    removed_at: str | None,
+    exclude_period_id: int | None = None,
+) -> ComponentInstallationPeriod | None:
+    """A period of this component that overlaps [installed_at, removed_at) (None = open-ended).
+
+    Periods that merely touch (one ends when the next starts) do not overlap.
+    """
+    row = conn.execute(
+        """
+        SELECT * FROM component_installation_period
+        WHERE component_id = ?
+          AND id != COALESCE(?, -1)
+          AND installed_at < COALESCE(?, '9999-12-31T00:00:00.000000Z')
+          AND COALESCE(removed_at, '9999-12-31T00:00:00.000000Z') > ?
+        LIMIT 1
+        """,
+        (component_id, exclude_period_id, removed_at, installed_at),
+    ).fetchone()
+    return ComponentInstallationPeriod.from_row(row) if row else None

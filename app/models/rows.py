@@ -26,6 +26,7 @@ class Account:
     strava_sync_enabled: bool = True
     strava_sync_interval_minutes: int | None = None
     timezone: str = "UTC"
+    strava_last_synced_at: str | None = None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Account:
@@ -44,6 +45,7 @@ class Account:
             strava_sync_enabled=bool(row["strava_sync_enabled"]),
             strava_sync_interval_minutes=row["strava_sync_interval_minutes"],
             timezone=row["timezone"],
+            strava_last_synced_at=row["strava_last_synced_at"],
         )
 
 

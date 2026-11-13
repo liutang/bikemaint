@@ -130,3 +130,10 @@ def update_timezone(conn: sqlite3.Connection, account_id: int, timezone: str) ->
         "UPDATE account SET timezone = ?, updated_at = ? WHERE id = ?",
         (timezone, _now(), account_id),
     )
+
+
+def mark_synced(conn: sqlite3.Connection, account_id: int) -> None:
+    """Record that a Strava sync run just finished successfully (found rides or not)."""
+    conn.execute(
+        "UPDATE account SET strava_last_synced_at = ? WHERE id = ?", (_now(), account_id)
+    )

@@ -21,3 +21,17 @@ def test_mileage_routes_redirect_unauthenticated_requests_to_login(client, metho
 
     assert response.status_code == 303
     assert response.headers["location"] == "/login"
+
+
+# ------------------------------------------------ specs/003 FR-006a
+
+
+def test_the_top_bar_says_synced_just_now_after_a_sync_that_found_nothing(signed_in_client, monkeypatch):
+    from app.services import strava_client
+
+    monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: [])
+    assert "Not synced yet" in signed_in_client.get("/").text
+
+    signed_in_client.post("/sync/strava", follow_redirects=False)
+
+    assert "Synced just now" in signed_in_client.get("/").text

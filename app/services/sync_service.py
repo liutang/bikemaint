@@ -93,6 +93,7 @@ def sync_incremental(account_id: int) -> None:
         touched_bike_ids = _upsert_activities(conn, activities)
         for bike_id in touched_bike_ids:
             _recompute_bike_and_its_components(conn, bike_id)
+        accounts_db.mark_synced(conn, account_id)
     logger.info(
         "Strava incremental sync finished account_id=%s activities=%s bikes_updated=%s",
         account_id,
@@ -117,6 +118,7 @@ def backfill_bike(bike_id: int) -> None:
     with get_connection() as conn:
         _upsert_activities(conn, activities)
         _recompute_bike_and_its_components(conn, bike_id)
+        accounts_db.mark_synced(conn, account.id)
     logger.info(
         "Strava backfill finished bike_id=%s activities_fetched=%s", bike_id, len(activities)
     )

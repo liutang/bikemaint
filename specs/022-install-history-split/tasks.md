@@ -31,6 +31,12 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`.
 - [x] T008 Update `specs/015-component-install-history/spec.md` (FR-009 superseded: no maintenance events), `specs/015-component-install-history/contracts/routes.md` and the 001/015 contract cross-links for the new route; update `CLAUDE.md` (maintenance history is service-only; bike and part Install History; migration 0010).
 - [x] T009 Full suite: 950 passed. Analysis: every FR (001–009) maps to a test (FR-001/003 `test_part_events.py`, FR-002 `test_remove_part_events.py`, FR-004/FR-005/FR-006/FR-007/FR-008/FR-009 the db, service and router tests); route coverage re-walked, no uncontracted route. No CRITICAL/HIGH findings. LOW: the new screen's look and the manual quickstart were not checked in a browser by Claude; migration 0010 deletes data on first start, which is intended but not reversible (the rider may want a backup of the data volume before pulling).
 
+## Phase 5: Amendment from user testing (branch 024-bike-install-history-editable)
+
+- [ ] T010 [US4] Tests first: `tests/routers/test_component_history.py` (bike page shows "Log a period" and per-row Edit/Delete rules; `GET /bikes/{id}/install-history/new` and `POST /bikes/{id}/install-history` log a period for a chosen part on that bike, redirect back to the bike history, recompute mileage, and re-show the form with a message for each invalid case; edit and delete with `?from_bike=ID` return to the bike's history, without it to the part's; deleted parts have no Edit/Delete; sign-in required; the part's own history shows the same period), `tests/services/test_component_service.py` (`list_all_parts` returns active parts only, by name). Watch them fail.
+- [ ] T011 [US4] `app/db/components.py` `list_active`; `app/services/component_service.py` `list_all_parts`; `app/routers/component_history.py` (new bike form and create routes; optional `from_bike` on the edit, update and delete routes with validated integer and safe redirect); `app/templates/bikes/install_history.html` ("Log a period", Edit, Delete); `app/templates/bikes/install_period_form.html` (part chooser, optional inside-part chooser, dates); `app/templates/components/install_period_form.html` (carry `from_bike` in the action and Cancel link).
+- [ ] T012 Update `specs/022-install-history-split/contracts/routes.md` and `CLAUDE.md`; full suite; analysis; PR; merge; confirm publish.
+
 ## Dependencies
 
 - T001 → T002 → T003 → T004 (red, then the migration and the removals).

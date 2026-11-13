@@ -82,3 +82,9 @@ def test_minutes_split_into_hours_and_minutes_for_the_form(minutes, expected):
 @pytest.mark.parametrize("minutes,text", [(5, "5 min"), (60, "1 h"), (90, "1 h 30 min"), (135, "2 h 15 min"), (10080, "168 h")])
 def test_the_interval_reads_back_in_hours_and_minutes(minutes, text):
     assert settings_service.describe_interval(minutes) == text
+
+
+def test_set_timezone_saves_the_zone(account):
+    settings_service.set_timezone(account.id, "Europe/London")
+
+    assert settings_service.get_account(account.id).timezone == "Europe/London"

@@ -34,7 +34,7 @@
     <button class="btn btn-primary" type="submit">Reconnect</button>
   </form>
   {% else %}
-  <p><span class="badge badge-ok">{{ ui_icons.check() }}Connected</span> since {{ account.strava_connected_at }}.</p>
+  <p><span class="badge badge-ok">{{ ui_icons.check() }}Connected</span> since {{ account.strava_connected_at|local_time }}.</p>
   {% endif %}
 
   <h3 id="sync-heading">Automatic sync</h3>
@@ -65,6 +65,18 @@
   <form class="form" method="post" action="/settings/notifications">
     {{ field("notification_lead_time_days", "Notify this many days before something is due", account.notification_lead_time_days, values, field_errors, type="number", min=0, required=true) }}
     {{ submit("Save lead time") }}
+  </form>
+</section>
+
+<section class="panel" aria-labelledby="timezone-heading">
+  <h2 id="timezone-heading">Time zone</h2>
+  <p class="text-muted">Currently {{ account.timezone }}. Times the app records itself (Strava rides, completed tasks, when Strava was connected) are shown in this zone. Times you type are shown exactly as typed.</p>
+  <form class="form" method="post" action="/settings/timezone">
+    {{ field("timezone", "Time zone", account.timezone, values, field_errors, list="timezone-list", hint="Type or choose a name such as America/Los_Angeles.") }}
+    <datalist id="timezone-list">
+      {% for name in timezones %}<option value="{{ name }}">{% endfor %}
+    </datalist>
+    {{ submit("Save time zone") }}
   </form>
 </section>
 {% endblock %}

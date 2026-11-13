@@ -7,6 +7,8 @@ queries — it only translates HTTP concerns to/from `app/services/settings_serv
 
 from __future__ import annotations
 
+from zoneinfo import available_timezones
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
@@ -16,6 +18,7 @@ from app.models.requests import (
     LeadTimeSettingsRequest,
     SyncSettingsRequest,
     ThemeSettingsRequest,
+    TimezoneSettingsRequest,
     WebhookSettingsRequest,
 )
 from app.services import settings_service
@@ -40,7 +43,12 @@ def _settings_page(
         "interval_minutes": minutes,
         "interval_text": settings_service.describe_interval(settings_service.effective_sync_interval(account)),
     }
-    return _render(request, "settings/index.html", {"account": account, "sync": sync, **page}, status_code)
+    return _render(
+        request,
+        "settings/index.html",
+        {"account": account, "sync": sync, "timezones": sorted(available_timezones()), **page},
+        status_code,
+    )
 
 
 @router.get("/settings", name="settings_index")
@@ -69,6 +77,18 @@ async def update_strava_sync_settings(request: Request, account=Depends(require_
     settings_service.set_sync_settings(
         account.id, enabled=payload.sync_enabled, interval_minutes=payload.total_minutes
     )
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/timezone", name="update_timezone_setting")
+async def update_timezone_setting(request: Request, account=Depends(require_account)):
+    """The zone UTC-recorded times are shown in (display only; specs/023)."""
+    form = await request.form()
+    try:
+        payload = TimezoneSettingsRequest(timezone=form.get("timezone", ""))
+    except ValidationError as exc:
+        return _settings_page(request, account.id, error_context(form, exc), 422)
+    settings_service.set_timezone(account.id, payload.timezone)
     return RedirectResponse(url="/settings", status_code=303)
 
 

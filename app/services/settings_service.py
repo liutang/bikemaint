@@ -7,7 +7,7 @@ import logging
 from app.db import accounts as accounts_db
 from app.db.connection import get_connection
 from app.models.rows import Account
-from app.services import scheduler
+from app.services import clock_service, scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -60,3 +60,10 @@ def describe_interval(minutes: int) -> str:
     hours, rest = split_minutes(minutes)
     parts = ([f"{hours} h"] if hours else []) + ([f"{rest} min"] if rest else [])
     return " ".join(parts) or "0 min"
+
+
+def set_timezone(account_id: int, timezone: str) -> None:
+    """Save the time zone used to show UTC-recorded times (display only)."""
+    with get_connection() as conn:
+        accounts_db.update_timezone(conn, account_id, timezone)
+    clock_service.remember_zone(timezone)

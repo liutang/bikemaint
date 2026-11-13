@@ -154,3 +154,39 @@ def test_the_manual_sync_still_works_when_automatic_sync_is_off(client, monkeypa
     response = client.post("/sync/strava", follow_redirects=False)
 
     assert response.status_code == 303 and len(calls) == 1
+
+
+# ------------------------------------------------ specs/023: time zone
+
+
+def test_the_time_zone_section_shows_utc_until_one_is_chosen(client, monkeypatch):
+    _login(client, monkeypatch)
+
+    html = client.get("/settings").text
+
+    assert 'name="timezone"' in html and "UTC" in html and '<datalist id="timezone-list">' in html
+    assert '<option value="America/Los_Angeles">' in html
+
+
+def test_saving_a_zone_stores_it_and_shows_connected_since_in_it(client, monkeypatch):
+    _login(client, monkeypatch)
+    account = _account_now()
+
+    response = client.post("/settings/timezone", data={"timezone": "America/Los_Angeles"}, follow_redirects=False)
+
+    assert (response.status_code, response.headers["location"]) == (303, "/settings")
+    assert _account_now().timezone == "America/Los_Angeles"
+    html = client.get("/settings").text
+    assert "America/Los_Angeles" in html and re.search(r"since \d{4}-\d\d-\d\d \d\d:\d\d P[SD]T", html)
+    assert account.strava_connected_at[:4] in html
+
+
+@pytest.mark.parametrize("name", ["", "Mars/Olympus", "america/los_angeles"])
+def test_an_unknown_zone_is_refused_with_a_message_beside_the_field(client, monkeypatch, name):
+    _login(client, monkeypatch)
+
+    response = client.post("/settings/timezone", data={"timezone": name})
+
+    assert response.status_code == 422
+    assert 'id="timezone-error"' in response.text
+    assert _account_now().timezone == "UTC"

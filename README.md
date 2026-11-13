@@ -30,7 +30,7 @@ Authorization Callback Domain to the host you will run this on (e.g. `localhost`
 | `STRAVA_CLIENT_SECRET` | yes | Strava API application client secret |
 | `SESSION_SECRET_KEY` | yes | Random secret used to sign the session cookie |
 | `DATABASE_PATH` | yes | Path to the SQLite database file (created and migrated on startup) |
-| `STRAVA_SYNC_INTERVAL_MINUTES` | no | How often to poll Strava for new rides (default `30`) |
+| `STRAVA_SYNC_INTERVAL_MINUTES` | no | First-run default for how often to poll Strava (default `30`); once you save an interval or turn sync off in Settings → Strava connection, the saved setting wins |
 | `NOTIFICATION_CHECK_INTERVAL_MINUTES` | no | How often to check for due-soon maintenance (default `60`) |
 | `LOG_LEVEL` | no | Python log level (default `INFO`) |
 

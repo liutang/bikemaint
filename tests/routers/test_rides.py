@@ -90,7 +90,25 @@ def test_strava_ride_times_are_converted_to_local_time_and_manual_ones_shown_as_
     rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
 
     assert "2026-09-02 07:30" in rows[1] and "<time" not in rows[1]
-    assert '<time data-local datetime="2026-09-01T08:00:00.000000Z">' in rows[2]
+    assert '<time datetime="2026-09-01T08:00:00.000000Z">2026-09-01 08:00 UTC</time>' in rows[2]
+
+
+def test_strava_ride_times_follow_the_chosen_time_zone(signed_in_client):
+    from app.db import accounts
+    from app.services import settings_service
+
+    with connection.get_connection() as conn:
+        account = accounts.get_singleton(conn)
+    settings_service.set_timezone(account.id, "America/Los_Angeles")
+    bike = _bike()
+    _strava(bike, 1, 10, when="2026-09-01T18:00:00.000000Z")
+    ride_service.create_ride(bike.id, day=__import__("datetime").date(2026, 9, 2), time="07:30", miles=5, note=None)
+
+    rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
+
+    assert "2026-09-01 11:00 PDT" in rows[2]  # converted
+    assert "2026-09-02 07:30" in rows[1] and "PDT" not in rows[1]  # typed: shown as typed
+    assert "data-local" not in "".join(rows)
 
 
 def test_every_ride_row_can_be_edited_or_deleted_and_the_start_row_links_to_the_bike_edit(signed_in_client):

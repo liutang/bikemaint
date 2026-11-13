@@ -8,7 +8,7 @@
 {%- if error or hint %} aria-describedby="{% if hint %}{{ name }}-hint{% endif %}{% if hint and error %} {% endif %}{% if error %}{{ name }}-error{% endif %}"{% endif -%}
 {%- endmacro %}
 
-{% macro field(name, label, default="", values=none, field_errors=none, type="text", hint=none, required=false, step=none, min=none) -%}
+{% macro field(name, label, default="", values=none, field_errors=none, type="text", hint=none, required=false, step=none, min=none, max=none) -%}
 {% set error = field_errors[name] if field_errors and name in field_errors else none %}
 <div class="field{% if error %} has-error{% endif %}">
   <label for="{{ name }}">{{ label }}</label>
@@ -16,6 +16,7 @@
          {%- if required %} required{% endif %}
          {%- if step %} step="{{ step }}"{% endif %}
          {%- if min is not none %} min="{{ min }}"{% endif %}
+         {%- if max is not none %} max="{{ max }}"{% endif %}
          {%- if error %} aria-invalid="true"{% endif %}{{ _describedby(name, hint, error) }}>
   {% if hint %}<small class="field-hint" id="{{ name }}-hint">{{ hint }}</small>{% endif %}
   {% if error %}<p class="field-error" id="{{ name }}-error">{{ error }}</p>{% endif %}

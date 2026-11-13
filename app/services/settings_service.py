@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import logging
+
 from app.db import accounts as accounts_db
 from app.db.connection import get_connection
 from app.models.rows import Account
+from app.services import scheduler
+
+logger = logging.getLogger(__name__)
 
 
 def get_account(account_id: int) -> Account:
@@ -23,3 +28,35 @@ def set_webhook_url(account_id: int, url: str | None) -> None:
 def set_lead_time_days(account_id: int, days: int) -> None:
     with get_connection() as conn:
         accounts_db.update_lead_time_days(conn, account_id, days)
+
+
+def set_sync_settings(account_id: int, *, enabled: bool, interval_minutes: int) -> None:
+    """Save the automatic Strava sync switch and interval and apply them to the running scheduler."""
+    with get_connection() as conn:
+        accounts_db.update_sync_settings(
+            conn, account_id, enabled=enabled, interval_minutes=interval_minutes
+        )
+    scheduler.apply_sync_settings(enabled, interval_minutes)
+    logger.info(
+        "Strava sync settings changed account_id=%s enabled=%s interval_minutes=%s",
+        account_id, enabled, interval_minutes,
+    )
+
+
+def effective_sync_interval(account: Account) -> int:
+    """The saved interval, else the server's default (`STRAVA_SYNC_INTERVAL_MINUTES`, 30)."""
+    if account.strava_sync_interval_minutes is not None:
+        return account.strava_sync_interval_minutes
+    return scheduler.default_sync_interval_minutes()
+
+
+def split_minutes(minutes: int) -> tuple[int, int]:
+    """Total minutes as (hours, minutes) for the form."""
+    return minutes // 60, minutes % 60
+
+
+def describe_interval(minutes: int) -> str:
+    """"1 h 30 min", "45 min", "2 h"."""
+    hours, rest = split_minutes(minutes)
+    parts = ([f"{hours} h"] if hours else []) + ([f"{rest} min"] if rest else [])
+    return " ".join(parts) or "0 min"

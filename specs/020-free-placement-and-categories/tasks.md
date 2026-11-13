@@ -34,7 +34,7 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`.
 
 - [x] T011 Run `.venv/bin/python -m pytest -q`; all tests pass.
 - [x] T012 `CLAUDE.md`: update the UI paragraph (placement rules and one-per-kind removed; palette is categorised; catalog in `app/models/component_kinds.py` carries names and categories). Add "superseded for placement by 020" notes to the Assumptions of `specs/004-bike-builder/spec.md` and `specs/005-unified-bike-screen/spec.md`.
-- [ ] T013 Run `/speckit-analyze` for 020 and resolve CRITICAL/HIGH findings; run quickstart.md manually against the rebuilt container.
+- [x] T013 Ran `/speckit-analyze` for 020: no CRITICAL or HIGH findings. MEDIUM: part count was 34 not 36 (fixed); removing the rules dropped the missing-parent refusal (fixed, T014). LOW: FR-006/FR-010 are native `<details>` behavior asserted structurally only. **Not done**: manual quickstart and a visual check of the new palette CSS in a browser (blocked in this session); verified by tests only.
 
 ## Added during implementation
 

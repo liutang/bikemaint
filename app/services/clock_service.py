@@ -8,7 +8,7 @@ as typed. Callable without FastAPI or request objects.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from app.db import accounts as accounts_db
@@ -70,3 +70,68 @@ def now_in_zone_moment() -> str:
     are stored, which stay in UTC).
     """
     return datetime.now(_zone()).replace(tzinfo=None).strftime(_STORED_FORMAT)
+
+
+# The time zone picker: one representative standard zone per common UTC offset, so the rider
+# chooses "-05:00 EST" and daylight saving still follows the real region (EST becomes EDT).
+# Not a list of countries and cities. Order does not matter here; choices are sorted by offset.
+_PICKER_ZONES: tuple[str, ...] = (
+    "Pacific/Pago_Pago", "Pacific/Honolulu", "America/Anchorage", "America/Los_Angeles",
+    "America/Denver", "America/Phoenix", "America/Chicago", "America/New_York",
+    "America/Halifax", "America/St_Johns", "America/Sao_Paulo", "Atlantic/South_Georgia",
+    "Atlantic/Azores", "Europe/London", "UTC", "Europe/Paris", "Europe/Athens",
+    "Europe/Moscow", "Asia/Tehran", "Asia/Dubai", "Asia/Kabul", "Asia/Karachi",
+    "Asia/Kolkata", "Asia/Kathmandu", "Asia/Dhaka", "Asia/Yangon", "Asia/Bangkok",
+    "Asia/Shanghai", "Asia/Tokyo", "Australia/Adelaide", "Australia/Sydney",
+    "Pacific/Noumea", "Pacific/Auckland",
+)
+# Where a common region shares an offset and abbreviation with another but never changes clocks.
+_NO_DST_NOTE = {"America/Phoenix"}
+
+
+def _standard_time(name: str) -> datetime:
+    """A moment in the zone's standard (non-summer) time: the smaller of its January and July offsets."""
+    zone = ZoneInfo(name)
+    january = datetime(2026, 1, 15, 12, tzinfo=zone)
+    july = datetime(2026, 7, 15, 12, tzinfo=zone)
+    return january if january.utcoffset() <= july.utcoffset() else july
+
+
+def standard_offset_minutes(name: str) -> int:
+    return int(_standard_time(name).utcoffset() / timedelta(minutes=1))
+
+
+def _offset_text(minutes: int) -> str:
+    sign = "-" if minutes < 0 else "+"
+    hours, rest = divmod(abs(minutes), 60)
+    return f"{sign}{hours:02d}:{rest:02d}"
+
+
+def _label(name: str) -> str:
+    standard = _standard_time(name)
+    text = _offset_text(standard_offset_minutes(name))
+    abbreviation = standard.tzname() or ""
+    if abbreviation and not abbreviation[0] in "+-":
+        text += f" {abbreviation}"
+    if name in _NO_DST_NOTE:
+        text += " (no daylight saving)"
+    return text
+
+
+def timezone_choices(current: str) -> list[dict[str, str]]:
+    """The picker's options as `{value, label}`, ordered by offset.
+
+    A saved zone that is not in the list is added first, marked "Current: ...", so it stays
+    selectable and saving the form unchanged keeps it.
+    """
+    choices = [
+        {"value": name, "label": _label(name)}
+        for name in sorted(_PICKER_ZONES, key=lambda n: (standard_offset_minutes(n), n != "Europe/London", n))
+    ]
+    if current not in _PICKER_ZONES:
+        try:
+            extra = f"Current: {_label(current)} ({current})"
+        except Exception:
+            extra = f"Current: {current}"
+        choices.insert(0, {"value": current, "label": extra})
+    return choices

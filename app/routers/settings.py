@@ -7,8 +7,6 @@ queries — it only translates HTTP concerns to/from `app/services/settings_serv
 
 from __future__ import annotations
 
-from zoneinfo import available_timezones
-
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
@@ -21,7 +19,7 @@ from app.models.requests import (
     TimezoneSettingsRequest,
     WebhookSettingsRequest,
 )
-from app.services import settings_service
+from app.services import clock_service, settings_service
 from app.services.auth_dependency import require_account
 
 router = APIRouter()
@@ -43,10 +41,18 @@ def _settings_page(
         "interval_minutes": minutes,
         "interval_text": settings_service.describe_interval(settings_service.effective_sync_interval(account)),
     }
+    choices = clock_service.timezone_choices(account.timezone)
+    timezone_label = next(c["label"] for c in choices if c["value"] == account.timezone)
     return _render(
         request,
         "settings/index.html",
-        {"account": account, "sync": sync, "timezones": sorted(available_timezones()), **page},
+        {
+            "account": account,
+            "sync": sync,
+            "timezone_choices": choices,
+            "timezone_label": timezone_label.removeprefix("Current: "),
+            **page,
+        },
         status_code,
     )
 

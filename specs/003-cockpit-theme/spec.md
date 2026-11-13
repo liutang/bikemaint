@@ -104,6 +104,7 @@ As the rider, I want a Theme setting in Settings with System (default), Light an
 - **FR-004**: Status colors MUST be distinct from the accent: overdue red, due soon gold, on track green, no estimate / low confidence grey; every status MUST also carry an icon and a text label.
 - **FR-005**: Headings and body text MUST use the Cockpit typefaces (a geometric display face for headings, a neutral sans for body) with a sensible system fallback, and the app MUST NOT make runtime requests to external font or style services.
 - **FR-006**: Every signed-in page MUST show a top bar with the logo, pill navigation to Garage, Maintenance due and Settings (current page highlighted), a last-sync indicator, and sign out; the sign-in page MUST use the same look without protected navigation.
+- **FR-006a**: The last-sync indicator MUST show when the most recent Strava sync run completed successfully, whether or not it found any new or changed rides, so it keeps moving while syncs run on schedule. A sync that fails (or is skipped because the connection is stale) MUST NOT move it. Before any such run has been recorded, it falls back to the newest ride sync time. *(Added after user testing, 2026-11-13: it showed "1 d ago" while syncs were running every 15 minutes, because it was derived from ride rows that only change when a ride does.)*
 - **FR-007**: The Maintenance due page MUST be titled "What needs attention" and present urgent tasks (overdue and due soon) as cards ordered overdue-first, then by most overdue or soonest due.
 - **FR-008**: Each urgent card MUST show a progress ring, task name, bike or component owner, due date and a Mark done button. An overdue ring MUST be completely filled in red and labelled with days late; a due-soon ring MUST show a gold arc proportional to how close the due date is within the notification lead time, labelled with days left.
 - **FR-009**: At most six tiles MUST appear in the urgent area; when more than six tasks are urgent, the first five MUST be cards and the sixth tile MUST be "+N more tasks" with a View all control that reveals every urgent task.
@@ -149,3 +150,6 @@ This feature changes presentation only. It reads existing schedule status (overd
 - Existing partial-update behavior (Mark done, alert dismissal, delete confirmation) is reused; no new routes are needed.
 - The theme choice is stored per browser (a cookie), not per account, so each device can differ; this needs no database change.
 - Supported browsers are the latest two major versions of Chrome, Safari, Firefox and Edge.
+
+## Amendments
+- **2026-11-13 (branch `026-last-sync-time`)**: FR-006a added; the indicator now reads a recorded last-successful-sync time on the account instead of the newest ride row.

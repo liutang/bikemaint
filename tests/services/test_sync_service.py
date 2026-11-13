@@ -205,3 +205,69 @@ def test_backfill_twice_does_not_duplicate_rides(db_path, monkeypatch):
 
     with connection.get_connection() as conn:
         assert len(mileage.list_rides_for_bike(conn, bike.id)) == 1
+
+
+# ------------------------------------------------ specs/003 FR-006a: record when a sync run succeeds
+
+
+def _last_synced(account_id):
+    with connection.get_connection() as conn:
+        return accounts.get_by_id(conn, account_id).strava_last_synced_at
+
+
+def test_a_successful_sync_with_no_rides_still_records_the_time(db_path, monkeypatch):
+    account = _connected_account()
+    monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: [])
+
+    sync_service.sync_incremental(account.id)
+
+    assert _last_synced(account.id) is not None
+
+
+def test_each_successful_run_moves_the_time_forward(db_path, monkeypatch):
+    account = _connected_account()
+    monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: [])
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE account SET strava_last_synced_at = '2020-01-01T00:00:00.000000Z'")
+
+    sync_service.sync_incremental(account.id)
+
+    assert _last_synced(account.id) > "2026-01-01"
+
+
+def test_a_sync_that_fails_does_not_record_the_time(db_path, monkeypatch):
+    account = _connected_account()
+
+    def down(access_token, **kwargs):
+        raise strava_client.StravaUnavailableError("timed out")
+
+    monkeypatch.setattr(strava_client, "get_activities", down)
+
+    with pytest.raises(strava_client.StravaUnavailableError):
+        sync_service.sync_incremental(account.id)
+
+    assert _last_synced(account.id) is None
+
+
+def test_a_sync_skipped_for_a_stale_connection_does_not_record_the_time(db_path, monkeypatch):
+    account = _connected_account()
+
+    def stale(_account):
+        raise strava_client.StravaTokenRefreshError("revoked")
+
+    monkeypatch.setattr(strava_client, "ensure_fresh_access_token", stale)
+
+    sync_service.sync_incremental(account.id)
+
+    assert _last_synced(account.id) is None
+
+
+def test_a_backfill_records_the_time(db_path, monkeypatch):
+    account = _connected_account()
+    bike = bike_service.create_bike(name="Road Bike")
+    _pair_bike_to_gear(bike.id, "gear-2")
+    monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: [])
+
+    sync_service.backfill_bike(bike.id)
+
+    assert _last_synced(account.id) is not None

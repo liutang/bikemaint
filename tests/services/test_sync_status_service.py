@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.db import connection, mileage
+from app.db import accounts, connection, mileage
 from app.services import sync_status_service
 
 NOW = datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc)
@@ -45,3 +45,48 @@ def test_last_sync_label_reads_the_database(db_path):
         )
         conn.execute("UPDATE ride_activity SET synced_at = ?", (_stamp(timedelta(minutes=30)),))
     assert sync_status_service.last_sync_label(now=NOW) == "Synced 30 min ago"
+
+
+# ------------------------------------------------ specs/003 FR-006a
+
+
+def _set_last_synced(value):
+    with connection.get_connection() as conn:
+        accounts.upsert_from_strava(
+            conn, strava_athlete_id=1, access_token="a", refresh_token="r",
+            expires_at="2099-01-01T00:00:00.000000Z",
+        )
+        conn.execute("UPDATE account SET strava_last_synced_at = ?", (value,))
+
+
+def test_the_label_follows_the_recorded_sync_even_when_no_ride_changed(db_path):
+    connection.run_migrations()
+    with connection.get_connection() as conn:
+        mileage.upsert_ride_activity(
+            conn, strava_activity_id=9, strava_gear_id=None, bike_id=None,
+            distance_miles=1.0, occurred_at="2026-10-01T08:00:00.000000Z",
+        )
+        conn.execute("UPDATE ride_activity SET synced_at = ?", (_stamp(timedelta(days=1)),))
+    _set_last_synced(_stamp(timedelta(minutes=5)))
+
+    assert sync_status_service.last_sync_label(now=NOW) == "Synced 5 min ago"
+
+
+def test_the_label_falls_back_to_the_newest_ride_sync_before_any_run_is_recorded(db_path):
+    connection.run_migrations()
+    with connection.get_connection() as conn:
+        mileage.upsert_ride_activity(
+            conn, strava_activity_id=9, strava_gear_id=None, bike_id=None,
+            distance_miles=1.0, occurred_at="2026-10-01T08:00:00.000000Z",
+        )
+        conn.execute("UPDATE ride_activity SET synced_at = ?", (_stamp(timedelta(hours=3)),))
+    _set_last_synced(None)
+
+    assert sync_status_service.last_sync_label(now=NOW) == "Synced 3 h ago"
+
+
+def test_the_label_says_not_synced_when_nothing_is_recorded_anywhere(db_path):
+    connection.run_migrations()
+    _set_last_synced(None)
+
+    assert sync_status_service.last_sync_label(now=NOW) == "Not synced yet"

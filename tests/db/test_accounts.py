@@ -93,3 +93,17 @@ def test_sync_settings_and_timezone_are_saved(db_path):
 
     assert (saved.strava_sync_enabled, saved.strava_sync_interval_minutes) == (False, 90)
     assert saved.timezone == "America/Los_Angeles"
+
+
+# ------------------------------------------------ specs/003 FR-006a: last successful sync
+
+
+def test_a_new_account_has_no_recorded_sync_and_mark_synced_records_the_time(db_path):
+    with connection.get_connection() as conn:
+        account = _account(conn)
+        assert account.strava_last_synced_at is None
+
+        accounts.mark_synced(conn, account.id)
+        saved = accounts.get_by_id(conn, account.id)
+
+    assert saved.strava_last_synced_at.endswith("Z") and saved.strava_last_synced_at[:4] >= "2026"

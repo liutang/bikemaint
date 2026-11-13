@@ -140,3 +140,10 @@ Single project; existing `app/` and `tests/` layout. Plain CSS in `app/static/st
 ## Implementation Strategy
 
 MVP = Phases 1–3 (theme + shell). Then the attention page (largest behavior change), then the remaining screens. Commit per phase.
+
+## Amendment from user testing (branch 026-last-sync-time)
+
+- [x] T101 Tests first (`tests/db/test_accounts.py`, `tests/services/test_sync_service.py`, `tests/services/test_sync_status_service.py`, `tests/routers/test_mileage.py`): a successful sync run records the time even with no rides, failed and stale-skipped runs do not, backfill records it, the label prefers it and falls back to the newest ride sync. Watch fail.
+- [x] T102 Migration `0012_account_last_synced_at.sql`; `Account.strava_last_synced_at`; `accounts_db.mark_synced`; `sync_service.sync_incremental` and `backfill_bike` record it; `sync_status_service.last_sync_label` reads it. Full suite, PR, merge, confirm publish.
+
+Note: full suite 1071 passed. After upgrading, the label shows the old ride-based time until the first scheduled or manual sync run completes, then follows each run.

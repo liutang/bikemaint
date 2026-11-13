@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% from "partials/forms.html" import field, select_field, error_summary, submit %}
+
+{% block title %}Log a period — {{ bike.name }}{% endblock %}
+
+{% block content %}
+{% include "partials/breadcrumb.html" %}
+<h1>Log a past period</h1>
+<p class="text-muted">Record when a part was on <strong>{{ bike.name }}</strong>. Its mileage is the rides on each bike between install and removal, added together.</p>
+{{ error_summary(errors) }}
+<form class="panel form" method="post" action="/bikes/{{ bike.id }}/install-history">
+  {{ select_field("component_id", "Part", part_options, "", values, field_errors, hint="Any part you have not deleted.") }}
+  {{ select_field("parent_component_id", "Placed in", inside_options, "", values, field_errors, hint="Where on the bike it was mounted, for example a wheel.") }}
+  {{ field("installed_date", "Installed on", "", values, field_errors, type="date", required=true) }}
+  {{ field("installed_time", "Time (optional)", "", values, field_errors, type="time", hint="Blank counts as midnight.") }}
+  {{ field("removed_date", "Removed on", "", values, field_errors, type="date", required=true) }}
+  {{ field("removed_time", "Time (optional)", "", values, field_errors, type="time", hint="Blank counts as midnight.") }}
+  <div class="actions">
+    {{ submit("Save") }}
+    <a class="btn" href="/bikes/{{ bike.id }}/install-history">Cancel</a>
+  </div>
+</form>
+{% endblock %}

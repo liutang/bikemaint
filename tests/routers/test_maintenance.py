@@ -237,3 +237,16 @@ def test_a_completed_task_shows_in_the_chosen_time_zone(signed_in_client):
     row = _rows(signed_in_client.get(f"/bikes/{bike.id}/maintenance").text)[0]
 
     assert re.search(r"\d{4}-\d\d-\d\d \d\d:\d\d IST</time>", row)
+
+
+def test_logged_maintenance_stays_editable_and_deletable_after_the_install_history_split(signed_in_client):
+    bike = bike_service.create_bike(name="Road Bike")
+    entry = maintenance_service.log_maintenance(bike_id=bike.id, description="Waxed chain", performed_at="2026-05-01")
+    component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)  # logs nothing
+
+    row = _rows(signed_in_client.get(f"/bikes/{bike.id}/maintenance").text)[0]
+
+    assert "Waxed chain" in row
+    assert f'href="/maintenance/{entry.id}/edit">Edit</a>' in row
+    assert f'action="/maintenance/{entry.id}/delete"' in row
+    assert signed_in_client.get(f"/maintenance/{entry.id}/edit").status_code == 200

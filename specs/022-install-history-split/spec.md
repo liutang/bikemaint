@@ -60,8 +60,32 @@ As the rider, I want each bike to have an Install History showing every part add
 4. **Given** a part that moved from this bike to another, **When** each bike's Install History is viewed, **Then** the first shows the part removed at the move moment and the second shows it installed at that moment.
 5. **Given** a part row, **When** the rider selects the part's name, **Then** the part's own screen opens (where its Install History can be edited).
 6. **Given** a bike with no parts ever installed, **When** its Install History is opened, **Then** a short empty-state message is shown.
-7. **Given** the bike's Install History, **When** it is shown, **Then** it is read-only: there is no add, edit or delete control on it.
+7. **Given** the bike's Install History, **When** it is shown, **Then** the rider can add, edit and delete install periods from it, so past data can be entered retroactively (see User Story 4); each row for an existing part has Edit, and Delete when the part has been removed.
 8. **Given** the rider is not signed in, **When** the page is requested, **Then** sign-in is required, as for every other page.
+
+---
+
+---
+
+### User Story 4 - Edit Install History From the Bike (Priority: P2) *(added after user testing)*
+
+As the rider importing old data, I want to add, change and delete install periods straight from a bike's Install History, so I can record when parts were on this bike in the past without opening each part.
+
+**Why this priority**: The rider needs to back-fill history retroactively; doing it part by part is slow, and the bike screen is the natural place.
+
+**Independent Test**: On a bike's Install History choose "Log a period", pick a part, enter an install date and a removal date last spring, save: the row appears in the right place (newest installed first), and the part's own Install History and mileage reflect it.
+
+**Acceptance Scenarios**:
+
+1. **Given** a bike's Install History, **When** it is shown, **Then** a "Log a period" button is offered (also in the empty state).
+2. **Given** the Log a period form, **When** it opens, **Then** it names the bike, lets the rider choose any existing part, optionally the part on this bike it was inside, an install date and optional time, and a removal date and optional time.
+3. **Given** valid entries, **When** the rider saves, **Then** the period is recorded on this bike for that part, the rider returns to the bike's Install History, and the part's mileage is recalculated as for any period logged from the part.
+4. **Given** invalid entries (a removal not after the install, a time in the future, overlapping another period of the same part, an unknown part), **When** the rider saves, **Then** the form is shown again with a clear message beside the field and nothing is recorded.
+5. **Given** a row for an existing part, **When** the rider chooses Edit, **Then** the same edit form as the part's Install History opens, and after saving or cancelling the rider returns to the bike's Install History.
+6. **Given** a row for a part that has been removed, **When** the rider chooses Delete, **Then** the period is deleted and the rider returns to the bike's Install History; a part that is still installed cannot have its live period deleted by hand (as on the part).
+7. **Given** a row for a part that has since been deleted, **When** it is shown, **Then** it is listed without Edit or Delete (the part no longer exists to edit).
+8. **Given** edits made from a bike or from a part, **When** either Install History is viewed, **Then** both show the same periods.
+9. **Given** the rider is not signed in, **When** any of these pages is requested, **Then** sign-in is required.
 
 ---
 
@@ -85,7 +109,7 @@ As the rider, I want each bike to have an Install History showing every part add
 - **FR-005**: Each bike MUST have an Install History screen, reachable from an "Install history" button beside "Maintenance history" in the bike's action row, requiring sign-in.
 - **FR-006**: The bike's Install History MUST list every installation period of every part that has been on that bike, at any depth, newest installed first.
 - **FR-007**: Each row MUST show the part's name and kind (by its display name), where it was placed, the installed date and time, and the removed date and time or "Still installed", and MUST link to the part's screen.
-- **FR-008**: The bike's Install History MUST be read-only.
+- **FR-008**: The bike's Install History MUST let the rider log, edit and delete install periods, with the same validation, mileage recalculation and rules as on a part's Install History (no overlap, removal after install, not in the future, no hand-deleting a live period), and MUST return to the bike's Install History afterwards. *(Changed after user testing: it was first specified read-only.)*
 - **FR-009**: A bike with no install periods MUST show an empty-state message.
 
 ### Key Entities
@@ -108,3 +132,6 @@ As the rider, I want each bike to have an Install History showing every part add
 - Times are shown as stored, like the part Install History, with no zone conversion (timezone display is handled by a separate feature).
 - Automatic entries are identified by how they were recorded (their kind), not by their text.
 - This feature supersedes feature 006 FR-008 and the part-event scenarios in 006 User Story 2 (scenarios 1–3).
+
+## Amendments
+- **2026-11-12 (branch `024-bike-install-history-editable`)**: the rider needs to back-fill install durations when importing old data, so the bike's Install History is editable (User Story 4; scenario US3-7 and FR-008 changed). Maintenance history entries the rider logs remain editable and are unchanged; only the automatic add/remove rows were removed.

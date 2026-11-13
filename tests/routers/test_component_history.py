@@ -174,7 +174,7 @@ def test_the_empty_bike_history_says_so(signed_in_client):
     assert "No parts have been installed yet" in html and "<form" not in html.split("</header>")[-1]
 
 
-def test_the_bike_history_lists_parts_newest_first_read_only(signed_in_client):
+def test_the_bike_history_lists_parts_newest_first_with_edit_controls(signed_in_client):
     bike = bike_service.create_bike(name="Road")
     chain = component_service.create_component(name="Old chain", component_type="chain", parent_bike_id=bike.id)
     component_service.move_component(chain.id)  # to storage: closes its period
@@ -188,4 +188,199 @@ def test_the_bike_history_lists_parts_newest_first_read_only(signed_in_client):
     assert f'href="/components/{tire.id}"' in html and f'href="/components/{chain.id}"' in html
     assert "Front" not in html and 'class="chip">Chain</span>' in html
     body = html.split("<tbody>")[1]
-    assert "<form" not in body and "Edit" not in body and "Delete" not in body
+    assert body.count(">Edit</a>") == 3 and body.count(">Delete</button>") == 1  # only the removed chain
+    assert f"?from_bike={bike.id}" in body
+    assert f'href="/bikes/{bike.id}/install-history/new"' in html and "Log a period" in html
+
+
+
+
+# ------------------------------------------------ specs/022 US4: editing from the bike
+
+
+def _periods(component):
+    return history.list_history(component.id)
+
+
+def _period_form(**kw):
+    return {"installed_date": "2025-04-01", "installed_time": "", "removed_date": "2025-06-01",
+            "removed_time": "", "parent_component_id": "", **kw}
+
+
+@pytest.mark.parametrize(
+    "method,path",
+    [("get", "/bikes/1/install-history/new"), ("post", "/bikes/1/install-history")],
+)
+def test_the_new_bike_routes_require_sign_in(client, method, path):
+    response = getattr(client, method)(path, follow_redirects=False)
+    assert (response.status_code, response.headers["location"]) == (303, "/login")
+
+
+def test_unknown_bike_is_a_404_for_the_new_routes(signed_in_client):
+    assert signed_in_client.get("/bikes/99/install-history/new").status_code == 404
+    assert signed_in_client.post("/bikes/99/install-history", data={}).status_code == 404
+
+
+def test_the_empty_bike_history_still_offers_log_a_period(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/install-history").text
+
+    assert f'href="/bikes/{bike.id}/install-history/new"' in html
+
+
+def test_the_bike_form_names_the_bike_and_offers_active_parts_to_choose(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=bike.id)
+    gone = component_service.create_component(name="Gone", component_type="saddle")
+    component_service.delete_component(gone.id)
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/install-history/new").text
+
+    assert "Road" in html and 'name="component_id"' in html
+    assert f'<option value="{saddle.id}"' in html and "Gone" not in html
+    assert 'name="installed_date"' in html and 'name="removed_date"' in html
+    assert f'href="/bikes/{bike.id}/install-history">Cancel</a>' in html
+
+
+def test_logging_a_past_period_from_the_bike_records_it_and_returns_to_the_bike_history(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Old chain", component_type="chain")
+    _ride(bike, 1, 40, "2025-05-01T08:00:00.000000Z")
+
+    response = signed_in_client.post(
+        f"/bikes/{bike.id}/install-history", data=_period_form(component_id=str(chain.id)), follow_redirects=False
+    )
+
+    assert (response.status_code, response.headers["location"]) == (303, f"/bikes/{bike.id}/install-history")
+    (period,) = _periods(chain)
+    assert (period.parent_bike_id, period.installed_at[:10], period.removed_at[:10]) == (bike.id, "2025-04-01", "2025-06-01")
+    assert component_service.get_component(chain.id).total_mileage == 40  # the part's mileage was recalculated
+    assert "Old chain" in signed_in_client.get(f"/bikes/{bike.id}/install-history").text
+    assert "2025-04-01" in signed_in_client.get(f"/components/{chain.id}/install-history").text  # same period
+
+
+def test_a_past_period_can_say_which_part_it_was_inside(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire")
+
+    signed_in_client.post(
+        f"/bikes/{bike.id}/install-history",
+        data=_period_form(component_id=str(tire.id), parent_component_id=str(wheel.id)),
+    )
+
+    assert _periods(tire)[0].parent_component_id == wheel.id
+
+
+@pytest.mark.parametrize(
+    "changes,message",
+    [
+        ({"removed_date": "2025-03-01"}, "after"),
+        ({"installed_date": "2999-01-01", "removed_date": "2999-02-01"}, "future"),
+        ({"component_id": "999"}, "part"),
+        ({"component_id": ""}, "part"),
+    ],
+)
+def test_invalid_entries_show_the_form_again_with_a_message_and_record_nothing(signed_in_client, changes, message):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Old chain", component_type="chain")
+    data = _period_form(component_id=str(chain.id))
+    data.update(changes)
+
+    response = signed_in_client.post(f"/bikes/{bike.id}/install-history", data=data)
+
+    assert response.status_code == 422 and message in response.text.lower()
+    assert _periods(chain) == []
+
+
+def test_overlapping_another_period_of_the_same_part_is_refused(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Old chain", component_type="chain")
+    history.log_period(chain.id, bike_id=bike.id, installed_at="2025-03-01T00:00:00.000000Z",
+                       removed_at="2025-05-01T00:00:00.000000Z")
+
+    response = signed_in_client.post(f"/bikes/{bike.id}/install-history", data=_period_form(component_id=str(chain.id)))
+
+    assert response.status_code == 422 and "overlap" in response.text.lower()
+    assert len(_periods(chain)) == 1
+
+
+def test_edit_from_the_bike_returns_to_the_bike_history(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Old chain", component_type="chain")
+    period = history.log_period(chain.id, bike_id=bike.id, installed_at="2025-04-01T00:00:00.000000Z",
+                                removed_at="2025-06-01T00:00:00.000000Z")
+    back = f"/bikes/{bike.id}/install-history"
+
+    page = signed_in_client.get(f"/install-periods/{period.id}/edit?from_bike={bike.id}").text
+    assert f'action="/install-periods/{period.id}?from_bike={bike.id}"' in page
+    assert f'href="{back}">Cancel</a>' in page
+
+    response = signed_in_client.post(
+        f"/install-periods/{period.id}?from_bike={bike.id}",
+        data={"bike_id": str(bike.id), **_period_form(removed_date="2025-07-01")}, follow_redirects=False,
+    )
+    assert (response.status_code, response.headers["location"]) == (303, back)
+    assert _periods(chain)[0].removed_at[:10] == "2025-07-01"
+
+
+def test_edit_without_from_bike_still_returns_to_the_part(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Old chain", component_type="chain")
+    period = history.log_period(chain.id, bike_id=bike.id, installed_at="2025-04-01T00:00:00.000000Z",
+                                removed_at="2025-06-01T00:00:00.000000Z")
+
+    response = signed_in_client.post(
+        f"/install-periods/{period.id}", data={"bike_id": str(bike.id), **_period_form()}, follow_redirects=False
+    )
+
+    assert response.headers["location"] == f"/components/{chain.id}/install-history"
+
+
+@pytest.mark.parametrize("bad", ["abc", "-1", "0", "999", ""])
+def test_a_bad_from_bike_is_ignored(signed_in_client, bad):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Old chain", component_type="chain")
+    period = history.log_period(chain.id, bike_id=bike.id, installed_at="2025-04-01T00:00:00.000000Z",
+                                removed_at="2025-06-01T00:00:00.000000Z")
+
+    response = signed_in_client.post(
+        f"/install-periods/{period.id}/delete?from_bike={bad}", follow_redirects=False
+    )
+
+    assert response.headers["location"] == f"/components/{chain.id}/install-history"
+
+
+def test_delete_from_the_bike_returns_to_the_bike_history_and_removes_the_period(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Old chain", component_type="chain")
+    period = history.log_period(chain.id, bike_id=bike.id, installed_at="2025-04-01T00:00:00.000000Z",
+                                removed_at="2025-06-01T00:00:00.000000Z")
+
+    response = signed_in_client.post(
+        f"/install-periods/{period.id}/delete?from_bike={bike.id}", follow_redirects=False
+    )
+
+    assert (response.status_code, response.headers["location"]) == (303, f"/bikes/{bike.id}/install-history")
+    assert _periods(chain) == []
+
+
+def test_a_live_period_cannot_be_deleted_from_the_bike(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=bike.id)
+    (period,) = _periods(saddle)
+
+    response = signed_in_client.post(f"/install-periods/{period.id}/delete?from_bike={bike.id}")
+
+    assert response.status_code == 422 and len(_periods(saddle)) == 1
+
+
+def test_rows_of_deleted_parts_have_no_edit_or_delete(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=bike.id)
+    component_service.delete_component(saddle.id)
+
+    body = signed_in_client.get(f"/bikes/{bike.id}/install-history").text.split("<tbody>")[1]
+
+    assert "Saddle" in body and ">Edit</a>" not in body and "Delete" not in body

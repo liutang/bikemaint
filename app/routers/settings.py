@@ -7,6 +7,8 @@ queries — it only translates HTTP concerns to/from `app/services/settings_serv
 
 from __future__ import annotations
 
+from zoneinfo import available_timezones
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
@@ -14,7 +16,9 @@ from pydantic import ValidationError
 from app.models.form_errors import error_context
 from app.models.requests import (
     LeadTimeSettingsRequest,
+    SyncSettingsRequest,
     ThemeSettingsRequest,
+    TimezoneSettingsRequest,
     WebhookSettingsRequest,
 )
 from app.services import settings_service
@@ -33,7 +37,18 @@ def _settings_page(
 ):
     account = settings_service.get_account(account_id)
     page = {"errors": [], "field_errors": {}, "values": {}, **(context or {})}
-    return _render(request, "settings/index.html", {"account": account, **page}, status_code)
+    hours, minutes = settings_service.split_minutes(settings_service.effective_sync_interval(account))
+    sync = {
+        "interval_hours": hours,
+        "interval_minutes": minutes,
+        "interval_text": settings_service.describe_interval(settings_service.effective_sync_interval(account)),
+    }
+    return _render(
+        request,
+        "settings/index.html",
+        {"account": account, "sync": sync, "timezones": sorted(available_timezones()), **page},
+        status_code,
+    )
 
 
 @router.get("/settings", name="settings_index")
@@ -45,6 +60,36 @@ def settings_index(request: Request, account=Depends(require_account)):
 def strava_reconnect(request: Request, account=Depends(require_account)):
     # Re-initiates the OAuth flow via the existing /login page's authorize link.
     return RedirectResponse(url="/login", status_code=303)
+
+
+@router.post("/settings/strava/sync", name="update_strava_sync_settings")
+async def update_strava_sync_settings(request: Request, account=Depends(require_account)):
+    """Automatic Strava sync on/off and its interval (specs/023-settings-sync-and-timezone)."""
+    form = await request.form()
+    try:
+        payload = SyncSettingsRequest(
+            sync_enabled=form.get("sync_enabled") is not None,
+            interval_hours=form.get("interval_hours", ""),
+            interval_minutes=form.get("interval_minutes", ""),
+        )
+    except ValidationError as exc:
+        return _settings_page(request, account.id, error_context(form, exc), 422)
+    settings_service.set_sync_settings(
+        account.id, enabled=payload.sync_enabled, interval_minutes=payload.total_minutes
+    )
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/timezone", name="update_timezone_setting")
+async def update_timezone_setting(request: Request, account=Depends(require_account)):
+    """The zone UTC-recorded times are shown in (display only; specs/023)."""
+    form = await request.form()
+    try:
+        payload = TimezoneSettingsRequest(timezone=form.get("timezone", ""))
+    except ValidationError as exc:
+        return _settings_page(request, account.id, error_context(form, exc), 422)
+    settings_service.set_timezone(account.id, payload.timezone)
+    return RedirectResponse(url="/settings", status_code=303)
 
 
 @router.post("/settings/webhook", name="update_webhook_settings")

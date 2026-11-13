@@ -28,6 +28,8 @@ Route handlers live only in `app/routers/`; they call into `app/services/` for a
 
 > **See also**: `specs/017-strava-sync-hardening/contracts/routes.md` for `POST /bikes/{bike_id}/strava-reimport`, `POST /bikes/{bike_id}/strava-unpair`, the pairing screen states, and the `profile:read_all` sign-in scope.
 
+> **See also**: `specs/023-settings-sync-and-timezone/contracts/routes.md` for `POST /settings/strava/sync` and `POST /settings/timezone`.
+
 ## Components (User Story 1)
 
 | Method & Path | Purpose |

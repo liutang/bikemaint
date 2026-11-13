@@ -113,3 +113,20 @@ def update_lead_time_days(conn: sqlite3.Connection, account_id: int, days: int) 
         "UPDATE account SET notification_lead_time_days = ?, updated_at = ? WHERE id = ?",
         (days, _now(), account_id),
     )
+
+
+def update_sync_settings(
+    conn: sqlite3.Connection, account_id: int, *, enabled: bool, interval_minutes: int
+) -> None:
+    conn.execute(
+        "UPDATE account SET strava_sync_enabled = ?, strava_sync_interval_minutes = ?, "
+        "updated_at = ? WHERE id = ?",
+        (1 if enabled else 0, interval_minutes, _now(), account_id),
+    )
+
+
+def update_timezone(conn: sqlite3.Connection, account_id: int, timezone: str) -> None:
+    conn.execute(
+        "UPDATE account SET timezone = ?, updated_at = ? WHERE id = ?",
+        (timezone, _now(), account_id),
+    )

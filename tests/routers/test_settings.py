@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 
@@ -7,6 +9,8 @@ import pytest
         ("get", "/settings"),
         ("post", "/settings/webhook"),
         ("post", "/settings/notifications"),
+        ("post", "/settings/strava/sync"),
+        ("post", "/settings/timezone"),
     ],
 )
 def test_settings_routes_redirect_unauthenticated_requests_to_login(client, method, path):
@@ -75,3 +79,114 @@ def test_invalid_lead_time_is_rejected(client, monkeypatch, value):
     response = client.post("/settings/notifications", data={"notification_lead_time_days": value})
 
     assert response.status_code == 422
+
+
+# ------------------------------------------------ specs/023: Strava sync panel
+
+
+def _account_now():
+    from app.db import accounts, connection
+
+    with connection.get_connection() as conn:
+        return accounts.get_singleton(conn)
+
+
+def test_the_strava_panel_shows_the_switch_and_the_current_interval(client, monkeypatch):
+    _login(client, monkeypatch)
+    monkeypatch.delenv("STRAVA_SYNC_INTERVAL_MINUTES", raising=False)
+
+    html = client.get("/settings").text
+
+    assert 'name="sync_enabled"' in html and 'name="interval_hours"' in html and 'name="interval_minutes"' in html
+    assert "Every 30 min" in html
+    assert re.search(r'<input[^>]*name="sync_enabled"[^>]*\bchecked\b', html)  # on by default
+
+
+def test_saving_an_interval_stores_it_and_shows_it_back(client, monkeypatch):
+    _login(client, monkeypatch)
+
+    response = client.post(
+        "/settings/strava/sync",
+        data={"sync_enabled": "on", "interval_hours": "1", "interval_minutes": "30"},
+        follow_redirects=False,
+    )
+
+    assert (response.status_code, response.headers["location"]) == (303, "/settings")
+    saved = _account_now()
+    assert (saved.strava_sync_enabled, saved.strava_sync_interval_minutes) == (True, 90)
+    assert "Every 1 h 30 min" in client.get("/settings").text
+
+
+def test_turning_sync_off_is_saved_and_shown(client, monkeypatch):
+    _login(client, monkeypatch)
+
+    client.post("/settings/strava/sync", data={"interval_hours": "0", "interval_minutes": "30"})  # no switch
+
+    assert _account_now().strava_sync_enabled is False
+    assert "Automatic sync is off" in client.get("/settings").text
+
+
+@pytest.mark.parametrize(
+    "hours,minutes",
+    [("0", "4"), ("0", "0"), ("169", "0"), ("1", "60"), ("x", "5"), ("", "")],
+)
+def test_a_bad_interval_re_shows_the_page_with_a_message_and_changes_nothing(client, monkeypatch, hours, minutes):
+    _login(client, monkeypatch)
+
+    response = client.post(
+        "/settings/strava/sync",
+        data={"sync_enabled": "on", "interval_hours": hours, "interval_minutes": minutes},
+    )
+
+    assert response.status_code == 422
+    assert 'class="field-error"' in response.text or 'role="alert"' in response.text
+    assert _account_now().strava_sync_interval_minutes is None
+
+
+def test_the_manual_sync_still_works_when_automatic_sync_is_off(client, monkeypatch):
+    from app.services import sync_service
+
+    _login(client, monkeypatch)
+    client.post("/settings/strava/sync", data={"interval_hours": "1", "interval_minutes": "0"})
+    calls = []
+    monkeypatch.setattr(sync_service, "sync_incremental", lambda account_id: calls.append(account_id))
+
+    response = client.post("/sync/strava", follow_redirects=False)
+
+    assert response.status_code == 303 and len(calls) == 1
+
+
+# ------------------------------------------------ specs/023: time zone
+
+
+def test_the_time_zone_section_shows_utc_until_one_is_chosen(client, monkeypatch):
+    _login(client, monkeypatch)
+
+    html = client.get("/settings").text
+
+    assert 'name="timezone"' in html and "UTC" in html and '<datalist id="timezone-list">' in html
+    assert '<option value="America/Los_Angeles">' in html
+
+
+def test_saving_a_zone_stores_it_and_shows_connected_since_in_it(client, monkeypatch):
+    _login(client, monkeypatch)
+    account = _account_now()
+
+    response = client.post("/settings/timezone", data={"timezone": "America/Los_Angeles"}, follow_redirects=False)
+
+    assert (response.status_code, response.headers["location"]) == (303, "/settings")
+    assert _account_now().timezone == "America/Los_Angeles"
+    html = client.get("/settings").text
+    assert "America/Los_Angeles" in html and re.search(r"since \d{4}-\d\d-\d\d \d\d:\d\d P[SD]T", html)
+    assert account.strava_connected_at[:4] in html
+
+
+@pytest.mark.parametrize("name", ["", "Mars/Olympus", "america/los_angeles"])
+def test_an_unknown_zone_is_refused_with_a_message_beside_the_field(client, monkeypatch, name):
+    _login(client, monkeypatch)
+
+    response = client.post("/settings/timezone", data={"timezone": name})
+
+    assert response.status_code == 422
+    assert 'id="timezone-error"' in response.text
+    assert _account_now().timezone == "UTC"

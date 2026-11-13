@@ -88,3 +88,5 @@ As the rider, I want each bike to have a ride log that starts from its base mile
 - Milestone 1 branch `006-m1-fixes-and-storage`, milestone 2 `007-m2-history-and-polish`, milestone 3 `008-m3-ride-log`; each is merged, cleaned up and deployed on completion.
 
 > **Superseded in part (2026-11-12)**: FR-008 and User Story 2 scenarios 1–3 (parts added/removed logged in maintenance history) were reversed by `specs/022-install-history-split`; installs and removals now live only in Install History, and migration 0010 deleted the old entries.
+
+> **Superseded in part (2026-11-12)**: the assumption that system times are shown in the browser's local time was replaced by the saved time zone in `specs/023-settings-sync-and-timezone`.

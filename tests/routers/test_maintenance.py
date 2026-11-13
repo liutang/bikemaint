@@ -203,7 +203,7 @@ def test_completed_tasks_show_their_time_too(signed_in_client):
 
     row = _rows(signed_in_client.get(f"/bikes/{bike.id}/maintenance").text)[0]
 
-    assert "Annual service" in row and "<time data-local" in row 
+    assert "Annual service" in row and "<time datetime=" in row and "data-local" not in row 
 
 
 def test_history_shows_only_the_logged_work_in_time_order(signed_in_client):
@@ -217,7 +217,23 @@ def test_history_shows_only_the_logged_work_in_time_order(signed_in_client):
     assert descriptions == ["Old job", "New job"]
 
 
-def test_the_history_page_loads_the_local_time_script(signed_in_client):
+def test_the_history_page_no_longer_loads_a_browser_time_script(signed_in_client):
     bike = bike_service.create_bike(name="Road Bike")
 
-    assert "localtime.js" in signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
+    assert "localtime.js" not in signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
+
+
+def test_a_completed_task_shows_in_the_chosen_time_zone(signed_in_client):
+    from app.db import accounts, connection
+    from app.services import schedule_service, settings_service
+
+    with connection.get_connection() as conn:
+        account = accounts.get_singleton(conn)
+    settings_service.set_timezone(account.id, "Asia/Kolkata")
+    bike = bike_service.create_bike(name="Road Bike")
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Annual service", interval_days=30)
+    schedule_service.complete_schedule(schedule.id)
+
+    row = _rows(signed_in_client.get(f"/bikes/{bike.id}/maintenance").text)[0]
+
+    assert re.search(r"\d{4}-\d\d-\d\d \d\d:\d\d IST</time>", row)

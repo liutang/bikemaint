@@ -276,3 +276,35 @@ def test_a_deleted_part_and_a_deleted_parent_are_described_without_a_link(db_pat
     assert by_name["Saddle"]["linked"] is False
     assert by_name["Tire"]["place"] == "a deleted part" and by_name["Tire"]["linked"] is True
     assert tire.id
+
+
+# ------------------------------------------------ specs/023: the future check follows the time zone
+
+
+def _in_zone(minutes_from_now, zone):
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+
+    wall = datetime.now(ZoneInfo(zone)).replace(tzinfo=None) + timedelta(minutes=minutes_from_now)
+    return wall.strftime("%Y-%m-%dT%H:%M:00.000000Z")
+
+
+def test_a_typed_moment_is_compared_with_the_current_time_in_the_chosen_zone(db_path):
+    from app.db import accounts
+    from app.services import settings_service
+
+    with connection.get_connection() as conn:
+        account = accounts.upsert_from_strava(
+            conn, strava_athlete_id=1, access_token="a", refresh_token="r",
+            expires_at="2099-01-01T00:00:00.000000Z",
+        )
+    settings_service.set_timezone(account.id, "Pacific/Auckland")  # many hours ahead of UTC
+    bike = bike_service.create_bike(name="A")
+    saddle = _saddle()
+
+    # an hour ago on the rider's clock is in the future by the UTC clock, yet it has passed here
+    history.log_period(saddle.id, bike_id=bike.id, installed_at=_in_zone(-120, "Pacific/Auckland"),
+                       removed_at=_in_zone(-60, "Pacific/Auckland"))
+    with pytest.raises(ValueError, match="future"):
+        history.log_period(saddle.id, bike_id=bike.id, installed_at=_in_zone(-300, "Pacific/Auckland"),
+                           removed_at=_in_zone(60, "Pacific/Auckland"))

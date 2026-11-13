@@ -15,7 +15,7 @@ def _versioned(html, name):
 def test_the_sign_in_page_links_versioned_css_and_scripts(client):
     html = client.get("/login").text
 
-    for name in ("styles.css", "htmx.min.js", "localtime.js"):
+    for name in ("styles.css", "htmx.min.js"):
         assert _versioned(html, name), name
 
 

@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.models.component_kinds import kind_name
+from app.services import clock_service
 from app.db import mileage as mileage_db
 from app.db.connection import get_connection
 from app.models.rows import ComponentInstallationPeriod
@@ -44,7 +45,8 @@ def moment(day: str | None, time: str | None) -> str:
 
 
 def check_not_future(value: str, label: str = "The install time") -> None:
-    if value > now_moment():
+    """Typed moments are wall-clock times, so compare with the current time in the rider's zone."""
+    if value > clock_service.now_in_zone_moment():
         raise ValueError(f"{label} cannot be in the future.")
 
 

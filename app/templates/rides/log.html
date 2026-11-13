@@ -43,9 +43,9 @@
         {% else %}
         <td data-label="Date &amp; time">
           {%- if row.kind == "adjustment" -%}
-            <time data-local datetime="{{ row.occurred_at }}">{{ row.occurred_at[:10] }} {{ row.occurred_at[11:16] }} UTC</time>
+            <time datetime="{{ row.occurred_at }}">{{ row.occurred_at|local_time }}</time>
           {%- elif row.source == "strava" -%}
-            <time data-local datetime="{{ row.occurred_at }}">{{ row.occurred_at[:10] }} {{ row.occurred_at[11:16] }} UTC</time>
+            <time datetime="{{ row.occurred_at }}">{{ row.occurred_at|local_time }}</time>
           {%- else -%}
             {{ row.occurred_at[:10] }} {{ row.occurred_at[11:16] }}
           {%- endif -%}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Literal
+from zoneinfo import available_timezones
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -233,6 +234,44 @@ class WebhookSettingsRequest(BaseModel):
 
 class LeadTimeSettingsRequest(BaseModel):
     notification_lead_time_days: int = Field(ge=0, le=365)
+
+
+MIN_SYNC_MINUTES = 5
+MAX_SYNC_MINUTES = 7 * 24 * 60
+
+
+class SyncSettingsRequest(BaseModel):
+    """Automatic Strava sync on/off and its interval (specs/023): 5 minutes to 7 days."""
+
+    sync_enabled: bool
+    interval_hours: int = Field(ge=0, le=168)
+    interval_minutes: int = Field(ge=0, le=59)
+
+    @model_validator(mode="after")
+    def _check_total(self):
+        total = self.interval_hours * 60 + self.interval_minutes
+        if total < MIN_SYNC_MINUTES:
+            raise ValueError("The interval must be at least 5 minutes.")
+        if total > MAX_SYNC_MINUTES:
+            raise ValueError("The interval can be at most 7 days.")
+        return self
+
+    @property
+    def total_minutes(self) -> int:
+        return self.interval_hours * 60 + self.interval_minutes
+
+
+class TimezoneSettingsRequest(BaseModel):
+    """A standard IANA time zone name, matched exactly against the known names."""
+
+    timezone: str
+
+    @field_validator("timezone")
+    @classmethod
+    def _known_zone(cls, value: str) -> str:
+        if value not in available_timezones():
+            raise ValueError("Choose a time zone from the list, such as America/Los_Angeles.")
+        return value
 
 
 class ThemeSettingsRequest(BaseModel):

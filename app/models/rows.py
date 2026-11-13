@@ -23,6 +23,9 @@ class Account:
     notification_lead_time_days: int
     created_at: str
     updated_at: str
+    strava_sync_enabled: bool = True
+    strava_sync_interval_minutes: int | None = None
+    timezone: str = "UTC"
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Account:
@@ -38,6 +41,9 @@ class Account:
             notification_lead_time_days=row["notification_lead_time_days"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            strava_sync_enabled=bool(row["strava_sync_enabled"]),
+            strava_sync_interval_minutes=row["strava_sync_interval_minutes"],
+            timezone=row["timezone"],
         )
 
 

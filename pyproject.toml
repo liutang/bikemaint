@@ -11,6 +11,7 @@ dependencies = [
     "apscheduler",
     "itsdangerous",
     "python-multipart",
+    "tzdata",
 ]
 
 [project.optional-dependencies]

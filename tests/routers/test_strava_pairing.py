@@ -146,12 +146,12 @@ def test_unpair_on_an_unpaired_bike_is_rejected(signed_in_client):
 
 
 def test_reimport_reports_a_strava_timeout_instead_of_crashing(signed_in_client, monkeypatch):
-    import httpx
+    from app.services import strava_client
 
     paired = _paired_bike(monkeypatch)
 
     def slow(bike_id):
-        raise httpx.ReadTimeout("The read operation timed out")
+        raise strava_client.StravaUnavailableError("Strava did not answer")
 
     monkeypatch.setattr("app.services.sync_service.backfill_bike", slow)
 
@@ -159,3 +159,21 @@ def test_reimport_reports_a_strava_timeout_instead_of_crashing(signed_in_client,
 
     assert response.status_code == 502
     assert "Strava" in response.text and "try again" in response.text.lower()
+
+
+# ------------------------------------------------ specs/017 analysis: FR-011 and FR-013
+
+
+@pytest.mark.parametrize("action", ["strava-reimport", "strava-unpair"])
+def test_pairing_actions_on_an_unknown_bike_return_not_found(signed_in_client, action):
+    response = signed_in_client.post(f"/bikes/99999/{action}", follow_redirects=False)
+
+    assert response.status_code == 404
+
+
+@pytest.mark.parametrize("action", ["strava-reimport", "strava-unpair"])
+def test_pairing_actions_require_sign_in(client, action):
+    response = client.post(f"/bikes/1/{action}", follow_redirects=False)
+
+    assert response.status_code in (302, 303, 401)
+    assert "/login" in response.headers.get("location", "") or response.status_code == 401

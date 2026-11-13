@@ -267,3 +267,39 @@ def test_get_activities_allows_slow_strava_responses():
     strava_client.get_activities("token")
 
     assert route.calls.last.request.extensions["timeout"]["read"] >= 30
+
+
+# ------------------------------------------------ specs/017 remediation R1 and R2
+
+
+@respx.mock
+def test_a_timeout_fetching_activities_becomes_a_domain_error():
+    respx.get("https://www.strava.com/api/v3/athlete/activities").mock(
+        side_effect=httpx.ReadTimeout("The read operation timed out")
+    )
+
+    with pytest.raises(strava_client.StravaUnavailableError):
+        strava_client.get_activities("token")
+
+
+@respx.mock
+def test_a_strava_server_error_fetching_activities_becomes_a_domain_error():
+    respx.get("https://www.strava.com/api/v3/athlete/activities").mock(
+        return_value=httpx.Response(503)
+    )
+
+    with pytest.raises(strava_client.StravaUnavailableError):
+        strava_client.get_activities("token")
+
+
+@respx.mock
+def test_missing_gear_list_is_logged_without_the_token(caplog):
+    respx.get("https://www.strava.com/api/v3/athlete").mock(
+        return_value=httpx.Response(200, json={"id": 1})
+    )
+
+    with caplog.at_level("WARNING"), pytest.raises(strava_client.StravaGearAccessError):
+        strava_client.get_athlete_gear("secret-access-token")
+
+    assert "gear list" in caplog.text and "profile:read_all" in caplog.text
+    assert "secret-access-token" not in caplog.text

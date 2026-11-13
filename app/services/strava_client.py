@@ -6,6 +6,7 @@ Strava's scheduled API/auth changes (research.md §1 note) are a one-line update
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, timezone
 
@@ -14,6 +15,8 @@ import httpx
 from app.db import accounts as accounts_db
 from app.db.connection import get_connection
 from app.models.rows import Account
+
+logger = logging.getLogger(__name__)
 
 STRAVA_OAUTH_TOKEN_URL = "https://www.strava.com/oauth/token"
 STRAVA_API_BASE_URL = "https://www.strava.com/api/v3"
@@ -57,6 +60,10 @@ def refresh_access_token(refresh_token: str) -> dict:
     return response.json()
 
 
+class StravaUnavailableError(Exception):
+    """Strava did not answer (timeout, connection failure or an error status)."""
+
+
 class StravaGearAccessError(Exception):
     """Strava answered but left the gear list out: the token lacks the `profile:read_all` scope."""
 
@@ -77,6 +84,9 @@ def get_athlete_gear(access_token: str) -> list[dict]:
     response.raise_for_status()
     bikes = response.json().get("bikes")
     if bikes is None:
+        logger.warning(
+            "Strava did not include the gear list; the connection probably lacks profile:read_all"
+        )
         raise StravaGearAccessError("Strava did not include the gear list (profile:read_all missing)")
     return bikes
 
@@ -93,13 +103,16 @@ def get_activities(
         params: dict[str, int] = {"page": page, "per_page": per_page}
         if after is not None:
             params["after"] = after
-        response = httpx.get(
-            f"{STRAVA_API_BASE_URL}/athlete/activities",
-            headers={"Authorization": f"Bearer {access_token}"},
-            params=params,
-            timeout=ACTIVITIES_TIMEOUT_SECONDS,  # full-history pages can take longer than httpx's 5s
-        )
-        response.raise_for_status()
+        try:
+            response = httpx.get(
+                f"{STRAVA_API_BASE_URL}/athlete/activities",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params=params,
+                timeout=ACTIVITIES_TIMEOUT_SECONDS,  # full-history pages can take longer than httpx's 5s
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise StravaUnavailableError(f"Strava activities request failed: {exc!r}") from exc
         batch = response.json()
         activities.extend(batch)
         if len(batch) < per_page:

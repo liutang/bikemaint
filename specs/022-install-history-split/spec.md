@@ -83,7 +83,7 @@ As the rider importing old data, I want to add, change and delete install period
 4. **Given** invalid entries (a removal not after the install, a time in the future, overlapping another period of the same part, an unknown part), **When** the rider saves, **Then** the form is shown again with a clear message beside the field and nothing is recorded.
 5. **Given** a row for an existing part, **When** the rider chooses Edit, **Then** the same edit form as the part's Install History opens, and after saving or cancelling the rider returns to the bike's Install History.
 6. **Given** a row for a part that has been removed, **When** the rider chooses Delete, **Then** the period is deleted and the rider returns to the bike's Install History; a part that is still installed cannot have its live period deleted by hand (as on the part).
-7. **Given** a row for a part that has since been deleted, **When** it is shown, **Then** it is listed without Edit or Delete (the part no longer exists to edit).
+7. **Given** a row for a part that has since been deleted, **When** it is shown, **Then** it is labeled "(deleted)" and offers Delete but not Edit. *(Changed by `specs/030-install-history-cleanup`.)*
 8. **Given** edits made from a bike or from a part, **When** either Install History is viewed, **Then** both show the same periods.
 9. **Given** the rider is not signed in, **When** any of these pages is requested, **Then** sign-in is required.
 

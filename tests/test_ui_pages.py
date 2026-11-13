@@ -110,13 +110,25 @@ def test_component_delete_confirmation_follows_the_same_contract(signed_in_clien
     assert "<main" in page.text and 'class="confirm"' in page.text
     assert "<html" not in fragment.text and 'class="confirm"' in fragment.text
     assert 'href="/components/1"' in page.text
+    assert 'name="keep_history"' in page.text and 'name="keep_history"' in fragment.text
+
+
+def test_a_plain_part_delete_also_asks_first_on_the_page_level_route(signed_in_client):
+    _add_component(signed_in_client, "Spare saddle", "saddle")
+
+    first = signed_in_client.post("/components/1/delete", data={}, follow_redirects=False)
+    assert first.status_code == 200 and 'class="confirm"' in first.text
+    assert signed_in_client.get("/components/1").status_code == 200  # still there
+
+    done = signed_in_client.post("/components/1/delete", data={"confirmed": "true"}, follow_redirects=False)
+    assert done.status_code == 303 and signed_in_client.get("/components/1").status_code == 404
 
 
 def test_htmx_component_delete_redirects_to_storage_list(signed_in_client):
     _add_component(signed_in_client, "Spare Tire", "tire")
 
     response = signed_in_client.post(
-        "/components/1/delete", data={}, headers={"hx-request": "true"}, follow_redirects=False
+        "/components/1/delete", data={"confirmed": "true"}, headers={"hx-request": "true"}, follow_redirects=False
     )
 
     assert response.headers["hx-redirect"] == "/components"

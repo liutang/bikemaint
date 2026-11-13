@@ -170,11 +170,6 @@ def test_open_period_edit_changes_only_install_and_place(db_path):
         open_period.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at=None
     )
     assert _miles(saddle.id) == 10
-    with pytest.raises(ValueError, match="still installed"):
-        history.update_period(
-            open_period.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z",
-            removed_at="2025-03-01T00:00:00.000000Z",
-        )
     with pytest.raises(ValueError, match="removal"):
         history.log_period(
             saddle.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at=None
@@ -269,8 +264,8 @@ def test_a_deleted_part_and_a_deleted_parent_are_described_without_a_link(db_pat
     tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
     saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=bike.id)
 
-    component_service.delete_component(saddle.id)
-    component_service.delete_component(wheel.id, confirmed=True)  # the tire is kept, in storage
+    component_service.delete_component(saddle.id, keep_history=True)
+    component_service.delete_component(wheel.id, confirmed=True, keep_history=True)  # the tire is kept, in storage
 
     by_name = {r["component"].name: r for r in history.describe_bike_history(bike.id)}
     assert by_name["Saddle"]["linked"] is False
@@ -308,3 +303,90 @@ def test_a_typed_moment_is_compared_with_the_current_time_in_the_chosen_zone(db_
     with pytest.raises(ValueError, match="future"):
         history.log_period(saddle.id, bike_id=bike.id, installed_at=_in_zone(-300, "Pacific/Auckland"),
                            removed_at=_in_zone(60, "Pacific/Auckland"))
+
+
+# ------------------------------------------------ specs/030: end an installation from the edit form
+
+
+def _installed(bike, name="Saddle", kind="saddle", installed_at="2025-01-01T00:00:00.000000Z", **parent):
+    part = component_service.create_component(
+        name=name, component_type=kind, installed_at=installed_at, **({"parent_bike_id": bike.id} | parent)
+    )
+    return part, history.list_history(part.id)[-1]
+
+
+def test_a_removed_moment_on_an_open_period_ends_it_and_moves_the_part_to_storage(db_path):
+    bike = bike_service.create_bike(name="A")
+    saddle, open_period = _installed(bike)
+    _ride(bike, 1, 10, "2025-02-01T08:00:00.000000Z")
+    _ride(bike, 2, 20, "2025-06-01T08:00:00.000000Z")
+    history.recompute(saddle.id)
+    assert _miles(saddle.id) == 30
+
+    history.update_period(
+        open_period.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z",
+        removed_at="2025-03-01T00:00:00.000000Z",
+    )
+
+    moved = component_service.get_component(saddle.id)
+    assert (moved.parent_bike_id, moved.parent_component_id) == (None, None)  # in storage
+    (period,) = history.list_history(saddle.id)
+    assert period.removed_at == "2025-03-01T00:00:00.000000Z"
+    assert _miles(saddle.id) == 10  # only the rides during the installation
+
+
+def test_ending_an_installation_by_edit_writes_no_maintenance_entry(db_path):
+    from app.services import maintenance_service
+
+    bike = bike_service.create_bike(name="A")
+    saddle, open_period = _installed(bike)
+
+    history.update_period(open_period.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z",
+                          removed_at="2025-03-01T00:00:00.000000Z")
+
+    assert maintenance_service.list_for_component(saddle.id) == []
+    assert maintenance_service.list_for_bike(bike.id) == []
+
+
+def test_sub_parts_stay_inside_and_leave_the_bike_at_the_same_moment(db_path):
+    bike = bike_service.create_bike(name="A")
+    wheel, wheel_period = _installed(bike, "Wheel", "wheel")
+    tire = component_service.create_component(
+        name="Tire", component_type="tire", parent_component_id=wheel.id,
+        installed_at="2025-01-01T00:00:00.000000Z",
+    )
+    _ride(bike, 1, 10, "2025-02-01T08:00:00.000000Z")
+    _ride(bike, 2, 20, "2025-06-01T08:00:00.000000Z")
+    history.recompute(tire.id)
+
+    history.update_period(wheel_period.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z",
+                          removed_at="2025-03-01T00:00:00.000000Z")
+
+    kept = component_service.get_component(tire.id)
+    assert kept.parent_component_id == wheel.id and kept.parent_bike_id is None
+    first, second = history.list_history(tire.id)
+    assert first.removed_at == "2025-03-01T00:00:00.000000Z" and first.parent_bike_id == bike.id
+    assert second.installed_at == "2025-03-01T00:00:00.000000Z" and second.parent_bike_id is None
+    assert _miles(tire.id) == 10
+
+
+def test_a_blank_removed_moment_leaves_the_part_installed(db_path):
+    bike = bike_service.create_bike(name="A")
+    saddle, open_period = _installed(bike)
+
+    history.update_period(open_period.id, bike_id=bike.id, installed_at="2025-01-02T00:00:00.000000Z", removed_at=None)
+
+    assert component_service.get_component(saddle.id).parent_bike_id == bike.id
+    assert history.list_history(saddle.id)[0].removed_at is None
+
+
+@pytest.mark.parametrize("removed", ["2025-01-01T00:00:00.000000Z", "2024-12-31T00:00:00.000000Z", "2999-01-01T00:00:00.000000Z"])
+def test_a_removed_moment_that_is_not_possible_changes_nothing(db_path, removed):
+    bike = bike_service.create_bike(name="A")
+    saddle, open_period = _installed(bike)
+
+    with pytest.raises(ValueError):
+        history.update_period(open_period.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at=removed)
+
+    assert component_service.get_component(saddle.id).parent_bike_id == bike.id
+    assert history.list_history(saddle.id)[0].removed_at is None

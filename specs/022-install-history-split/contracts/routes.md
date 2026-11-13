@@ -30,3 +30,10 @@ The bike's action row (`partials/part_actions.html`) gains an "Install history" 
 | `POST /install-periods/{id}/delete?from_bike={bike_id}` | The existing delete; redirects to the bike's history | 303 | 404; 422 for a live period |
 
 `from_bike` must be a positive integer naming an existing bike; anything else is ignored and the part's history is used.
+
+## Amendment (specs/030-install-history-cleanup)
+
+- `POST /install-periods/{id}` for a still-installed period accepts optional `removed_date`/`removed_time`: a valid moment ends the installation and moves the part (with its sub-parts) to storage at that moment (422 with a message beside `removed_date` when not after the install moment, in the future for the rider's zone, or invalid); blank keeps it installed.
+- `POST /install-periods/{id}/delete` also works for a part that has since been deleted. Rows of deleted parts read "(deleted)" and have Delete but no Edit.
+- Delete buttons use the normal bordered button style.
+

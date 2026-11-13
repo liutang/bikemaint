@@ -380,6 +380,11 @@ def update_period(
     return period
 
 
+def delete_periods_for_component(conn: sqlite3.Connection, component_id: int) -> None:
+    """Remove every installation period of a component (its whole install history)."""
+    conn.execute("DELETE FROM component_installation_period WHERE component_id = ?", (component_id,))
+
+
 def delete_period(conn: sqlite3.Connection, period_id: int) -> None:
     conn.execute("DELETE FROM component_installation_period WHERE id = ?", (period_id,))
 

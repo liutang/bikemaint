@@ -18,7 +18,7 @@ Adding a part from the builder's "Add to…" control accepts an optional install
 ## User Story 2 — Manual parts history (P1)
 Each part has an "Install history" screen (`/components/{id}/install-history`) listing its periods (place, installed, removed, miles) and a form to add, edit or delete a period.
 - **FR-005**: A logged period names a bike, optionally a parent part on that bike, an install date/time and a removal date/time (past periods are closed; the live period is created by installing).
-- **FR-006**: The currently open period may have only its install moment and place edited (its removal comes from moving/removing the part); it cannot be deleted by hand-logging a new open period.
+- **FR-006**: The currently open period may have only its install moment and place edited (its removal comes from moving/removing the part); it cannot be deleted by hand-logging a new open period. *(Changed by `specs/030-install-history-cleanup`: filling in a removal moment on the open period now ends the installation and moves the part to storage.)*
 - **FR-007**: Periods of one part must not overlap (touching ends are fine). Removal must be after install; neither may be in the future.
 - **FR-008**: After any add/edit/delete the part's mileage is recomputed (baseline + rides across all periods + adjustments).
 - **FR-009**: Add/delete leave a "Parts" event on the part's maintenance history dated at the logged moment. *(Superseded by `specs/022-install-history-split`: add/delete of a period no longer writes any maintenance entry.)*

@@ -7,6 +7,7 @@ Per Constitution Principle II this module is callable without FastAPI/request ob
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -21,6 +22,9 @@ from app.models import component_kinds
 from app.services import component_history_service as history_service
 from app.models.component_kinds import BIKE
 from app.models.rows import Component
+
+
+logger = logging.getLogger(__name__)
 
 
 class ComponentPlacementError(Exception):
@@ -330,8 +334,11 @@ def move_component(
     parent_bike_id: int | None = None,
     parent_component_id: int | None = None,
     before_component_id: int | None = None,
+    moved_at: str | None = None,
 ) -> Component:
     """Move a component (with its sub-tree) to a parent, optionally just before a sibling there.
+
+    `moved_at` dates the move (default now); used to record a past removal (specs/030).
 
     Moving onto its current parent only re-orders it (last, or before `before_component_id`);
     installation periods and mileage attribution are untouched in that case.
@@ -369,7 +376,7 @@ def move_component(
                 )
 
 
-        now = _now()
+        now = moved_at or _now()
         components_db.close_open_installation_period(conn, component_id, removed_at=now)
         components_db.set_parent(
             conn,
@@ -438,8 +445,28 @@ class ConfirmationRequiredError(Exception):
     """Raised when deleting a component with an installed sub-tree needs confirmation."""
 
 
-def delete_component(component_id: int, *, confirmed: bool = False) -> None:
-    """Delete a part. Its sub-parts are kept: they move to storage with their own sub-trees."""
+def delete_consequences(component_id: int) -> str:
+    """What deleting this part will do besides removing it, in a sentence or two (empty if nothing)."""
+    with get_connection() as conn:
+        if components_db.get_by_id(conn, component_id) is None:
+            raise LookupError(f"No component with id {component_id}")
+        parts = []
+        if components_db.list_children(conn, parent_component_id=component_id):
+            parts.append("Its sub-parts will move to storage.")
+        if maintenance_db.has_entries_for_component(conn, component_id) or schedules_db.has_active_for_component(
+            conn, component_id
+        ):
+            parts.append("It has maintenance history or an active schedule, which are deleted with it.")
+        return " ".join(parts)
+
+
+def delete_component(
+    component_id: int, *, confirmed: bool = False, keep_history: bool = False
+) -> None:
+    """Delete a part. Its sub-parts are kept: they move to storage with their own sub-trees.
+
+    Its install history is deleted with it unless `keep_history` (specs/030); sub-parts keep theirs.
+    """
     with get_connection() as conn:
         component = components_db.get_by_id(conn, component_id)
         if component is None:
@@ -461,3 +488,6 @@ def delete_component(component_id: int, *, confirmed: bool = False) -> None:
             detach_to_storage(conn, child.id, removed_at=now)
         components_db.close_open_installation_period(conn, component_id, removed_at=now)
         components_db.soft_delete(conn, component_id)
+        if not keep_history:
+            components_db.delete_periods_for_component(conn, component_id)
+    logger.info("part deleted component_id=%s install_history_kept=%s", component_id, keep_history)

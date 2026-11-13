@@ -252,16 +252,29 @@ def move_part(
         raise ValueError("That place no longer exists.") from exc
 
 
-def delete_part(root: str, component_id: int, *, confirmed: bool = False) -> None:
-    """Delete a part (and its sub-parts) that is inside this screen's scope.
+def delete_confirmation(root: str, component_id: int) -> tuple[Component, str]:
+    """The part and a sentence on what deleting it will do, for the confirmation step (specs/030)."""
+    ids = scope_component_ids(root)
+    if component_id not in ids:
+        raise ValueError("That part is not on this screen.")
+    component = component_service.get_component(component_id)
+    if component is None:
+        raise ValueError("That part no longer exists.")
+    return component, component_service.delete_consequences(component_id)
 
-    Raises `component_service.ConfirmationRequiredError` when sub-parts, maintenance history or a
-    schedule need an explicit yes first.
+
+def delete_part(
+    root: str, component_id: int, *, confirmed: bool = False, keep_history: bool = False
+) -> None:
+    """Delete a part that is inside this screen's scope; its sub-parts move to storage.
+
+    Its install history goes with it unless `keep_history`. Raises
+    `component_service.ConfirmationRequiredError` for a direct, unconfirmed call.
     """
     ids = scope_component_ids(root)
     if component_id not in ids:
         raise ValueError("That part is not on this screen.")
     try:
-        component_service.delete_component(component_id, confirmed=confirmed)
+        component_service.delete_component(component_id, confirmed=confirmed, keep_history=keep_history)
     except LookupError as exc:
         raise ValueError("That part no longer exists.") from exc

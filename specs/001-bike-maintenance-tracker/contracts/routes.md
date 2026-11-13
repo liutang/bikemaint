@@ -54,7 +54,7 @@ Route handlers live only in `app/routers/`; they call into `app/services/` for a
 | Method & Path | Purpose |
 |---|---|
 | `GET /bikes/{bike_id}/maintenance` / `GET /components/{component_id}/maintenance` | Chronological maintenance history (FR-011). |
-| `GET /.../maintenance/new` | New log-entry form fragment. |
+| `GET /bikes/{bike_id}/maintenance/new` / `GET /components/{component_id}/maintenance/new` | New log-entry form fragment. |
 | `POST /bikes/{bike_id}/maintenance` / `POST /components/{component_id}/maintenance` | Create a log entry (`description`, `performed_at`; `mileage_at_service` defaults to current total but is editable). |
 | `GET /maintenance/{entry_id}/edit` | Edit form fragment. |
 | `POST /maintenance/{entry_id}` | Update a log entry; if it is tied to a schedule (`schedule_id`), does not change the schedule's cycle. |

@@ -37,6 +37,18 @@ This project uses [GitHub Spec Kit](https://github.com/github/spec-kit) for spec
 
 Each feature lives under `specs/NNN-feature-name/`, numbered sequentially; `.specify/scripts/python/` (invoked by the skills, not directly) resolves paths like `FEATURE_DIR`/`IMPL_PLAN` and copies the right template. Don't hand-edit the numbering scheme or bypass these skills to create feature directories.
 
+### Which tier is the change? (no code before an artifact, then a failing test, then the minimal fix)
+
+| Change | Artifacts | Where |
+|---|---|---|
+| New behavior or feature | Full chain: specify → plan → tasks → analyze → implement | New `specs/NNN-name/` |
+| Bug fix: code contradicts an existing spec or contract | Failing reproduction test, then fix; add a `[x]` task or Amendments line; correct any wrong contract text | Owning spec dir |
+| Bug fix: spec silent or wrong | Amend `spec.md` first (FR plus acceptance scenario), then test, fix, update plan and contracts | Owning spec dir |
+| Fix that changes behavior or a contract (new route, status code, setting) | Treat as a feature | New spec dir |
+| Chore with no behavior change (refactor, deps, CI, docs, assets) | One line in the owning `tasks.md` or an Amendments note; tests stay green | Owning spec dir |
+
+Update contracts and this file in the same PR when the behavior they describe changes. One PR per spec or fix. Run `/speckit-converge` after any ad hoc change. When checking route coverage, walk each router's `.router.routes`; the app's own `.routes` are wrapped and look empty.
+
 ## Constitution (binding on all code in this repo)
 
 `.specify/memory/constitution.md` (currently v1.3.0) is the authoritative governance document — `/speckit-plan`, `/speckit-tasks`, and `/speckit-implement` all read it, and code review is expected to enforce it. Key points future work must not violate:

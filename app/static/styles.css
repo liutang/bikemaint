@@ -755,6 +755,13 @@ ul {
   border-color: var(--danger);
 }
 
+/* Delete stays unavailable until the typed name matches (specs/029): the browser checks the pattern. */
+.delete-confirm:has(input:invalid) .btn-danger {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

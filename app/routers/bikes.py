@@ -233,23 +233,25 @@ def unpair_bike_from_strava(bike_id: int, account=Depends(require_account)):
 
 @router.post("/bikes/{bike_id}/delete", name="delete_bike")
 async def delete_bike(request: Request, bike_id: int, account=Depends(require_account)):
+    """Delete a bike only when its full name is typed exactly (specs/029-safe-bike-delete)."""
+    bike = bike_service.get_bike(bike_id)
+    if bike is None:
+        return PlainTextResponse("Bike not found", status_code=404)
     form = await request.form()
-    confirmed = form.get("confirmed") == "true"
     try:
-        bike_service.delete_bike(bike_id, confirmed=confirmed)
-    except bike_service.ConfirmationRequiredError as exc:
-        context = {
-            "item_type": "bike",
-            "message": str(exc),
-            "action": f"/bikes/{bike_id}/delete",
-            "cancel_url": f"/bikes/{bike_id}",
-        }
-        template = (
-            "partials/confirm_delete.html"
-            if request.headers.get("hx-request") == "true"
-            else "confirm_delete_page.html"
+        bike_service.delete_bike_with_name(bike_id, form.get("confirm_name"))
+    except bike_service.ConfirmationMismatchError:
+        return _render(
+            request,
+            "bikes/form.html",
+            _form_context(
+                bike,
+                message_context(
+                    form,
+                    "Type the bike's full name exactly as shown to delete it.",
+                    field="confirm_name",
+                ),
+            ),
+            status_code=422,
         )
-        return _render(request, template, context)
-    if request.headers.get("hx-request") == "true":
-        return Response(status_code=200, headers={"HX-Redirect": "/"})
     return RedirectResponse(url="/", status_code=303)

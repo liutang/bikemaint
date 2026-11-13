@@ -98,33 +98,6 @@ def test_bike_without_components_shows_an_empty_state(signed_in_client):
     assert "Drag a frame here to start" in signed_in_client.get("/bikes/1").text
 
 
-def test_unconfirmed_delete_without_htmx_returns_a_full_page_confirmation(signed_in_client):
-    _add_bike(signed_in_client)
-    _add_component(signed_in_client, "Road Wheel", "wheel", parent_bike_id="1")
-
-    response = signed_in_client.post("/bikes/1/delete", data={})
-
-    html = response.text
-    assert response.status_code == 200
-    assert "<main" in html and 'aria-label="Primary"' in html
-    assert 'class="confirm"' in html
-    assert "btn-danger" in html
-    assert 'href="/bikes/1"' in html  # cancel link
-
-
-def test_unconfirmed_delete_with_htmx_returns_only_the_confirmation_fragment(signed_in_client):
-    _add_bike(signed_in_client)
-    _add_component(signed_in_client, "Road Wheel", "wheel", parent_bike_id="1")
-
-    html = signed_in_client.post(
-        "/bikes/1/delete", data={}, headers={"hx-request": "true"}
-    ).text
-
-    assert 'class="confirm"' in html
-    assert "<html" not in html
-    assert "btn-danger" in html
-
-
 def test_component_delete_confirmation_follows_the_same_contract(signed_in_client):
     _add_component(signed_in_client, "Road Wheel", "wheel")
     _add_component(signed_in_client, "Road Tire", "tire", parent_component_id="1")
@@ -137,27 +110,6 @@ def test_component_delete_confirmation_follows_the_same_contract(signed_in_clien
     assert "<main" in page.text and 'class="confirm"' in page.text
     assert "<html" not in fragment.text and 'class="confirm"' in fragment.text
     assert 'href="/components/1"' in page.text
-
-
-def test_confirmed_delete_still_deletes(signed_in_client):
-    _add_bike(signed_in_client)
-    _add_component(signed_in_client, "Road Wheel", "wheel", parent_bike_id="1")
-
-    signed_in_client.post("/bikes/1/delete", data={"confirmed": "true"})
-
-    assert signed_in_client.get("/bikes/1").status_code == 404
-
-
-def test_htmx_delete_without_confirmation_needed_redirects_the_whole_page(signed_in_client):
-    _add_bike(signed_in_client)
-
-    response = signed_in_client.post(
-        "/bikes/1/delete", data={}, headers={"hx-request": "true"}, follow_redirects=False
-    )
-
-    assert response.status_code == 200
-    assert response.headers["hx-redirect"] == "/"
-    assert signed_in_client.get("/bikes/1").status_code == 404
 
 
 def test_htmx_component_delete_redirects_to_storage_list(signed_in_client):
@@ -390,14 +342,15 @@ def test_each_data_entry_form_has_exactly_one_primary_button(signed_in_client, p
 
     for form in re.findall(r"<form\b.*?</form>", html, re.S):
         has_entry = re.search(r'<(?:input|select|textarea)\b(?![^>]*type="hidden")', form)
-        if has_entry and 'action="/logout"' not in form:
+        # a typed-name delete confirmation (specs/029) uses the danger button, never a primary one
+        if has_entry and 'action="/logout"' not in form and "delete-confirm" not in form:
             assert form.count("btn-primary") == 1, form[:200]
 
 
 def test_destructive_actions_use_the_danger_style(signed_in_client):
     _add_bike(signed_in_client)
 
-    html = signed_in_client.get("/bikes/1").text
+    html = signed_in_client.get("/bikes/1/edit").text
 
     delete_form = re.search(r'<form[^>]*action="/bikes/1/delete".*?</form>', html, re.S).group(0)
     assert "btn-danger" in delete_form and "btn-primary" not in delete_form

@@ -274,3 +274,38 @@ def test_reimport_timeout_is_logged_and_raised_as_a_domain_error(db_path, monkey
         bike_service.reimport_strava_history(bike.id)
 
     assert f"bike_id={bike.id}" in caplog.text and "re-import" in caplog.text.lower()
+
+
+# ------------------------------------------------ specs/029: deleting by typing the name
+
+
+def test_delete_with_the_exact_name_deletes_and_moves_parts_to_storage(db_path):
+    bike = bike_service.create_bike(name="2023 Trek Madone")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=bike.id)
+
+    bike_service.delete_bike_with_name(bike.id, "2023 Trek Madone")
+
+    assert bike_service.get_bike(bike.id) is None
+    assert component_service.get_component(saddle.id).parent_bike_id is None  # kept, in storage
+
+
+def test_delete_with_a_wrong_name_changes_nothing(db_path):
+    bike = bike_service.create_bike(name="2023 Trek Madone")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=bike.id)
+
+    for typed in ("", "2023 trek madone", "Trek", None):
+        with pytest.raises(bike_service.ConfirmationMismatchError):
+            bike_service.delete_bike_with_name(bike.id, typed)
+
+    assert bike_service.get_bike(bike.id) is not None
+    assert component_service.get_component(saddle.id).parent_bike_id == bike.id
+
+
+def test_an_empty_bike_needs_the_name_too_and_an_unknown_bike_is_a_lookup_error(db_path):
+    bike = bike_service.create_bike(name="Empty")
+
+    with pytest.raises(bike_service.ConfirmationMismatchError):
+        bike_service.delete_bike_with_name(bike.id, "")
+    bike_service.delete_bike_with_name(bike.id, "Empty")
+    with pytest.raises(LookupError):
+        bike_service.delete_bike_with_name(999, "x")

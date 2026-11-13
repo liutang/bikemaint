@@ -41,6 +41,13 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`.
 - [x] T014 [US1] Regression found by the old tests: with the rules removed, a missing parent raised a database foreign-key error. Added `_require_parent_exists` in `app/services/component_service.py` (LookupError for create and move) with test `tests/services/test_free_placement.py::test_a_missing_parent_is_refused_cleanly_for_create_and_move`.
 - [x] T015 Replaced the kind-based `list_type_targets` with `list_placement_targets` (no dummy kind argument) in `app/services/component_service.py` and `app/services/builder_service.py`.
 
+## Phase 5: Amendment from user testing (branch 021-fix-palette-drag-and-style)
+
+- [x] T016 [US2] Tests first: `tests/services/test_asset_service.py` (`static_url("styles.css")` returns `/static/styles.css?v=<token>`; the token changes when the file's content changes and is stable when it does not), `tests/test_ui_assets.py` (rendered pages link `styles.css`, `htmx.min.js`, `localtime.js` and `builder.js` with a `?v=` token; no template still uses a bare `url_for('static', …)` for css or js). Watch them fail.
+- [x] T017 [US2] `app/services/asset_service.py` (`static_url`, content-hash token cached per file mtime and size, no FastAPI imports); register it as the Jinja global `static_url` in `app/main.py`; switch the css and js links in `app/templates/layout.html`, `app/templates/bikes/detail.html` and `app/templates/components/detail.html`.
+- [x] T018 [US2] Dropped: after the browser refreshed its files the category headers already matched the app's style (rider confirmed with a screenshot), so no restyle or token test was needed.
+- [ ] T019 Run the full suite, `/speckit-analyze`-style check of the amended spec, and note in the PR that the headers could not be eyeballed in a browser by Claude; the rider should hard refresh once.
+
 ## Dependencies
 
 - T001 → T002 (red, green) → everything else.

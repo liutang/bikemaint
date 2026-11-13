@@ -53,6 +53,8 @@ As the rider, I want the "Add a new part" list grouped into categories that star
 5. **Given** any part in the palette, **When** it is dragged onto the bike, any part, or the storage box, **Then** a new part of that kind is created there.
 6. **Given** the palette on any screen, **When** it is shown, **Then** all categories and parts are listed (the list is no longer reduced to parts that "fit" the current screen).
 7. **Given** a keyboard or touch user, **When** they use a category header, **Then** it can be expanded and collapsed without a mouse, and its expanded state is announced to assistive technology.
+8. **Given** the palette, **When** it is shown in light or dark mode, **Then** each category header looks like the app's other panels (bordered, rounded, matching text) with a clear expand/collapse arrow, not the browser's bare marker. *(Confirmed by the rider on 2026-11-12 once the new styles loaded.)*
+9. **Given** the app was upgraded while the rider's browser still holds the previous version's files, **When** the rider opens any page, **Then** the new styles and drag-and-drop script are used on that first load (no hard refresh needed), so dragging a palette part onto the bike, a part or storage works.
 
 ---
 
@@ -81,6 +83,8 @@ As the rider, I want the "Add a new part" list grouped into categories that star
 - **FR-010**: Each category header MUST be operable by keyboard and expose its expanded or collapsed state to assistive technology.
 - **FR-011**: Placement refusals MUST say why in plain language (for example, a part cannot be placed inside itself).
 - **FR-012**: Placing, moving and removing parts MUST continue to record installation periods and recompute mileage as before.
+- **FR-013**: Category headers MUST be styled consistently with the app's other panels, with an arrow that reflects the open or closed state. *(Added after user testing, 2026-11-12.)*
+- **FR-014**: Stylesheets and scripts MUST be requested by addresses that change whenever their content changes, so a browser never keeps using an outdated copy after an upgrade. *(Added after user testing, 2026-11-12; found when drag-and-drop failed and the new header styles were missing because the browser kept old files.)*
 
 ### Key Entities
 
@@ -106,3 +110,6 @@ As the rider, I want the "Add a new part" list grouped into categories that star
 - The "Add to…" and "Move to…" menus are not categorised; only the palette is.
 - The rider is the only user; there is no per-bike permission or rule configuration.
 - This feature reverses the placement rules and one-per-parent behavior defined in specs 004 and 005; those specs are superseded for placement by this one.
+
+## Amendments
+- **2026-11-12 (branch `021-fix-palette-drag-and-style`)**: user testing found (a) dragging a palette part no longer worked and (b) category headers looked unstyled. Cause: the browser kept the previous release's `builder.js` and `styles.css`. Added scenarios US2-8 and US2-9 and FR-013/FR-014.

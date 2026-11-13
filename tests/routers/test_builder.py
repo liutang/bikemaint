@@ -691,3 +691,52 @@ def test_garage_bike_cards_and_storage_cards_use_the_new_icons(signed_in_client)
 
     assert garage.count("<circle") >= 2  # the bike drawing: two wheels
     assert 'class="icon part-icon"' in storage or 'class="icon"' in storage
+
+
+# ------------------------------------------------ specs/028: stored part names are links
+
+
+def _storage_card(html):
+    return re.search(r'<section class="side-section storage-drop.*?</section>', html, re.S).group(0)
+
+
+def test_stored_part_names_link_to_the_part_on_a_bike_screen(signed_in_client):
+    bike = _bike()
+    spare = _mk("Spare tire", "tire")
+
+    card = _storage_card(signed_in_client.get(f"/bikes/{bike.id}").text)
+
+    assert f'<a class="node-name" href="/components/{spare.id}">Spare tire</a>' in card
+    assert '</a> <span class="chip">Tire</span>' in " ".join(card.split())  # the chip stays outside the link
+
+
+def test_stored_part_names_link_on_a_part_screen_too(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    spare = _mk("Spare saddle", "saddle")
+
+    card = _storage_card(signed_in_client.get(f"/components/{wheel.id}").text)
+
+    assert f'<a class="node-name" href="/components/{spare.id}">Spare saddle</a>' in card
+
+
+def test_the_storage_card_still_drags_and_still_has_its_add_to_control(signed_in_client):
+    bike = _bike()
+    spare = _mk("Spare tire", "tire")
+
+    card = _storage_card(signed_in_client.get(f"/bikes/{bike.id}").text)
+
+    assert re.search(rf'<li class="side-item"[^>]*draggable="true"[^>]*data-source="storage"[^>]*data-id="{spare.id}"', card)
+    assert 'action="/builder/move"' in card and ">Add to…</summary>" in card
+
+
+def test_the_linked_part_opens_with_the_garage_storage_breadcrumb(signed_in_client):
+    bike = _bike()
+    spare = _mk("Spare tire", "tire")
+    assert f'href="/components/{spare.id}"' in _storage_card(signed_in_client.get(f"/bikes/{bike.id}").text)
+
+    html = signed_in_client.get(f"/components/{spare.id}").text
+
+    crumbs = re.search(r'<nav[^>]*aria-label="Breadcrumb".*?</nav>', html, re.S).group(0)
+    assert '<a href="/">Garage</a>' in crumbs and '<a href="/components">Storage</a>' in crumbs
+    assert 'aria-current="page"><span>Spare tire</span>' in crumbs

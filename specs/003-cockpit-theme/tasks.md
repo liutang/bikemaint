@@ -150,6 +150,7 @@ Note: full suite 1071 passed. After upgrading, the label shows the old ride-base
 
 ## Amendment from user testing (branch 032-sync-indicator-colors)
 
-- [ ] T103 Tests first (`tests/services/test_sync_status_service.py`, `tests/test_ui_shell.py`, `tests/test_ui_builder_assets.py`): the state is error for a stale connection or no successful sync for two intervals (and never-synced beyond two intervals since connecting), off when automatic sync is off, otherwise ok; the top bar span carries the state class and a tooltip; the dot uses neon green and bright red tokens defined for both themes, not `--success`. Watch fail.
-- [ ] T104 `sync_status_service.sync_state`, Jinja global, `layout.html`, `styles.css` tokens and dot rules; suite; PR; merge; confirm publish.
+- [x] T103 Tests first (`tests/services/test_sync_status_service.py`, `tests/test_ui_shell.py`, `tests/test_ui_builder_assets.py`): the state is error for a stale connection or no successful sync for two intervals (and never-synced beyond two intervals since connecting), off when automatic sync is off, otherwise ok; the top bar span carries the state class and a tooltip; the dot uses neon green and bright red tokens defined for both themes, not `--success`. Watch fail.
+- [x] T104 `sync_status_service.sync_state`, Jinja global, `layout.html`, `styles.css` tokens and dot rules; suite; PR; merge; confirm publish.
 
+Note (T104): suite 1157 passed. The look (neon dot on the light and dark bars) is verified by tests of the tokens and rules only, not in a browser.

@@ -31,7 +31,7 @@
             <a href="/components"{% if section == "storage" %} aria-current="page"{% endif %}>{{ ui_icons.garage() }}Storage</a>
             <a href="/maintenance/due"{% if section == "due" %} aria-current="page"{% endif %}>{{ ui_icons.wrench() }}Maintenance due</a>
             <a href="/settings"{% if section == "settings" %} aria-current="page"{% endif %}>{{ ui_icons.settings() }}Settings</a>
-            <span class="sync-status">{{ last_sync_label() }}</span>
+            {% set state = sync_state() %}<span class="sync-status sync-{{ state }}" title="{{ {"ok": "Sync is working", "error": "Sync is not working", "off": "Automatic sync is off"}.get(state, "Sync status unknown") }}">{{ last_sync_label() }}</span>
             <form method="post" action="/logout">
                 <button class="btn btn-quiet" type="submit">{{ ui_icons.sign_out() }}Sign out</button>
             </form>

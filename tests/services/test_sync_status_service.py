@@ -90,3 +90,77 @@ def test_the_label_says_not_synced_when_nothing_is_recorded_anywhere(db_path):
     _set_last_synced(None)
 
     assert sync_status_service.last_sync_label(now=NOW) == "Not synced yet"
+
+
+# ------------------------------------------------ specs/003 FR-006b: is sync working?
+
+
+def _account(**changes):
+    with connection.get_connection() as conn:
+        account = accounts.upsert_from_strava(
+            conn, strava_athlete_id=1, access_token="a", refresh_token="r",
+            expires_at="2099-01-01T00:00:00.000000Z",
+        )
+        for column, value in changes.items():
+            conn.execute(f"UPDATE account SET {column} = ?", (value,))
+    return account
+
+
+def test_sync_is_ok_within_two_intervals_and_not_working_beyond(db_path, monkeypatch):
+    connection.run_migrations()
+    monkeypatch.delenv("STRAVA_SYNC_INTERVAL_MINUTES", raising=False)
+    _account(strava_sync_interval_minutes=15, strava_last_synced_at=_stamp(timedelta(minutes=29)))
+    assert sync_status_service.sync_state(now=NOW) == "ok"
+
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE account SET strava_last_synced_at = ?", (_stamp(timedelta(minutes=31)),))
+    assert sync_status_service.sync_state(now=NOW) == "error"
+
+
+def test_the_unsaved_interval_falls_back_to_the_server_default(db_path, monkeypatch):
+    connection.run_migrations()
+    monkeypatch.setenv("STRAVA_SYNC_INTERVAL_MINUTES", "30")
+    _account(strava_last_synced_at=_stamp(timedelta(minutes=59)))
+    assert sync_status_service.sync_state(now=NOW) == "ok"
+
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE account SET strava_last_synced_at = ?", (_stamp(timedelta(minutes=61)),))
+    assert sync_status_service.sync_state(now=NOW) == "error"
+
+
+def test_a_stale_connection_is_always_an_error(db_path):
+    connection.run_migrations()
+    _account(strava_connection_stale=1, strava_last_synced_at=_stamp(timedelta(minutes=1)))
+
+    assert sync_status_service.sync_state(now=NOW) == "error"
+
+
+def test_with_automatic_sync_off_the_dot_is_neutral(db_path):
+    connection.run_migrations()
+    _account(strava_sync_enabled=0, strava_last_synced_at=_stamp(timedelta(days=3)))
+
+    assert sync_status_service.sync_state(now=NOW) == "off"
+
+
+def test_a_stale_connection_beats_the_off_state(db_path):
+    connection.run_migrations()
+    _account(strava_sync_enabled=0, strava_connection_stale=1)
+
+    assert sync_status_service.sync_state(now=NOW) == "error"
+
+
+def test_never_synced_uses_the_connected_time_as_the_reference(db_path, monkeypatch):
+    connection.run_migrations()
+    monkeypatch.delenv("STRAVA_SYNC_INTERVAL_MINUTES", raising=False)
+    _account(strava_sync_interval_minutes=15, strava_connected_at=_stamp(timedelta(minutes=5)))
+    assert sync_status_service.sync_state(now=NOW) == "ok"
+
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE account SET strava_connected_at = ?", (_stamp(timedelta(hours=3)),))
+    assert sync_status_service.sync_state(now=NOW) == "error"
+
+
+def test_with_no_account_the_state_is_unknown(db_path):
+    connection.run_migrations()
+
+    assert sync_status_service.sync_state(now=NOW) == "unknown"

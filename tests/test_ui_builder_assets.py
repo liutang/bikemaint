@@ -104,3 +104,15 @@ def test_the_delete_button_is_styled_unavailable_until_the_name_matches():
 
     rule = re.search(r"\.delete-confirm:has\(input:invalid\) \.btn-danger \{(.*?)\}", css, re.S).group(1)
     assert "pointer-events: none" in rule and "opacity" in rule and "not-allowed" in rule
+
+
+def test_the_sync_dot_uses_neon_green_and_bright_red_tokens_in_both_themes():
+    css = (STATIC / "styles.css").read_text()
+
+    # theme independent, so defined once on :root; a thin ring keeps the dot visible on a light bar
+    assert css.count("--sync-ok: #39ff14") == 1 and css.count("--sync-error: #ff1744") == 1
+    assert re.search(r"\.sync-status\.sync-ok::before \{[^}]*var\(--sync-ok\)", css)
+    assert re.search(r"\.sync-status\.sync-error::before \{[^}]*var\(--sync-error\)", css)
+    assert re.search(r"\.sync-status\.sync-off::before \{[^}]*var\(--text-muted\)", css)
+    base = re.search(r"\.sync-status::before \{(.*?)\}", css, re.S).group(1)
+    assert "var(--success)" not in base  # the dark green that looked black is gone

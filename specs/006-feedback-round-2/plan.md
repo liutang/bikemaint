@@ -10,3 +10,5 @@ Three milestones, each a PR merged and deployed on completion. Python 3.13, Fast
 
 ## M3 (ride log)
 Migration rebuilds `ride_activity` (nullable `strava_activity_id`, `source`, `note`, `user_modified`, `deleted_by_user`); upsert skips user-modified rows; recompute queries exclude user-deleted rides and recompute every bike and part with history on the affected bikes. `ride_service` (CRUD, running totals), router `/bikes/{id}/rides…`, read-only `/components/{id}/rides`; Rides button replaces Adjust mileage.
+
+Design artifacts: [research.md](research.md), [data-model.md](data-model.md), [contracts/routes.md](contracts/routes.md) (added retrospectively).

@@ -1,0 +1,5 @@
+# Tasks: 033 "Add a part" Panel With Storage
+
+- [ ] T001 [US1] Tests first (`tests/routers/test_builder.py`, `tests/test_ui_storage.py`): one panel "Add a part"; no "Add a new part" and no separate In storage card; sixth `details.palette-category` is storage with `data-ref="storage"`, class `storage-drop drop-target`, summary `In storage (N)`, no `open` on any section; rows keep name link, kind chip, `draggable` with `data-source="storage"`, Add to… form or "No place for it here yet"; empty message; count 0; palette items still 34 and in order. Update the `_storage_card` helper and the older storage tests. Watch them fail.
+- [ ] T002 [US1] `app/templates/partials/builder.html` as in the plan; `styles.css` if the dashed drop highlight needs a selector for `details.storage-drop`.
+- [ ] T003 `CLAUDE.md`, `specs/020-free-placement-and-categories/contracts/ui-contract.md` (palette now includes the storage section; "Add a part"), `specs/028-storage-part-links` note; suite; PR; merge; confirm publish.

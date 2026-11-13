@@ -12,7 +12,6 @@ from datetime import datetime, timezone
 
 from app.db import bikes as bikes_db
 from app.db import components as components_db
-from app.db import maintenance as maintenance_db
 from app.db import mileage as mileage_db
 from app.db.connection import get_connection
 from app.models.rows import ComponentInstallationPeriod
@@ -131,15 +130,6 @@ def _validate(
         )
 
 
-def _log_event(conn, component_id: int, text: str, when: str) -> None:
-    component = components_db.get_by_id(conn, component_id)
-    maintenance_db.create(
-        conn, bike_id=None, component_id=component_id, description=text,
-        performed_at=when[:10], performed_time=when[11:16],
-        mileage_at_service=component.total_mileage if component else 0.0, kind="event",
-    )
-
-
 def log_period(
     component_id: int,
     *,
@@ -159,9 +149,6 @@ def log_period(
             conn, component_id, parent_bike_id=bike_id, parent_component_id=parent_component_id,
             installed_at=installed_at, removed_at=removed_at,
         )
-        name = place_name(conn, period)
-        _log_event(conn, component_id, f"Installed on {name}", installed_at)
-        _log_event(conn, component_id, f"Removed from {name}", removed_at)
         mileage_db.recompute_component_total_mileage(conn, component_id)
         return period
 

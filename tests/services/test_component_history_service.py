@@ -181,18 +181,19 @@ def test_open_period_edit_changes_only_install_and_place(db_path):
         )
 
 
-def test_logging_leaves_dated_parts_events(db_path):
+def test_logging_and_deleting_a_period_leaves_no_maintenance_entries(db_path):
     bike = bike_service.create_bike(name="A")
     saddle = _saddle()
-    history.log_period(
-        saddle.id, bike_id=bike.id, installed_at="2025-01-01T08:30:00.000000Z", removed_at="2025-03-01T00:00:00.000000Z",
-    )
     from app.services import maintenance_service
 
-    entries = maintenance_service.list_for_component(saddle.id)
-    texts = [(e.performed_at, e.performed_time, e.description) for e in entries]
-    assert ("2025-01-01", "08:30", "Installed on A") in texts
-    assert ("2025-03-01", "00:00", "Removed from A") in texts
+    period = history.log_period(
+        saddle.id, bike_id=bike.id, installed_at="2025-01-01T08:30:00.000000Z", removed_at="2025-03-01T00:00:00.000000Z",
+    )
+    assert maintenance_service.list_for_component(saddle.id) == []
+    assert maintenance_service.list_for_bike(bike.id) == []
+
+    history.delete_period(period.id)
+    assert maintenance_service.list_for_component(saddle.id) == []
 
 
 def test_installed_at_on_create_backdates_and_counts_rides(db_path):

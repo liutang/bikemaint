@@ -1,7 +1,8 @@
-"""Parts being added and removed are logged in the maintenance history (specs/006, M2)."""
+"""Parts being added and removed are NOT logged in maintenance history (specs/022).
 
-import re
-from datetime import datetime, timezone
+Installs and removals live in the Install History (installation periods); maintenance history is
+only maintenance work. This file replaces the specs/006 M2 tests that asserted the old events.
+"""
 
 import pytest
 
@@ -25,134 +26,87 @@ def _mk(name, component_type, **parent):
     return component_service.create_component(name=name, component_type=component_type, **parent)
 
 
-def _bike_log(bike):
-    return [(e.kind, e.description) for e in maintenance_service.list_for_bike(bike.id)]
+def _logs(*entities):
+    """Every maintenance entry on the given bikes and parts, as (description)."""
+    found = []
+    for entity in entities:
+        lister = (
+            maintenance_service.list_for_bike
+            if isinstance(entity, bike_service.Bike)
+            else maintenance_service.list_for_component
+        )
+        found += [e.description for e in lister(entity.id)]
+    return found
 
 
-def _part_log(part):
-    return [(e.kind, e.description) for e in maintenance_service.list_for_component(part.id)]
-
-
-def test_adding_a_chain_to_a_bike_is_logged_on_the_bike_and_the_chain(db_path):
+def test_adding_a_part_to_a_bike_or_a_part_logs_nothing(db_path):
     bike = _bike()
-
     chain = _mk("Chain 1", "chain", parent_bike_id=bike.id)
-
-    assert _bike_log(bike) == [("event", "Added Chain 1 (chain)")]
-    assert _part_log(chain) == [("event", "Installed on Road Bike")]
-
-
-def test_adding_to_a_part_logs_on_that_part(db_path):
-    bike = _bike()
     wheel = _mk("Front wheel", "wheel", parent_bike_id=bike.id)
-
     tire = _mk("Tire", "tire", parent_component_id=wheel.id)
 
-    assert ("event", "Added Tire (tire)") in _part_log(wheel)
-    assert _part_log(tire) == [("event", "Installed on Front wheel")]
+    assert _logs(bike, chain, wheel, tire) == []
 
 
 def test_creating_in_storage_logs_nothing(db_path):
-    spare = _mk("Spare", "saddle")
-
-    assert _part_log(spare) == []
+    assert _logs(_mk("Spare", "saddle")) == []
 
 
-def test_taking_a_tire_off_a_wheel_logs_the_removal_on_the_wheel_and_the_tire(db_path):
-    bike = _bike()
-    wheel = _mk("Front wheel", "wheel", parent_bike_id=bike.id)
-    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
-
-    component_service.move_component(tire.id)  # to storage
-
-    assert _part_log(wheel)[-1] == ("event", "Removed Tire (tire)")
-    assert _part_log(tire)[-1] == ("event", "Removed from Front wheel")
-
-
-def test_moving_between_parents_logs_removal_then_addition(db_path):
+def test_moving_and_removing_parts_logs_nothing(db_path):
     bike = _bike()
     front = _mk("Front wheel", "wheel", parent_bike_id=bike.id)
     rear = _mk("Rear wheel", "wheel", parent_bike_id=bike.id)
     tire = _mk("Tire", "tire", parent_component_id=front.id)
 
     component_service.move_component(tire.id, parent_component_id=rear.id)
+    component_service.move_component(tire.id)  # to storage
+    component_service.move_component(tire.id, parent_bike_id=bike.id)
 
-    assert _part_log(front)[-1] == ("event", "Removed Tire (tire)")
-    assert _part_log(rear)[-1] == ("event", "Added Tire (tire)")
-    assert _part_log(tire)[-2:] == [("event", "Removed from Front wheel"), ("event", "Installed on Rear wheel")]
-
-
-def test_mounting_a_stored_part_logs_only_the_addition(db_path):
-    bike = _bike()
-    saddle = _mk("Saddle", "saddle")
-
-    component_service.move_component(saddle.id, parent_bike_id=bike.id)
-
-    assert _bike_log(bike) == [("event", "Added Saddle (saddle)")]
-    assert _part_log(saddle) == [("event", "Installed on Road Bike")]
+    assert _logs(bike, front, rear, tire) == []
 
 
 def test_reordering_logs_nothing(db_path):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    a = _mk("A", "other", parent_component_id=wheel.id)
-    b = _mk("B", "other", parent_component_id=wheel.id)
-    before = len(maintenance_service.list_for_component(wheel.id))
+    a = _mk("A", "tube", parent_component_id=wheel.id)
+    b = _mk("B", "tube", parent_component_id=wheel.id)
 
     component_service.move_component(b.id, parent_component_id=wheel.id, before_component_id=a.id)
 
-    assert len(maintenance_service.list_for_component(wheel.id)) == before
+    assert _logs(wheel) == []
 
 
-def test_moving_a_part_with_sub_parts_logs_only_the_part_itself(db_path):
+def test_deleting_a_part_or_a_bike_logs_nothing(db_path):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     tire = _mk("Tire", "tire", parent_component_id=wheel.id)
-    tire_log = _part_log(tire)
-
-    component_service.move_component(wheel.id)
-
-    assert _part_log(tire) == tire_log  # the tire stayed on the wheel, so nothing happened to it
-    assert _bike_log(bike)[-1] == ("event", "Removed Wheel (wheel)")
-
-
-def test_deleting_a_part_logs_the_removal_and_the_sub_parts_leaving(db_path):
-    bike = _bike()
-    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
+    saddle = _mk("Saddle", "saddle", parent_bike_id=bike.id)
 
     component_service.delete_component(wheel.id, confirmed=True)
+    bike_service.delete_bike(bike.id, confirmed=True)
 
-    assert _bike_log(bike)[-1] == ("event", "Removed Wheel (wheel)")
-    assert _part_log(tire)[-1] == ("event", "Removed from Wheel (deleted)")
+    assert _logs(tire, saddle) == []
 
 
-def test_deleting_a_bike_logs_its_parts_leaving(db_path):
+def test_the_installation_periods_still_record_every_move(db_path):
     bike = _bike()
     saddle = _mk("Saddle", "saddle", parent_bike_id=bike.id)
 
-    bike_service.delete_bike(bike.id, confirmed=True)
+    component_service.move_component(saddle.id)  # to storage
 
-    assert _part_log(saddle)[-1] == ("event", "Removed from Road Bike (deleted)")
-
-
-def test_events_record_the_mileage_and_a_utc_timestamp(db_path):
-    bike = bike_service.create_bike(name="Road Bike", manual_baseline_mileage=120.5)
-
-    _mk("Chain", "chain", parent_bike_id=bike.id)
-
-    (entry,) = maintenance_service.list_for_bike(bike.id)
-    assert entry.mileage_at_service == 120.5
-    assert entry.performed_at == datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+Z", entry.created_at)
-    assert entry.kind == "event" and entry.schedule_id is None
+    with connection.get_connection() as conn:
+        rows = conn.execute(
+            "SELECT installed_at, removed_at FROM component_installation_period WHERE component_id = ?",
+            (saddle.id,),
+        ).fetchall()
+    assert len(rows) == 1 and rows[0]["removed_at"] is not None
 
 
-def test_events_do_not_trigger_the_maintenance_history_confirmation(db_path):
+def test_a_part_with_nothing_logged_deletes_without_the_history_confirmation(db_path):
     bike = _bike()
-    saddle = _mk("Saddle", "saddle", parent_bike_id=bike.id)  # logs an event on the saddle
+    saddle = _mk("Saddle", "saddle", parent_bike_id=bike.id)
 
-    component_service.delete_component(saddle.id)  # no confirmation needed: only an event exists
+    component_service.delete_component(saddle.id)  # no confirmation needed
 
     assert component_service.get_component(saddle.id) is None
 

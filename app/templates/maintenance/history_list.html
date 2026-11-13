@@ -25,17 +25,17 @@
     </thead>
     <tbody>
       {% for entry in entries %}
-      <tr{% if entry.kind == "event" %} class="entry-event"{% endif %}>
+      <tr>
         <td data-label="Date &amp; time">
           {%- if entry.performed_time -%}
             {{ entry.performed_at }} {{ entry.performed_time }}
-          {%- elif entry.kind == "event" or entry.schedule_id -%}
+          {%- elif entry.schedule_id -%}
             <time data-local datetime="{{ entry.created_at }}">{{ entry.created_at[:10] }} {{ entry.created_at[11:16] }} UTC</time>
           {%- else -%}
             {{ entry.performed_at }}
           {%- endif -%}
         </td>
-        <td data-label="Description">{% if entry.kind == "event" %}<span class="entry-tag">Parts</span> {% endif %}{{ entry.description }}</td>
+        <td data-label="Description">{{ entry.description }}</td>
         <td data-label="Mileage at service">{{ "%.1f"|format(entry.mileage_at_service) }} mi</td>
         <td data-label="Actions">
           <div class="actions">

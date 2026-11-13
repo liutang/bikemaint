@@ -18,12 +18,4 @@
 {% include "partials/part_actions.html" %}
 {% include "partials/builder.html" %}
 
-<h2>Delete this bike</h2>
-<div class="panel danger-zone">
-  <form method="post" action="/bikes/{{ bike.id }}/delete"
-        hx-post="/bikes/{{ bike.id }}/delete" hx-target="#delete-area" hx-swap="innerHTML">
-    <button class="btn btn-danger" type="submit">{{ ui_icons.trash() }}Delete bike</button>
-  </form>
-  <div id="delete-area" aria-live="polite"></div>
-</div>
 {% endblock %}

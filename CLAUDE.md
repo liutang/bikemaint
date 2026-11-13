@@ -81,6 +81,8 @@ Consult `contracts/routes.md` for the full intended HTTP surface (page routes vs
 
 A Codex CLI config was found at `~/.codex/config.toml`. If you want to import any of it (MCP servers, slash commands, subagents, skills, instructions) into Claude Code, run `/import` to see what's importable, then `/import --yes=<digest>` to apply it.
 
+Bike delete (feature 029): only on the bike's Edit screen, behind a typed-name confirmation: `POST /bikes/{id}/delete` needs `confirm_name` equal to the bike's name exactly (`bike_service.delete_bike_with_name`, `confirmation_service.phrase_matches`); the field's `pattern` comes from `confirmation_service.html_pattern` (escape syntax characters only) and `.delete-confirm:has(input:invalid)` greys the button, so there is no script.
+
 Last-sync indicator (003 FR-006a): the top-bar label reads `account.strava_last_synced_at`, set by every successful sync run (`accounts_db.mark_synced` in `sync_incremental` and `backfill_bike`; not on failure or a stale-connection skip), falling back to the newest ride sync time until one is recorded.
 
 Ride log (feature 006 M3): rides live in `ride_activity` (source `strava`|`manual`, `user_modified`, `deleted_by_user`); Strava upserts never overwrite a user-modified or user-deleted ride; `ride_service` owns CRUD and recomputes bike and part mileage.

@@ -22,7 +22,7 @@ Route handlers live only in `app/routers/`; they call into `app/services/` for a
 | `POST /bikes` | Create a bike (`name`, `bike_type`, `manual_baseline_mileage`). Returns updated garage list fragment. |
 | `GET /bikes/{bike_id}/edit` | Edit-bike form fragment. |
 | `POST /bikes/{bike_id}` | Update a bike. |
-| `POST /bikes/{bike_id}/delete` | Soft-delete a bike; if it has installed components, maintenance history, or an active schedule, first returns a confirmation fragment (FR-020) unless `confirmed=true` is included. |
+| `POST /bikes/{bike_id}/delete` | Soft-delete a bike; its parts move to storage. Requires `confirm_name` equal to the bike's full name exactly (specs/029-safe-bike-delete, replacing the earlier `confirmed=true` step): success is 303 to `/`; a missing or wrong name returns the Edit screen (422) with a message beside the field and deletes nothing. The delete area lives on `GET /bikes/{bike_id}/edit`, not on the bike's main screen. |
 | `GET /bikes/{bike_id}/strava-pairing` | Form to pick one of the account's unpaired Strava gear entries. |
 | `POST /bikes/{bike_id}/strava-pairing` | Pairs the bike to a `strava_gear_id`; triggers the one-time historical backfill sync (FR-022) as a background task and returns a "syncing" status fragment. |
 

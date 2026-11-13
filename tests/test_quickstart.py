@@ -201,11 +201,10 @@ def test_cross_cutting_unauthenticated_and_delete_confirmation(client, monkeypat
     _add_bike(client, "Gravel Bike")
     client.post("/bikes/1/schedules", data={"name": "Service", "interval_days": "30"})
 
-    # FR-020: a bike with an active schedule needs confirmation before it is deleted.
-    first = client.post("/bikes/1/delete", data={}, follow_redirects=False)
-    assert first.status_code == 200
-    assert "Yes, delete" in first.text
+    # specs/029: deleting a bike needs its full name typed; a wrong or missing name deletes nothing.
+    first = client.post("/bikes/1/delete", data={"confirm_name": "Gravel"}, follow_redirects=False)
+    assert first.status_code == 422
     assert bike_service.get_bike(1) is not None
 
-    client.post("/bikes/1/delete", data={"confirmed": "true"})
+    client.post("/bikes/1/delete", data={"confirm_name": "Gravel Bike"})
     assert bike_service.get_bike(1) is None

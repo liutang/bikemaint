@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 
@@ -63,32 +65,91 @@ def test_create_then_view_bike_detail(client, monkeypatch):
     assert "2022 Trek Domane" in response.text
 
 
-def test_delete_bike_with_installed_component_returns_confirmation_fragment(client, monkeypatch):
-    _login(client, monkeypatch)
+# ------------------------------------------------ specs/029: safe bike delete
 
-    client.post("/bikes", data={"year": "2021", "make": "Trek", "model": "FX", "category": "hybrid"})
 
-    from app.db import connection
+def _bike_named(name="2023 Trek Madone"):
+    from app.services import bike_service
 
-    with connection.get_connection() as conn:
-        bike_id = conn.execute("SELECT id FROM bike WHERE name = '2021 Trek FX'").fetchone()["id"]
+    return bike_service.create_bike(name=name)
 
-    client.post(
-        "/components",
-        data={"name": "Wheel", "component_type": "wheel", "parent_bike_id": str(bike_id)},
+
+def test_the_main_screen_has_no_delete_control(signed_in_client):
+    bike = _bike_named()
+
+    html = signed_in_client.get(f"/bikes/{bike.id}").text
+
+    assert "Delete this bike" not in html and "Delete bike" not in html
+    assert f'action="/bikes/{bike.id}/delete"' not in html
+
+
+def test_the_edit_screen_has_a_separate_delete_area_that_asks_for_the_full_name(signed_in_client):
+    bike = _bike_named()
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/edit").text
+
+    area = html.split('id="delete-heading"')[1]
+    assert "Delete this bike" in html and "2023 Trek Madone" in area
+    assert "move to storage" in area and "cannot be undone" in area
+    assert f'action="/bikes/{bike.id}/delete"' in area
+    assert re.search(r'<input[^>]*name="confirm_name"[^>]*required', area)
+    assert 'pattern="2023 Trek Madone"' in area and 'autocomplete="off"' in area
+    assert "btn-danger" in area
+
+
+def test_the_pattern_is_escaped_for_names_with_punctuation(signed_in_client):
+    bike = _bike_named("2023 Trek Madone SLR (Disc) 7.0")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/edit").text
+
+    assert r'pattern="2023 Trek Madone SLR \(Disc\) 7\.0"' in html
+
+
+def test_the_new_bike_form_has_no_delete_area(signed_in_client):
+    assert "Delete this bike" not in signed_in_client.get("/bikes/new").text
+
+
+def test_deleting_with_the_exact_name_returns_to_the_garage_and_removes_the_bike(signed_in_client):
+    from app.services import bike_service, component_service
+
+    bike = _bike_named()
+    saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=bike.id)
+
+    response = signed_in_client.post(
+        f"/bikes/{bike.id}/delete", data={"confirm_name": "2023 Trek Madone"}, follow_redirects=False
     )
 
-    response = client.post(f"/bikes/{bike_id}/delete", data={})
+    assert (response.status_code, response.headers["location"]) == (303, "/")
+    assert bike_service.get_bike(bike.id) is None
+    assert component_service.get_component(saddle.id).parent_bike_id is None
 
-    assert response.status_code == 200
-    assert "onfirm" in response.text
 
-    response = client.post(f"/bikes/{bike_id}/delete", data={"confirmed": "true"})
-    assert response.status_code in (200, 303)
+@pytest.mark.parametrize("typed", [None, "", "2023 trek madone", " 2023 Trek Madone", "Trek"])
+def test_a_missing_or_wrong_name_deletes_nothing_and_shows_the_edit_screen_with_a_message(signed_in_client, typed):
+    from app.services import bike_service
 
-    with connection.get_connection() as conn:
-        row = conn.execute("SELECT is_deleted FROM bike WHERE id = ?", (bike_id,)).fetchone()
-    assert row["is_deleted"] == 1
+    bike = _bike_named()
+    data = {} if typed is None else {"confirm_name": typed}
+
+    response = signed_in_client.post(f"/bikes/{bike.id}/delete", data=data)
+
+    assert response.status_code == 422
+    assert 'id="confirm_name-error"' in response.text and "full name" in response.text
+    assert bike_service.get_bike(bike.id) is not None
+
+
+def test_deleting_an_unknown_bike_is_a_404(signed_in_client):
+    assert signed_in_client.post("/bikes/99/delete", data={"confirm_name": "x"}).status_code == 404
+
+
+def test_an_old_confirmed_flag_no_longer_deletes(signed_in_client):
+    from app.services import bike_service
+
+    bike = _bike_named()
+
+    response = signed_in_client.post(f"/bikes/{bike.id}/delete", data={"confirmed": "true"})
+
+    assert response.status_code == 422 and bike_service.get_bike(bike.id) is not None
 
 
 # ------------------------------------------------ year/make/model form (specs/005, M1)

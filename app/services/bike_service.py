@@ -16,7 +16,7 @@ from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models.rows import Bike
 from app.models.requests import BIKE_CATEGORIES
-from app.services import strava_client, sync_service
+from app.services import confirmation_service, strava_client, sync_service
 from app.services.component_service import ConfirmationRequiredError, detach_to_storage
 
 logger = logging.getLogger(__name__)
@@ -170,6 +170,25 @@ def pair_to_strava_gear(bike_id: int, strava_gear_id: str) -> Bike:
     updated = get_bike(bike_id)
     assert updated is not None
     return updated
+
+
+class ConfirmationMismatchError(Exception):
+    """The typed name did not equal the bike's full name exactly."""
+
+
+def delete_bike_with_name(bike_id: int, typed_name: str | None) -> None:
+    """Delete a bike only when the rider typed its full name exactly (specs/029-safe-bike-delete).
+
+    Its parts are kept: they move to storage with their own sub-trees.
+    """
+    bike = get_bike(bike_id)
+    if bike is None:
+        raise LookupError(f"No bike with id {bike_id}")
+    if not confirmation_service.phrase_matches(bike.name, typed_name):
+        logger.warning("bike delete refused: the typed name did not match bike_id=%s", bike_id)
+        raise ConfirmationMismatchError(bike_id)
+    delete_bike(bike_id, confirmed=True)
+    logger.info("bike deleted bike_id=%s", bike_id)
 
 
 def delete_bike(bike_id: int, *, confirmed: bool = False) -> None:

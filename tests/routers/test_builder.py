@@ -85,7 +85,7 @@ def test_bike_screen_has_the_bike_actions_including_pair_with_strava(signed_in_c
                         ("Add schedule", "/schedules/new"), ("Rides", "/rides"),
                         ("Pair with Strava", "/strava-pairing")):
         assert f'href="/bikes/{bike.id}{href}">{label}</a>' in html
-    assert "Delete bike" in html
+    assert "Delete bike" not in html and "Delete this bike" not in html  # moved to the Edit screen (specs/029)
 
 
 def test_pair_with_strava_disappears_once_paired(signed_in_client):

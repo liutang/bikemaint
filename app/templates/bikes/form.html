@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% from "partials/forms.html" import field, select_field, error_summary, submit %}
+{% import "partials/icons.html" as ui_icons %}
 
 {% block title %}{{ "Edit" if bike else "New" }} Bike — Bike Maintenance Tracker{% endblock %}
 
@@ -21,4 +22,15 @@
     <a class="btn" href="{{ ('/bikes/' ~ bike.id) if bike else '/' }}">Cancel</a>
   </div>
 </form>
+
+{% if bike %}
+<section class="panel danger-zone" aria-labelledby="delete-heading">
+  <h2 id="delete-heading">Delete this bike</h2>
+  <p>Deleting <strong>{{ bike.name }}</strong> removes the bike. Its parts are kept and move to storage with their own sub-parts. This cannot be undone.</p>
+  <form class="form delete-confirm" method="post" action="/bikes/{{ bike.id }}/delete">
+    {{ field("confirm_name", "Type the bike's full name to confirm: " ~ bike.name, "", values, field_errors, required=true, pattern=bike.name|html_pattern, autocomplete="off", hint="The Delete button stays greyed out until the name matches exactly.") }}
+    <button class="btn btn-danger" type="submit">{{ ui_icons.trash() }}Delete bike</button>
+  </form>
+</section>
+{% endif %}
 {% endblock %}

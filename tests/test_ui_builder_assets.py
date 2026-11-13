@@ -97,3 +97,10 @@ def test_script_lets_palette_parts_be_dropped_on_the_storage_box():
 def test_the_browser_local_time_script_is_gone_because_the_saved_zone_is_used(signed_in_client):
     assert not (STATIC / "localtime.js").exists()
     assert signed_in_client.get("/static/localtime.js").status_code == 404
+
+
+def test_the_delete_button_is_styled_unavailable_until_the_name_matches():
+    css = (STATIC / "styles.css").read_text()
+
+    rule = re.search(r"\.delete-confirm:has\(input:invalid\) \.btn-danger \{(.*?)\}", css, re.S).group(1)
+    assert "pointer-events: none" in rule and "opacity" in rule and "not-allowed" in rule

@@ -101,20 +101,25 @@ def standard_offset_minutes(name: str) -> int:
     return int(_standard_time(name).utcoffset() / timedelta(minutes=1))
 
 
-def _offset_text(minutes: int) -> str:
+def _gmt_offset(minutes: int) -> str:
+    """"GMT-5", "GMT+5:30", "GMT+0": the standard offset as people write it."""
     sign = "-" if minutes < 0 else "+"
     hours, rest = divmod(abs(minutes), 60)
-    return f"{sign}{hours:02d}:{rest:02d}"
+    return f"GMT{sign}{hours}" + (f":{rest:02d}" if rest else "")
 
 
 def _label(name: str) -> str:
-    standard = _standard_time(name)
-    text = _offset_text(standard_offset_minutes(name))
-    abbreviation = standard.tzname() or ""
-    if abbreviation and not abbreviation[0] in "+-":
-        text += f" {abbreviation}"
-    if name in _NO_DST_NOTE:
-        text += " (no daylight saving)"
+    """`(GMT-5) America/New York (EST)`: standard offset, the zone's prominent city, its code.
+
+    The code is left out where there is no well-known one (the zone database then uses a number
+    such as `-03`), and a note is added for the one common region that never changes its clocks.
+    """
+    offset = standard_offset_minutes(name)
+    text = f"({_gmt_offset(offset)}) {name.replace('_', ' ')}"
+    code = _standard_time(name).tzname() or ""
+    if code and code[0] not in "+-" and code != name:
+        note = ", no daylight saving" if name in _NO_DST_NOTE else ""
+        text += f" ({code}{note})"
     return text
 
 
@@ -130,7 +135,7 @@ def timezone_choices(current: str) -> list[dict[str, str]]:
     ]
     if current not in _PICKER_ZONES:
         try:
-            extra = f"Current: {_label(current)} ({current})"
+            extra = f"Current: {_label(current)}"
         except Exception:
             extra = f"Current: {current}"
         choices.insert(0, {"value": current, "label": extra})

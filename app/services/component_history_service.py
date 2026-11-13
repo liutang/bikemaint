@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 from app.db import bikes as bikes_db
 from app.db import components as components_db
-from app.db import maintenance as maintenance_db
+from app.models.component_kinds import kind_name
 from app.db import mileage as mileage_db
 from app.db.connection import get_connection
 from app.models.rows import ComponentInstallationPeriod
@@ -93,6 +93,36 @@ def describe_history(component_id: int) -> list[dict]:
         return rows
 
 
+def describe_bike_history(bike_id: int) -> list[dict]:
+    """Every part that has been on a bike, newest installed first (specs/022).
+
+    Each row: the period, the part (even if deleted since), its kind's display name, where it was
+    placed, and whether the part still exists to link to.
+    """
+    with get_connection() as conn:
+        bike = bikes_db.get_by_id(conn, bike_id)
+        rows = []
+        for period in components_db.list_periods_for_bike(conn, bike_id):
+            part = components_db.get_including_deleted(conn, period.component_id)
+            if part is None:
+                continue
+            if period.parent_component_id is not None:
+                parent = components_db.get_including_deleted(conn, period.parent_component_id)
+                place = "a deleted part" if parent is None or parent.is_deleted else parent.name
+            else:
+                place = bike.name if bike is not None else "the bike"
+            rows.append(
+                {
+                    "period": period,
+                    "component": part,
+                    "kind_name": kind_name(part.component_type),
+                    "place": place,
+                    "linked": not part.is_deleted,
+                }
+            )
+        return rows
+
+
 def _validate(
     conn: sqlite3.Connection,
     component_id: int,
@@ -131,15 +161,6 @@ def _validate(
         )
 
 
-def _log_event(conn, component_id: int, text: str, when: str) -> None:
-    component = components_db.get_by_id(conn, component_id)
-    maintenance_db.create(
-        conn, bike_id=None, component_id=component_id, description=text,
-        performed_at=when[:10], performed_time=when[11:16],
-        mileage_at_service=component.total_mileage if component else 0.0, kind="event",
-    )
-
-
 def log_period(
     component_id: int,
     *,
@@ -159,9 +180,6 @@ def log_period(
             conn, component_id, parent_bike_id=bike_id, parent_component_id=parent_component_id,
             installed_at=installed_at, removed_at=removed_at,
         )
-        name = place_name(conn, period)
-        _log_event(conn, component_id, f"Installed on {name}", installed_at)
-        _log_event(conn, component_id, f"Removed from {name}", removed_at)
         mileage_db.recompute_component_total_mileage(conn, component_id)
         return period
 

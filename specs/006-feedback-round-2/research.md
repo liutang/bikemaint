@@ -14,7 +14,7 @@ Decisions recorded as built across milestones M1 (PR #7), M2 (PR #8) and M3 (PR 
 - **Rationale**: One source of truth for placement; the UI never offers an impossible drop.
 - **Alternatives**: Validate only on drop and show an error (the original frustration).
 
-## 3. Part events versus service entries (M2)
+## 3. Part events versus service entries (M2) — superseded by 022: events are no longer written
 
 - **Decision**: Add `maintenance_log_entry.kind` (`service` or `event`, default `service`) and optional `performed_time`. Part added/moved/removed write `event` rows on both the parent and the part; only `service` rows count as "has maintenance history" for delete confirmations.
 - **Rationale**: One history table, one display, no second log to reconcile; events must not trigger delete warnings.

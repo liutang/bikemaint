@@ -184,16 +184,14 @@ def test_editing_an_entry_can_change_its_time(signed_in_client):
     assert 'value="09:05"' in signed_in_client.get(f"/maintenance/{entry.id}/edit").text
 
 
-def test_parts_events_show_with_a_local_time_and_a_parts_tag(signed_in_client):
+def test_adding_a_part_leaves_no_row_in_the_maintenance_history(signed_in_client):
     bike = bike_service.create_bike(name="Road Bike")
     component_service.create_component(name="Chain 1", component_type="chain", parent_bike_id=bike.id)
 
     html = signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
 
-    row = _rows(html)[0]
-    assert "Added Chain 1 (chain)" in row
-    assert re.search(r'<time data-local datetime="\d{4}-\d\d-\d\dT[\d:.]+Z">\d{4}-\d\d-\d\d \d\d:\d\d UTC</time>', row)
-    assert 'class="entry-event"' in row and "Parts" in row
+    assert "No maintenance logged yet" in html and "<tbody>" not in html
+    assert "Added Chain 1" not in html and "entry-event" not in html and "entry-tag" not in html
 
 
 def test_completed_tasks_show_their_time_too(signed_in_client):
@@ -205,17 +203,18 @@ def test_completed_tasks_show_their_time_too(signed_in_client):
 
     row = _rows(signed_in_client.get(f"/bikes/{bike.id}/maintenance").text)[0]
 
-    assert "Annual service" in row and "<time data-local" in row and "entry-event" not in row
+    assert "Annual service" in row and "<time data-local" in row 
 
 
-def test_history_is_still_shown_in_time_order_with_events_between_manual_entries(signed_in_client):
+def test_history_shows_only_the_logged_work_in_time_order(signed_in_client):
     bike = bike_service.create_bike(name="Road Bike")
     maintenance_service.log_maintenance(bike_id=bike.id, description="Old job", performed_at="2000-01-01")
     component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)
+    maintenance_service.log_maintenance(bike_id=bike.id, description="New job", performed_at="2026-01-01")
 
     descriptions = [e.description for e in maintenance_service.list_for_bike(bike.id)]
 
-    assert descriptions == ["Old job", "Added Chain (chain)"]
+    assert descriptions == ["Old job", "New job"]
 
 
 def test_the_history_page_loads_the_local_time_script(signed_in_client):

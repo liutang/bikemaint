@@ -85,4 +85,6 @@ Ride log (feature 006 M3): rides live in `ride_activity` (source `strava`|`manua
 
 Strava pairing (feature 017): the sign-in scope is `profile:read_all,activity:read_all`; paired bikes offer re-import and unpair (`bike_service`); `strava_client` raises `StravaUnavailableError` and `StravaGearAccessError` so routers never see `httpx`.
 
+Maintenance history is service-only (feature 022): adding, moving, removing or deleting a part writes no maintenance entry (migration 0010 deleted the old `kind = 'event'` rows); installs and removals are recorded only as installation periods, shown on a part's Install History and, read-only, on a bike's (`/bikes/{id}/install-history`, `component_history_service.describe_bike_history`).
+
 Install history (feature 015): `component_history_service` owns install dates (`moment`, `installed_at` on add via `/builder/add`) and manual periods at `/components/{id}/install-history` and `/install-periods/{id}`; periods of one part may not overlap and mileage is recomputed after every change.

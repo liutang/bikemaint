@@ -21,7 +21,7 @@ Each part has an "Install history" screen (`/components/{id}/install-history`) l
 - **FR-006**: The currently open period may have only its install moment and place edited (its removal comes from moving/removing the part); it cannot be deleted by hand-logging a new open period.
 - **FR-007**: Periods of one part must not overlap (touching ends are fine). Removal must be after install; neither may be in the future.
 - **FR-008**: After any add/edit/delete the part's mileage is recomputed (baseline + rides across all periods + adjustments).
-- **FR-009**: Add/delete leave a "Parts" event on the part's maintenance history dated at the logged moment.
+- **FR-009**: Add/delete leave a "Parts" event on the part's maintenance history dated at the logged moment. *(Superseded by `specs/022-install-history-split`: add/delete of a period no longer writes any maintenance entry.)*
 - **FR-010**: All routes require sign-in; invalid input re-renders the form with inline errors.
 
 ## Assumptions

@@ -1,0 +1,46 @@
+{% extends "layout.html" %}
+
+{% block title %}Install history — {{ bike.name }}{% endblock %}
+
+{% block content %}
+{% include "partials/breadcrumb.html" %}
+<header class="page-head">
+  <div>
+    <h1>Install history</h1>
+    <p class="text-muted"><a href="/bikes/{{ bike.id }}">{{ bike.name }}</a> — every part that has been on this bike, newest first</p>
+  </div>
+</header>
+
+{% if rows %}
+<div class="table-responsive">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Part</th>
+        <th scope="col">Placed in</th>
+        <th scope="col">Installed</th>
+        <th scope="col">Removed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td data-label="Part">
+          {% if row.linked %}<a href="/components/{{ row.component.id }}">{{ row.component.name }}</a>{% else %}{{ row.component.name }}{% endif %}
+          <span class="chip">{{ row.kind_name }}</span>
+        </td>
+        <td data-label="Placed in">{{ row.place }}</td>
+        <td data-label="Installed">{{ row.period.installed_at[:10] }} {{ row.period.installed_at[11:16] }}</td>
+        <td data-label="Removed">{% if row.period.removed_at %}{{ row.period.removed_at[:10] }} {{ row.period.removed_at[11:16] }}{% else %}Still installed{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p class="empty-title">No parts have been installed yet</p>
+  <p>Parts you add to this bike will be listed here, with when they were installed and removed.</p>
+</div>
+{% endif %}
+{% endblock %}

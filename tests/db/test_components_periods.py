@@ -53,3 +53,30 @@ def test_overlap_detection_ignores_touching_and_excluded(conn):
     assert find("2024-12-01", "2025-01-01") is None
     assert find("2025-01-15", None).id == p.id
     assert find("2025-01-15", "2025-01-20", ex=p.id) is None
+
+
+# ------------------------------------------------ specs/022: a bike's periods
+
+
+def test_list_periods_for_bike_is_newest_first_and_includes_nested_and_deleted_parts(conn):
+    from app.db import bikes, components
+
+    road = bikes.create(conn, name="Road")
+    other = bikes.create(conn, name="Other")
+    wheel = components.create(conn, name="Wheel", component_type="wheel", parent_bike_id=road.id)
+    tire = components.create(conn, name="Tire", component_type="tire", parent_component_id=wheel.id)
+    gone = components.create(conn, name="Gone", component_type="saddle", parent_bike_id=road.id)
+    elsewhere = components.create(conn, name="Else", component_type="saddle", parent_bike_id=other.id)
+    components.insert_period(conn, wheel.id, parent_bike_id=road.id, parent_component_id=None,
+                             installed_at="2025-01-01T00:00:00.000000Z", removed_at=None)
+    components.insert_period(conn, tire.id, parent_bike_id=road.id, parent_component_id=wheel.id,
+                             installed_at="2025-03-01T00:00:00.000000Z", removed_at=None)
+    components.insert_period(conn, gone.id, parent_bike_id=road.id, parent_component_id=None,
+                             installed_at="2025-02-01T00:00:00.000000Z", removed_at="2025-02-20T00:00:00.000000Z")
+    components.soft_delete(conn, gone.id)
+    components.insert_period(conn, elsewhere.id, parent_bike_id=other.id, parent_component_id=None,
+                             installed_at="2025-04-01T00:00:00.000000Z", removed_at=None)
+
+    periods = components.list_periods_for_bike(conn, road.id)
+
+    assert [p.component_id for p in periods] == [tire.id, gone.id, wheel.id]  # newest first

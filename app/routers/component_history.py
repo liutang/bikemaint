@@ -170,3 +170,20 @@ def delete_period(period_id: int, account=Depends(require_account)):
     except ValueError as exc:
         return PlainTextResponse(str(exc), status_code=422)
     return RedirectResponse(url=_list_url(component.id), status_code=303)
+
+
+@router.get("/bikes/{bike_id}/install-history", name="bike_install_history")
+def bike_install_history(request: Request, bike_id: int, account=Depends(require_account)):
+    """Read-only list of every part that has been on the bike (specs/022-install-history-split)."""
+    bike = bike_service.get_bike(bike_id)
+    if bike is None:
+        return PlainTextResponse("Bike not found", status_code=404)
+    return _render(
+        request,
+        "bikes/install_history.html",
+        {
+            "bike": bike,
+            "rows": history.describe_bike_history(bike_id),
+            "crumbs": [("Garage", "/"), (bike.name, f"/bikes/{bike.id}"), ("Install history", None)],
+        },
+    )

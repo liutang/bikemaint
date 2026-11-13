@@ -35,6 +35,8 @@
   --danger: #b42318;
   --danger-text: #ffffff;
   --success: #0a5c39;
+  --sync-ok: #39ff14; /* neon green: sync is working (specs/003 FR-006b); same in both themes */
+  --sync-error: #ff1744; /* bright red: sync is not working */
   --warning: #6b5800;
   --info: #b45309;
   --focus: #b45309;
@@ -312,10 +314,27 @@ ul {
 
 .sync-status::before {
   content: "";
-  width: 0.5rem;
-  height: 0.5rem;
+  width: 0.6rem;
+  height: 0.6rem;
   border-radius: 999px;
-  background: var(--success);
+  background: var(--text-muted);
+  /* a thin ring keeps the bright dot visible on a light bar; the glow reads on a dark one */
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.3), 0 0 6px 1px currentColor;
+}
+
+.sync-status.sync-ok::before {
+  background: var(--sync-ok);
+  color: var(--sync-ok);
+}
+
+.sync-status.sync-error::before {
+  background: var(--sync-error);
+  color: var(--sync-error);
+}
+
+.sync-status.sync-off::before {
+  background: var(--text-muted);
+  color: transparent;
 }
 
 .app-header form {

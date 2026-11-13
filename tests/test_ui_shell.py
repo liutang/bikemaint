@@ -48,7 +48,15 @@ def test_current_section_is_marked_exactly_once(signed_in_client, path, expected
 @pytest.mark.parametrize("path", PAGES)
 def test_signed_in_pages_show_the_sync_indicator(signed_in_client, path):
     html = signed_in_client.get(path).text
-    assert re.search(r'<span class="sync-status"[^>]*>[^<]*(Not synced yet|Synced [^<]+)</span>', html)
+    assert re.search(r'<span class="sync-status[^"]*"[^>]*>[^<]*(Not synced yet|Synced [^<]+)</span>', html)
+
+
+@pytest.mark.parametrize("path", PAGES)
+def test_the_sync_indicator_carries_its_state_as_a_class_and_a_tooltip(signed_in_client, path):
+    html = signed_in_client.get(path).text
+    span = re.search(r'<span class="sync-status sync-(ok|error|off|unknown)"[^>]*title="([^"]+)"', html)
+    assert span, "the sync indicator needs a state class and a tooltip"
+    assert span.group(2) in {"Sync is working", "Sync is not working", "Automatic sync is off", "Sync status unknown"}
 
 
 def test_pages_make_no_external_requests(signed_in_client, client):

@@ -101,6 +101,12 @@ def list_children(
     return [Component.from_row(row) for row in rows]
 
 
+def list_active(conn: sqlite3.Connection) -> list[Component]:
+    """Every part that has not been deleted, by name (for choosing a part)."""
+    rows = conn.execute("SELECT * FROM component WHERE is_deleted = 0 ORDER BY name COLLATE NOCASE, id").fetchall()
+    return [Component.from_row(row) for row in rows]
+
+
 def list_in_storage(conn: sqlite3.Connection) -> list[Component]:
     return list_children(conn, parent_bike_id=None, parent_component_id=None)
 

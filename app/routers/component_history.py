@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from app.models.form_errors import error_context, message_context
 from app.models.requests import InstallPeriodRequest
 from app.services import bike_service, builder_service, component_history_service as history
+from app.models.component_kinds import kind_name
 from app.services import component_service
 from app.services.auth_dependency import require_account
 
@@ -34,13 +35,31 @@ def _crumbs(component, last: str) -> list[tuple[str, str | None]]:
     return [*trail[:-1], (component.name, f"/components/{component.id}"), (last, None)]
 
 
-def _form_context(component, period, extra: dict | None = None) -> dict:
+def _from_bike(request: Request):
+    """The bike named by `?from_bike=`, if it is a positive integer for an existing bike, else None.
+
+    Editing from a bike's Install History returns there; anything else falls back to the part's page.
+    """
+    raw = request.query_params.get("from_bike", "")
+    if not raw.isdigit() or int(raw) < 1:
+        return None
+    return bike_service.get_bike(int(raw))
+
+
+def _bike_history_url(bike) -> str:
+    return f"/bikes/{bike.id}/install-history"
+
+
+def _form_context(component, period, extra: dict | None = None, from_bike=None) -> dict:
+    suffix = f"?from_bike={from_bike.id}" if from_bike else ""
+    base = f"/install-periods/{period.id}" if period else _list_url(component.id)
     return {
         "component": component,
         "period": period,
         "bike_options": [{"value": str(b.id), "label": b.name} for b in bike_service.list_bikes()],
         "crumbs": _crumbs(component, "Edit period" if period else "Log a period"),
-        "action": f"/install-periods/{period.id}" if period else _list_url(component.id) ,
+        "action": base + suffix,
+        "back_url": _bike_history_url(from_bike) if from_bike else _list_url(component.id),
         "errors": [],
         **(extra or {}),
     }
@@ -132,7 +151,10 @@ def edit_period_form(request: Request, period_id: int, account=Depends(require_a
     period, component = _period_and_part(period_id)
     if period is None or component is None:
         return PlainTextResponse("Period not found", status_code=404)
-    return _render(request, "components/install_period_form.html", _form_context(component, period))
+    return _render(
+        request, "components/install_period_form.html",
+        _form_context(component, period, from_bike=_from_bike(request)),
+    )
 
 
 @router.post("/install-periods/{period_id}", name="update_install_period")
@@ -153,15 +175,19 @@ async def update_period(request: Request, period_id: int, account=Depends(requir
         message, field = _problem(exc)
         extra = message_context(form, message, field=field)
     else:
-        return RedirectResponse(url=_list_url(component.id), status_code=303)
+        origin = _from_bike(request)
+        return RedirectResponse(
+            url=_bike_history_url(origin) if origin else _list_url(component.id), status_code=303
+        )
     return _render(
-        request, "components/install_period_form.html", _form_context(component, period, extra),
+        request, "components/install_period_form.html",
+        _form_context(component, period, extra, from_bike=_from_bike(request)),
         status_code=422,
     )
 
 
 @router.post("/install-periods/{period_id}/delete", name="delete_install_period")
-def delete_period(period_id: int, account=Depends(require_account)):
+def delete_period(request: Request, period_id: int, account=Depends(require_account)):
     period, component = _period_and_part(period_id)
     if period is None or component is None:
         return PlainTextResponse("Period not found", status_code=404)
@@ -169,12 +195,15 @@ def delete_period(period_id: int, account=Depends(require_account)):
         history.delete_period(period_id)
     except ValueError as exc:
         return PlainTextResponse(str(exc), status_code=422)
-    return RedirectResponse(url=_list_url(component.id), status_code=303)
+    origin = _from_bike(request)
+    return RedirectResponse(
+        url=_bike_history_url(origin) if origin else _list_url(component.id), status_code=303
+    )
 
 
 @router.get("/bikes/{bike_id}/install-history", name="bike_install_history")
 def bike_install_history(request: Request, bike_id: int, account=Depends(require_account)):
-    """Read-only list of every part that has been on the bike (specs/022-install-history-split)."""
+    """Every part that has been on the bike, with log, edit and delete (specs/022-install-history-split)."""
     bike = bike_service.get_bike(bike_id)
     if bike is None:
         return PlainTextResponse("Bike not found", status_code=404)
@@ -186,4 +215,62 @@ def bike_install_history(request: Request, bike_id: int, account=Depends(require
             "rows": history.describe_bike_history(bike_id),
             "crumbs": [("Garage", "/"), (bike.name, f"/bikes/{bike.id}"), ("Install history", None)],
         },
+    )
+
+
+def _bike_form_context(bike, extra: dict | None = None) -> dict:
+    parts = [
+        {"value": str(c.id), "label": f"{c.name} ({kind_name(c.component_type)})"}
+        for c in component_service.list_all_parts()
+    ]
+    return {
+        "bike": bike,
+        "part_options": [{"value": "", "label": "Choose a part…"}, *parts],
+        "inside_options": [{"value": "", "label": "The bike itself (not inside a part)"}, *parts],
+        "crumbs": [
+            ("Garage", "/"), (bike.name, f"/bikes/{bike.id}"),
+            ("Install history", _bike_history_url(bike)), ("Log a period", None),
+        ],
+        "errors": [],
+        **(extra or {}),
+    }
+
+
+@router.get("/bikes/{bike_id}/install-history/new", name="new_bike_install_period_form")
+def new_bike_period_form(request: Request, bike_id: int, account=Depends(require_account)):
+    bike = bike_service.get_bike(bike_id)
+    if bike is None:
+        return PlainTextResponse("Bike not found", status_code=404)
+    return _render(request, "bikes/install_period_form.html", _bike_form_context(bike))
+
+
+@router.post("/bikes/{bike_id}/install-history", name="create_bike_install_period")
+async def create_bike_period(request: Request, bike_id: int, account=Depends(require_account)):
+    """Log a past period of a chosen part on this bike (retroactive entry of old data)."""
+    bike = bike_service.get_bike(bike_id)
+    if bike is None:
+        return PlainTextResponse("Bike not found", status_code=404)
+    form = await request.form()
+    raw_part = str(form.get("component_id", "")).strip()
+    extra = None
+    if not raw_part.isdigit() or int(raw_part) < 1:
+        extra = message_context(form, "Choose a part from the list.", field="component_id")
+    else:
+        try:
+            payload, installed, removed = _parse({**dict(form), "bike_id": str(bike.id)})
+            history.log_period(
+                int(raw_part), bike_id=bike.id, parent_component_id=payload.parent_component_id,
+                installed_at=installed, removed_at=removed,
+            )
+        except ValidationError as exc:
+            extra = error_context(form, exc)
+        except LookupError:
+            extra = message_context(form, "Choose a part from the list.", field="component_id")
+        except ValueError as exc:
+            message, field = _problem(exc)
+            extra = message_context(form, message, field=field)
+    if extra is None:
+        return RedirectResponse(url=_bike_history_url(bike), status_code=303)
+    return _render(
+        request, "bikes/install_period_form.html", _bike_form_context(bike, extra), status_code=422
     )

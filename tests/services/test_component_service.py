@@ -516,3 +516,16 @@ def test_a_sub_parts_own_history_does_not_force_confirmation_of_the_parent(db_pa
     component_service.delete_component(saddle.id, confirmed=True)
 
     assert component_service.get_component(other.id) is not None  # kept, with its history
+
+
+# ------------------------------------------------ specs/022 US4: choosing a part
+
+
+def test_list_all_parts_returns_active_parts_by_name(db_path):
+    bike = _create_bike()
+    _mk("Zed", "saddle", parent_bike_id=bike.id)
+    _mk("Alpha", "chain")
+    gone = _mk("Gone", "saddle")
+    component_service.delete_component(gone.id)
+
+    assert [c.name for c in component_service.list_all_parts()] == ["Alpha", "Zed"]

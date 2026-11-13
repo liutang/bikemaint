@@ -64,6 +64,12 @@ def get_component(component_id: int) -> Component | None:
         return components_db.get_by_id(conn, component_id)
 
 
+def list_all_parts() -> list[Component]:
+    """Every part that has not been deleted, by name."""
+    with get_connection() as conn:
+        return components_db.list_active(conn)
+
+
 def list_in_storage() -> list[Component]:
     with get_connection() as conn:
         return components_db.list_in_storage(conn)

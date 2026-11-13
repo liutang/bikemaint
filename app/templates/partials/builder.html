@@ -94,42 +94,8 @@
     </section>
 
     <aside class="builder-side" aria-label="Components">
-      <section class="side-section storage-drop drop-target" data-ref="storage" data-accepts="" aria-labelledby="storage-heading-b">
-        <h2 id="storage-heading-b">In storage</h2>
-        {% if view.storage %}
-        <ul class="side-list">
-          {% for item in view.storage %}
-          <li class="side-item" draggable="true" data-source="storage" data-id="{{ item.component.id }}" data-type="{{ item.component.component_type }}">
-            <span class="drag-handle" aria-hidden="true">{{ ui_icons.grip() }}</span>
-            {{ ui_icons.part(item.component.component_type, "icon part-icon") }}
-            <span class="side-name"><a class="node-name" href="/components/{{ item.component.id }}">{{ item.component.name }}</a> <span class="chip">{{ item.component.component_type|kind_name }}</span></span>
-            {% if item.targets %}
-            <details class="side-more">
-              <summary class="btn btn-quiet">Add to…</summary>
-              <form class="side-form" method="post" action="/builder/move"
-                    hx-post="/builder/move" hx-target="#builder" hx-swap="outerHTML">
-                <input type="hidden" name="root" value="{{ root }}">
-                <input type="hidden" name="component_id" value="{{ item.component.id }}">
-                <label class="visually-hidden" for="addto-{{ item.component.id }}">Add {{ item.component.name }} to</label>
-                <select id="addto-{{ item.component.id }}" name="target">
-                  {% for t in item.targets %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
-                </select>
-                <button class="btn" type="submit">Add</button>
-              </form>
-            </details>
-            {% else %}
-            <small class="text-muted">No place for it here yet</small>
-            {% endif %}
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p class="text-muted">Nothing in storage. Drag a part here to take it off.</p>
-        {% endif %}
-      </section>
-
       <section class="side-section" aria-labelledby="palette-heading">
-        <h2 id="palette-heading">Add a new part</h2>
+        <h2 id="palette-heading">Add a part</h2>
         {% for category in view.palette %}
         <details class="palette-category">
           <summary>{{ category.name }}</summary>
@@ -163,6 +129,39 @@
         </ul>
         </details>
         {% endfor %}
+        <details class="palette-category storage-drop drop-target" data-ref="storage" data-accepts="">
+          <summary>In storage ({{ view.storage|length }})</summary>
+          {% if view.storage %}
+          <ul class="side-list">
+            {% for item in view.storage %}
+            <li class="side-item" draggable="true" data-source="storage" data-id="{{ item.component.id }}" data-type="{{ item.component.component_type }}">
+              <span class="drag-handle" aria-hidden="true">{{ ui_icons.grip() }}</span>
+              {{ ui_icons.part(item.component.component_type, "icon part-icon") }}
+              <span class="side-name"><a class="node-name" href="/components/{{ item.component.id }}">{{ item.component.name }}</a> <span class="chip">{{ item.component.component_type|kind_name }}</span></span>
+              {% if item.targets %}
+              <details class="side-more">
+                <summary class="btn btn-quiet">Add to…</summary>
+                <form class="side-form" method="post" action="/builder/move"
+                      hx-post="/builder/move" hx-target="#builder" hx-swap="outerHTML">
+                  <input type="hidden" name="root" value="{{ root }}">
+                  <input type="hidden" name="component_id" value="{{ item.component.id }}">
+                  <label class="visually-hidden" for="addto-{{ item.component.id }}">Add {{ item.component.name }} to</label>
+                  <select id="addto-{{ item.component.id }}" name="target">
+                    {% for t in item.targets %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
+                  </select>
+                  <button class="btn" type="submit">Add</button>
+                </form>
+              </details>
+              {% else %}
+              <small class="text-muted">No place for it here yet</small>
+              {% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="text-muted">Nothing in storage. Drag a part here to take it off.</p>
+          {% endif %}
+        </details>
       </section>
     </aside>
   </div>

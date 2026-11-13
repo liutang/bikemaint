@@ -39,3 +39,6 @@ No new routes. Behavior changes:
 ## Display
 
 Chips, the part detail page and storage cards show the catalog display name (`kind_name` filter), not the raw type id.
+
+> **Amended by `specs/033-add-a-part-panel` (2026-11-14)**: the panel is titled "Add a part" and has a sixth, last section `details.palette-category.storage-drop.drop-target[data-ref="storage"]` titled "In storage (N)" (collapsed by default); the separate In storage card is gone. The storage section is still the drop target for taking parts off the bike and for creating parts in storage.
+

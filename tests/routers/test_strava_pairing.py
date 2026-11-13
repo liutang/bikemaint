@@ -177,3 +177,19 @@ def test_pairing_actions_require_sign_in(client, action):
 
     assert response.status_code in (302, 303, 401)
     assert "/login" in response.headers.get("location", "") or response.status_code == 401
+
+
+# ------------------------------------------------ specs/017 amendment (branch 019): FR-015
+
+
+def test_unpair_button_is_bordered_like_its_neighbours(signed_in_client, monkeypatch):
+    paired = _paired_bike(monkeypatch)
+
+    html = signed_in_client.get(f"/bikes/{paired.id}").text
+
+    unpair = re.search(
+        rf'<form[^>]*action="/bikes/{paired.id}/strava-unpair"[^>]*>\s*<button class="([^"]*)"', html
+    )
+    assert unpair is not None
+    classes = unpair.group(1).split()
+    assert "btn" in classes and "btn-quiet" not in classes  # .btn-quiet draws a transparent border

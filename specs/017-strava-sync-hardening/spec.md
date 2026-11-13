@@ -63,6 +63,7 @@ On a paired bike's screen the rider sees "Re-import Strava history" and "Unpair 
 4. **Given** a paired bike with imported rides, **When** the rider unpairs, **Then** the pairing is cleared, the rides stay, and "Pair with Strava" is offered again.
 5. **Given** an unpaired bike, **When** re-import or unpair is requested directly, **Then** it is rejected as a conflict and nothing changes.
 6. **Given** an unknown bike, **When** either action is requested, **Then** a not-found response is returned.
+7. **Given** a paired bike's action row, **When** it is shown, **Then** "Unpair from Strava" has the same visible border as the neighbouring action buttons.
 
 ---
 
@@ -106,6 +107,7 @@ Full-history pages can take much longer than ordinary requests. The app waits lo
 - **FR-012**: If Strava fails to answer during re-import, the system MUST respond with a gateway-failure status and a message that nothing was re-imported and the rider should try again.
 - **FR-013**: Both actions MUST require sign-in, like every other route.
 - **FR-014**: Unpairing, a missing gear list and a failed re-import MUST each leave a readable log line identifying the bike (never a token), so an operator can see what happened.
+- **FR-015**: "Unpair from Strava" MUST be drawn as a bordered button like the other actions in the row, not as a borderless text button. *(Added by feature 019 after user testing.)*
 
 ### Key Entities
 
@@ -130,3 +132,6 @@ Full-history pages can take much longer than ordinary requests. The app waits lo
 - Strava's gear list is returned only with profile access, and activity pages are at most 200 per request.
 - Re-import is manual; scheduled sync (feature 001) is unchanged.
 - Re-pairing after unpair is the existing pairing flow; no extra confirmation step is added.
+
+## Amendments
+- **2026-11-12 (branch `019-unpair-button-border`)**: user testing found the Unpair button had no border (it used the borderless quiet style). Added scenario US3-7 and FR-015.

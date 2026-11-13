@@ -52,6 +52,10 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`. `[x]` = shipped in PRs 
 - [x] T017 Run `.venv/bin/python -m pytest -q`; all tests must pass (947 before this work)
 - [x] T018 Run `/speckit-analyze` for 017; no CRITICAL or HIGH findings. MEDIUM: FR-011 (404) and FR-013 (sign-in) had no test; added in `tests/routers/test_strava_pairing.py`. MEDIUM: plan/research still listed remediation as open; updated. LOW: FR-014 (logging) added to the spec.
 
+## Phase 4: Amendment from user testing (branch 019)
+
+- [x] T019 [US3] Failing test, then fix: the Unpair button is a bordered `btn` like its neighbours (`app/templates/partials/part_actions.html`; `tests/routers/test_strava_pairing.py::test_unpair_button_is_bordered_like_its_neighbours`)
+
 ## Dependencies
 
 - T010 → T011 → T012 (red, green, refactor)

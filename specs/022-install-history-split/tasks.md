@@ -29,7 +29,7 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`.
 ## Phase 4: Polish
 
 - [x] T008 Update `specs/015-component-install-history/spec.md` (FR-009 superseded: no maintenance events), `specs/015-component-install-history/contracts/routes.md` and the 001/015 contract cross-links for the new route; update `CLAUDE.md` (maintenance history is service-only; bike and part Install History; migration 0010).
-- [ ] T009 Run `.venv/bin/python -m pytest -q`; all pass. Run `/speckit-analyze`-style check and resolve CRITICAL/HIGH findings.
+- [x] T009 Full suite: 950 passed. Analysis: every FR (001–009) maps to a test (FR-001/003 `test_part_events.py`, FR-002 `test_remove_part_events.py`, FR-004/FR-005/FR-006/FR-007/FR-008/FR-009 the db, service and router tests); route coverage re-walked, no uncontracted route. No CRITICAL/HIGH findings. LOW: the new screen's look and the manual quickstart were not checked in a browser by Claude; migration 0010 deletes data on first start, which is intended but not reversible (the rider may want a backup of the data volume before pulling).
 
 ## Dependencies
 

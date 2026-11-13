@@ -740,7 +740,8 @@ def test_garage_bike_cards_and_storage_cards_use_the_new_icons(signed_in_client)
 
 
 def _storage_card(html):
-    return re.search(r'<section class="side-section storage-drop.*?</section>', html, re.S).group(0)
+    """The In storage section: the last collapsible section of the Add a part panel (specs/033)."""
+    return re.search(r'<details class="palette-category storage-drop.*?</details>\s*</section>', html, re.S).group(0)
 
 
 def test_stored_part_names_link_to_the_part_on_a_bike_screen(signed_in_client):
@@ -783,3 +784,94 @@ def test_the_linked_part_opens_with_the_garage_storage_breadcrumb(signed_in_clie
     crumbs = re.search(r'<nav[^>]*aria-label="Breadcrumb".*?</nav>', html, re.S).group(0)
     assert '<a href="/">Garage</a>' in crumbs and '<a href="/components">Storage</a>' in crumbs
     assert 'aria-current="page"><span>Spare tire</span>' in crumbs
+
+
+# ------------------------------------------------ specs/033: Add a part panel with storage
+
+
+def _panel(html):
+    return re.search(r'<section class="side-section" aria-labelledby="palette-heading">.*?</section>', html, re.S).group(0)
+
+
+def test_there_is_one_side_panel_titled_add_a_part(signed_in_client):
+    bike = _bike()
+    _mk("Spare", "saddle")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}").text
+
+    assert '<h2 id="palette-heading">Add a part</h2>' in html
+    assert "Add a new part" not in html
+    assert not re.search(r"<h2[^>]*>\s*In storage", html)  # the separate card is gone
+    assert len(re.findall(r'<section class="side-section', html)) == 1
+
+
+def test_storage_is_the_last_collapsed_section_after_the_five_categories(signed_in_client):
+    bike = _bike()
+    _mk("Spare saddle", "saddle")
+    _mk("Spare tire", "tire")
+
+    panel = _panel(signed_in_client.get(f"/bikes/{bike.id}").text)
+
+    summaries = re.findall(r'<details class="palette-category[^"]*"([^>]*)>\s*<summary>([^<]*)</summary>', panel)
+    assert [name for _, name in summaries] == [*component_kinds.CATEGORIES, "In storage (2)"]
+    assert all("open" not in attrs.split() for attrs, _ in summaries)  # all collapsed on load
+
+
+def test_the_storage_section_is_still_the_drop_target(signed_in_client):
+    bike = _bike()
+
+    html = signed_in_client.get(f"/bikes/{bike.id}").text
+
+    section = re.search(r'<details class="palette-category storage-drop drop-target"[^>]*>', html).group(0)
+    assert 'data-ref="storage"' in section
+
+
+def test_stored_parts_keep_their_rows_link_drag_and_add_to(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    spare = _mk("Spare tire", "tire")
+
+    section = _storage_card(signed_in_client.get(f"/bikes/{bike.id}").text)
+
+    assert re.search(rf'<li class="side-item"[^>]*draggable="true"[^>]*data-source="storage"[^>]*data-id="{spare.id}"', section)
+    assert f'<a class="node-name" href="/components/{spare.id}">Spare tire</a>' in section
+    assert 'action="/builder/move"' in section and ">Add to…</summary>" in section
+    assert f'value="component:{wheel.id}"' in section  # a place for it
+
+
+def test_a_part_screen_shows_the_storage_count_in_the_panel(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    _mk("Spare", "saddle")
+
+    html = signed_in_client.get(f"/components/{wheel.id}").text
+
+    assert "In storage (1)" in html
+
+
+def test_empty_storage_reads_zero_and_has_the_drag_hint(signed_in_client):
+    bike = _bike()
+
+    section = _storage_card(signed_in_client.get(f"/bikes/{bike.id}").text)
+
+    assert "In storage (0)" in section
+    assert "Nothing in storage. Drag a part here to take it off." in section
+
+
+def test_the_palette_is_unchanged_by_the_storage_section(signed_in_client):
+    bike = _bike()
+    _mk("Spare", "saddle")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}").text
+
+    types = re.findall(r'draggable="true" data-source="palette" data-type="([a-z_]+)"', html)
+    assert types == list(component_kinds.COMPONENT_TYPES)
+
+
+def test_the_same_panel_shows_on_a_part_screen(signed_in_client):
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+
+    html = signed_in_client.get(f"/components/{wheel.id}").text
+
+    assert '<h2 id="palette-heading">Add a part</h2>' in html and "In storage (0)" in html

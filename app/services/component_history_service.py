@@ -7,6 +7,7 @@ periods) and keeps the totals right. Callable without FastAPI (Constitution Prin
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from datetime import datetime, timezone
 
@@ -17,6 +18,8 @@ from app.services import clock_service
 from app.db import mileage as mileage_db
 from app.db.connection import get_connection
 from app.models.rows import ComponentInstallationPeriod
+
+logger = logging.getLogger(__name__)
 
 _FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
@@ -194,25 +197,44 @@ def update_period(
     removed_at: str | None,
     parent_component_id: int | None = None,
 ) -> ComponentInstallationPeriod:
-    """Edit a period. A still-installed (open) period keeps no removal time."""
+    """Edit a period.
+
+    A still-installed (open) period given a removal moment is ended: the part is moved to storage
+    at that moment (with its sub-parts) and its mileage is recalculated (specs/030). With no
+    removal moment it stays installed and only the install moment and place change.
+    """
     with get_connection() as conn:
         existing = components_db.get_period(conn, period_id)
         if existing is None:
             raise LookupError(f"No installation period with id {period_id}")
         is_open = existing.removed_at is None
-        if is_open and removed_at is not None:
-            raise ValueError("This part is still installed; remove it from the bike to end this period.")
+        ending = is_open and removed_at is not None
         _validate(
             conn, existing.component_id, bike_id=bike_id, parent_component_id=parent_component_id,
             installed_at=installed_at, removed_at=removed_at, exclude_period_id=period_id,
-            open_period=is_open,
+            open_period=is_open and not ending,
         )
         period = components_db.update_period(
             conn, period_id, parent_bike_id=bike_id, parent_component_id=parent_component_id,
-            installed_at=installed_at, removed_at=removed_at,
+            installed_at=installed_at, removed_at=None if ending else removed_at,
         )
+        if not ending:
+            mileage_db.recompute_component_total_mileage(conn, existing.component_id)
+            return period
+    # The move opens its own connection, so it runs after the edit above is saved.
+    from app.services import component_service  # imported here: component_service imports this module
+
+    component_service.move_component(existing.component_id, moved_at=removed_at)
+    with get_connection() as conn:
         mileage_db.recompute_component_total_mileage(conn, existing.component_id)
-        return period
+        for descendant in components_db.get_descendants(conn, existing.component_id):
+            mileage_db.recompute_component_total_mileage(conn, descendant.id)
+        ended = components_db.get_period(conn, period_id)
+    logger.info(
+        "installation ended by edit component_id=%s period_id=%s removed_at=%s",
+        existing.component_id, period_id, removed_at,
+    )
+    return ended
 
 
 def delete_period(period_id: int) -> None:

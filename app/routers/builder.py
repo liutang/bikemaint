@@ -18,10 +18,7 @@ from app.routers.screen import redirect_to, render_screen, screen_url
 from app.services import builder_service
 from app.services import component_history_service as history_service
 from app.services.auth_dependency import require_account
-from app.services.component_service import (
-    ComponentPlacementError,
-    ConfirmationRequiredError,
-)
+from app.services.component_service import ComponentPlacementError
 
 router = APIRouter()
 
@@ -114,6 +111,7 @@ async def builder_move(request: Request, account=Depends(require_account)):
 
 @router.post("/builder/delete", name="builder_delete")
 async def builder_delete(request: Request, account=Depends(require_account)):
+    """Trash a part. Always asks first (with a Keep install history choice); then deletes."""
     form = await request.form()
     root = _root_of(form)
     if (missing := _missing(root)) is not None:
@@ -125,15 +123,18 @@ async def builder_delete(request: Request, account=Depends(require_account)):
             confirmed=form.get("confirmed") == "true",
         )
         crumbs = builder_service.breadcrumbs(payload.root)
-        builder_service.delete_part(payload.root, payload.component_id, confirmed=payload.confirmed)
+        if not payload.confirmed:
+            component, message = builder_service.delete_confirmation(payload.root, payload.component_id)
+            confirm = {"component": component, "message": message, "root": payload.root}
+            return render_screen(request, payload.root, confirm=confirm)
+        builder_service.delete_part(
+            payload.root,
+            payload.component_id,
+            confirmed=True,
+            keep_history=form.get("keep_history") is not None,
+        )
     except ValidationError:
         return _refuse(request, root, NOT_UNDERSTOOD)
-    except ConfirmationRequiredError as exc:
-        from app.services import component_service
-
-        component = component_service.get_component(payload.component_id)
-        confirm = {"component": component, "message": str(exc), "root": payload.root}
-        return render_screen(request, payload.root, confirm=confirm)
     except (ComponentPlacementError, ValueError) as exc:
         return _refuse(request, root, str(exc))
     kind, root_id = builder_service.parse_root(payload.root)

@@ -1,5 +1,7 @@
 """Install dates on add and the manual parts-history screens (specs/015)."""
 
+import re
+
 import pytest
 
 from app.db import connection, mileage as mileage_db
@@ -376,11 +378,125 @@ def test_a_live_period_cannot_be_deleted_from_the_bike(signed_in_client):
     assert response.status_code == 422 and len(_periods(saddle)) == 1
 
 
-def test_rows_of_deleted_parts_have_no_edit_or_delete(signed_in_client):
+def test_rows_of_deleted_parts_have_no_edit_and_say_deleted(signed_in_client):
     bike = bike_service.create_bike(name="Road")
     saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=bike.id)
-    component_service.delete_component(saddle.id)
+    component_service.delete_component(saddle.id, keep_history=True)
 
     body = signed_in_client.get(f"/bikes/{bike.id}/install-history").text.split("<tbody>")[1]
 
-    assert "Saddle" in body and ">Edit</a>" not in body and "Delete" not in body
+    assert "Saddle (deleted)" in _text(body) and ">Edit</a>" not in body
+
+
+# ------------------------------------------------ specs/030: ending by edit, deleted rows, button border
+
+
+def _text(html):
+    """The visible text of some markup: tags dropped, spaces collapsed."""
+    return " ".join(re.sub(r"<[^>]+>", " ", html).split())
+
+
+def _live(bike, name="Chain", kind="chain", when="2025-01-01T00:00:00.000000Z"):
+    part = component_service.create_component(name=name, component_type=kind, parent_bike_id=bike.id, installed_at=when)
+    return part, history.list_history(part.id)[-1]
+
+
+def test_the_edit_form_of_an_open_period_offers_blank_removed_fields(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain, period = _live(bike)
+
+    html = signed_in_client.get(f"/install-periods/{period.id}/edit").text
+
+    assert re.search(r'<input id="removed_date"[^>]*value=""', html)
+    assert re.search(r'<input id="removed_time"[^>]*value=""', html)
+    assert "ends the installation" in html and "storage" in html
+    assert not re.search(r'<input id="removed_date"[^>]*required', html)  # optional for an open period
+
+
+def test_saving_a_valid_removed_moment_moves_the_part_to_storage(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain, period = _live(bike)
+    _ride(bike, 1, 10, "2025-02-01T08:00:00.000000Z")
+    _ride(bike, 2, 20, "2025-06-01T08:00:00.000000Z")
+
+    response = signed_in_client.post(
+        f"/install-periods/{period.id}",
+        data={"bike_id": str(bike.id), "installed_date": "2025-01-01", "installed_time": "",
+              "removed_date": "2025-03-01", "removed_time": "", "parent_component_id": ""},
+        follow_redirects=False,
+    )
+
+    assert (response.status_code, response.headers["location"]) == (303, f"/components/{chain.id}/install-history")
+    assert component_service.get_component(chain.id).parent_bike_id is None
+    assert _miles(chain.id) == 10
+
+
+def test_ending_from_the_bike_history_returns_to_the_bike(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain, period = _live(bike)
+
+    response = signed_in_client.post(
+        f"/install-periods/{period.id}?from_bike={bike.id}",
+        data={"bike_id": str(bike.id), "installed_date": "2025-01-01", "removed_date": "2025-03-01"},
+        follow_redirects=False,
+    )
+
+    assert response.headers["location"] == f"/bikes/{bike.id}/install-history"
+    assert component_service.get_component(chain.id).parent_bike_id is None
+
+
+@pytest.mark.parametrize("removed,message", [("2025-01-01", "after"), ("2024-12-31", "after"), ("2999-01-01", "future")])
+def test_a_removed_moment_that_is_not_possible_shows_a_message_and_changes_nothing(signed_in_client, removed, message):
+    bike = bike_service.create_bike(name="Road")
+    chain, period = _live(bike)
+
+    response = signed_in_client.post(
+        f"/install-periods/{period.id}",
+        data={"bike_id": str(bike.id), "installed_date": "2025-01-01", "removed_date": removed},
+    )
+
+    assert response.status_code == 422 and message in response.text.lower()
+    assert 'id="removed_date-error"' in response.text
+    assert component_service.get_component(chain.id).parent_bike_id == bike.id
+
+
+def test_install_history_delete_buttons_are_bordered(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Chain", component_type="chain")
+    history.log_period(chain.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z",
+                       removed_at="2025-02-01T00:00:00.000000Z")
+
+    for url in (f"/components/{chain.id}/install-history", f"/bikes/{bike.id}/install-history"):
+        html = signed_in_client.get(url).text
+        button = re.search(r'<button class="([^"]*)" type="submit">Delete</button>', html).group(1).split()
+        assert "btn" in button and "btn-quiet" not in button, url
+
+
+def test_rows_of_deleted_parts_say_deleted_and_can_be_deleted_one_by_one(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    a = component_service.create_component(name="Hub", component_type="hub", parent_bike_id=bike.id)
+    b = component_service.create_component(name="Hub", component_type="hub", parent_bike_id=bike.id)
+    component_service.delete_component(a.id, keep_history=True)
+    component_service.delete_component(b.id, keep_history=True)
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/install-history").text
+    body = html.split("<tbody>")[1]
+
+    assert _text(body).count("Hub (deleted)") == 2
+    assert ">Edit</a>" not in body and body.count(">Delete</button>") == 2
+    (first,) = history.list_history(a.id)
+
+    response = signed_in_client.post(f"/install-periods/{first.id}/delete?from_bike={bike.id}", follow_redirects=False)
+
+    assert (response.status_code, response.headers["location"]) == (303, f"/bikes/{bike.id}/install-history")
+    assert history.list_history(a.id) == [] and len(history.list_history(b.id)) == 1
+
+
+def test_a_live_period_of_an_existing_part_still_cannot_be_deleted_and_has_no_delete_button(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain, period = _live(bike)
+
+    body = signed_in_client.get(f"/bikes/{bike.id}/install-history").text.split("<tbody>")[1]
+
+    assert ">Delete</button>" not in body
+    assert signed_in_client.post(f"/install-periods/{period.id}/delete").status_code == 422

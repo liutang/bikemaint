@@ -38,7 +38,7 @@
             <a class="btn" href="/install-periods/{{ row.period.id }}/edit">Edit</a>
             {% if row.period.removed_at %}
             <form method="post" action="/install-periods/{{ row.period.id }}/delete">
-              <button class="btn btn-quiet" type="submit">Delete</button>
+              <button class="btn" type="submit">Delete</button>
             </form>
             {% endif %}
           </div>

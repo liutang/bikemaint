@@ -41,7 +41,7 @@ Route handlers live only in `app/routers/`; they call into `app/services/` for a
 | `GET /components/{component_id}/edit` | Edit-component form fragment. |
 | `POST /components/{component_id}` | Update a component's own fields (not its parent — see move route). |
 | `POST /components/{component_id}/move` | Move a component (and its sub-tree) to a new `parent_bike_id`, `parent_component_id`, or into storage (both null). Closes the current `component_installation_period` and opens a new one (or none, for storage). Validates FR-024 at the destination. |
-| `POST /components/{component_id}/delete` | Soft-delete (recursively for sub-tree); confirmation-gated like bikes (FR-020). |
+| `POST /components/{component_id}/delete` | Soft-delete (recursively for sub-tree); confirmation-gated like bikes (FR-020). Always asks first (specs/030): without `confirmed=true` it returns the confirmation with a "Keep install history" checkbox; confirming deletes the part and its install history unless `keep_history` is sent. |
 
 ## Mileage (User Story 2)
 

@@ -80,3 +80,18 @@ def test_list_periods_for_bike_is_newest_first_and_includes_nested_and_deleted_p
     periods = components.list_periods_for_bike(conn, road.id)
 
     assert [p.component_id for p in periods] == [tire.id, gone.id, wheel.id]  # newest first
+
+
+def test_delete_periods_for_component_removes_only_that_components_periods(conn):
+    from app.db import components
+
+    a = _part(conn)
+    b = _part(conn)
+    _p(conn, a, "2025-01-01", "2025-02-01")
+    _p(conn, a, "2025-03-01", None)
+    keep = _p(conn, b, "2025-01-01", "2025-02-01")
+
+    components.delete_periods_for_component(conn, a)
+
+    assert components.list_periods(conn, a) == []
+    assert [p.id for p in components.list_periods(conn, b)] == [keep.id]

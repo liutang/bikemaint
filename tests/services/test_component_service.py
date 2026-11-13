@@ -529,3 +529,64 @@ def test_list_all_parts_returns_active_parts_by_name(db_path):
     component_service.delete_component(gone.id)
 
     assert [c.name for c in component_service.list_all_parts()] == ["Alpha", "Zed"]
+
+
+# ------------------------------------------------ specs/030: moving at a given moment, deleting with history
+
+
+def test_move_to_storage_can_be_dated(db_path):
+    bike = _create_bike()
+    saddle = component_service.create_component(
+        name="Saddle", component_type="saddle", parent_bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z"
+    )
+
+    component_service.move_component(saddle.id, moved_at="2025-03-01T00:00:00.000000Z")
+
+    from app.db import components as components_db
+
+    with connection.get_connection() as conn:
+        (period,) = components_db.list_periods(conn, saddle.id)
+    assert period.removed_at == "2025-03-01T00:00:00.000000Z"
+
+
+def _history(component_id):
+    from app.db import components as components_db
+
+    with connection.get_connection() as conn:
+        return components_db.list_periods(conn, component_id)
+
+
+def test_deleting_a_part_removes_its_own_install_history_but_not_its_sub_parts(db_path):
+    bike = _create_bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
+
+    component_service.delete_component(wheel.id, confirmed=True)
+
+    assert _history(wheel.id) == []
+    assert len(_history(tire.id)) >= 1  # the kept sub-part keeps its own history
+
+
+def test_keeping_history_leaves_the_deleted_parts_periods(db_path):
+    bike = _create_bike()
+    saddle = _mk("Saddle", "saddle", parent_bike_id=bike.id)
+
+    component_service.delete_component(saddle.id, confirmed=True, keep_history=True)
+
+    (period,) = _history(saddle.id)
+    assert period.removed_at is not None and component_service.get_component(saddle.id) is None
+
+
+def test_the_delete_consequences_describe_sub_parts_maintenance_and_schedules(db_path):
+    from app.services import maintenance_service
+
+    bike = _create_bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    _mk("Tire", "tire", parent_component_id=wheel.id)
+    chain = _mk("Chain", "chain", parent_bike_id=bike.id)
+    maintenance_service.log_maintenance(component_id=chain.id, description="Waxed", performed_at="2026-05-01")
+    plain = _mk("Saddle", "saddle", parent_bike_id=bike.id)
+
+    assert "sub-parts will move to storage" in component_service.delete_consequences(wheel.id)
+    assert "maintenance history" in component_service.delete_consequences(chain.id)
+    assert component_service.delete_consequences(plain.id) == ""

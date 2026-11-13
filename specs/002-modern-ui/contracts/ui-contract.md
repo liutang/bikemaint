@@ -70,6 +70,8 @@ Contrast requirements (checked by `tests/test_ui_contrast.py`, both themes):
 | `POST /notifications/{id}/acknowledge` | returns an empty 200 body; the alert `<li>` is removed via `hx-swap="outerHTML"` | 303 → `/maintenance/due` |
 | `POST /bikes/{id}/delete`, `POST /components/{id}/delete` without `confirmed` | returns the `.confirm` fragment, shown inline | returns a full page (layout + `.confirm` block) instead of a bare fragment |
 
+> **Superseded in part**: deleting a bike now needs its typed name (`specs/029-safe-bike-delete`); deleting a part always shows this confirmation, with a Keep install history checkbox (`specs/030-install-history-cleanup`).
+
 Status codes, redirects and data effects are otherwise identical to feature 001's
 `contracts/routes.md`.
 

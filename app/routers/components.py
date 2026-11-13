@@ -212,23 +212,26 @@ async def move_component(request: Request, component_id: int, account=Depends(re
 
 @router.post("/components/{component_id}/delete", name="delete_component")
 async def delete_component(request: Request, component_id: int, account=Depends(require_account)):
+    """Delete a part. Always asks first, with a Keep install history choice (specs/030)."""
     form = await request.form()
-    confirmed = form.get("confirmed") == "true"
+    htmx = request.headers.get("hx-request") == "true"
     try:
-        component_service.delete_component(component_id, confirmed=confirmed)
-    except component_service.ConfirmationRequiredError as exc:
-        context = {
-            "item_type": "component",
-            "message": str(exc),
-            "action": f"/components/{component_id}/delete",
-            "cancel_url": f"/components/{component_id}",
-        }
-        template = (
-            "partials/confirm_delete.html"
-            if request.headers.get("hx-request") == "true"
-            else "confirm_delete_page.html"
+        if form.get("confirmed") != "true":
+            message = component_service.delete_consequences(component_id)
+            context = {
+                "item_type": "part",
+                "message": message,
+                "action": f"/components/{component_id}/delete",
+                "cancel_url": f"/components/{component_id}",
+                "offer_keep_history": True,
+            }
+            template = "partials/confirm_delete.html" if htmx else "confirm_delete_page.html"
+            return _render(request, template, context)
+        component_service.delete_component(
+            component_id, confirmed=True, keep_history=form.get("keep_history") is not None
         )
-        return _render(request, template, context)
-    if request.headers.get("hx-request") == "true":
+    except LookupError:
+        return PlainTextResponse("Part not found", status_code=404)
+    if htmx:
         return Response(status_code=200, headers={"HX-Redirect": "/components"})
     return RedirectResponse(url="/components", status_code=303)

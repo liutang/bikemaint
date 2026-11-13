@@ -534,15 +534,58 @@ def test_a_move_without_htmx_redirects_back_to_the_screen(signed_in_client):
 # ---------------------------------------------------------------- trash (delete in place)
 
 
-def test_trash_deletes_a_part_with_no_dependants_at_once(signed_in_client):
+def test_trash_always_asks_first_with_a_keep_history_checkbox(signed_in_client):
     bike = _bike()
     saddle = _mk("Saddle", "saddle", parent_bike_id=bike.id)
 
     response = _hx(signed_in_client, "/builder/delete", {"root": _root(bike), "component_id": str(saddle.id)})
 
     assert response.status_code == 200 and response.text.lstrip().startswith('<div id="builder"')
-    assert component_service.get_component(saddle.id) is None
-    assert f'data-id="{saddle.id}"' not in response.text  # gone from the tree
+    assert 'class="confirm"' in response.text and "Delete Saddle?" in response.text
+    assert re.search(r'<input[^>]*type="checkbox"[^>]*name="keep_history"', response.text)
+    assert not re.search(r'name="keep_history"[^>]*\bchecked\b', response.text)  # unchecked by default
+    assert "Keep install history" in response.text and "Cancel" in response.text
+    assert component_service.get_component(saddle.id) is not None  # nothing deleted yet
+
+
+def test_confirming_without_the_box_deletes_the_part_and_its_history_everywhere(signed_in_client):
+    from app.services import component_history_service as history
+
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
+
+    response = _hx(signed_in_client, "/builder/delete",
+                   {"root": _root(bike), "component_id": str(tire.id), "confirmed": "true"})
+
+    assert response.status_code == 200 and component_service.get_component(tire.id) is None
+    assert history.list_history(tire.id) == []
+    page = signed_in_client.get(f"/bikes/{bike.id}/install-history").text
+    assert "Tire" not in page.split("<tbody>")[1] and "Wheel" in page  # the wheel's own row remains
+
+
+def test_confirming_with_the_box_keeps_the_history_labeled_deleted(signed_in_client):
+    bike = _bike()
+    saddle = _mk("Saddle", "saddle", parent_bike_id=bike.id)
+
+    _hx(signed_in_client, "/builder/delete",
+        {"root": _root(bike), "component_id": str(saddle.id), "confirmed": "true", "keep_history": "on"})
+
+    page = signed_in_client.get(f"/bikes/{bike.id}/install-history").text
+    assert "Saddle (deleted)" in " ".join(re.sub(r"<[^>]+>", " ", page).split())
+
+
+def test_deleting_a_part_keeps_its_sub_parts_history(signed_in_client):
+    from app.services import component_history_service as history
+
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    tire = _mk("Tire", "tire", parent_component_id=wheel.id)
+
+    _hx(signed_in_client, "/builder/delete",
+        {"root": _root(bike), "component_id": str(wheel.id), "confirmed": "true"})
+
+    assert component_service.get_component(tire.id) is not None and history.list_history(tire.id) != []
 
 
 def test_trash_asks_in_place_when_there_are_sub_parts_and_says_they_move_to_storage(signed_in_client):
@@ -605,7 +648,7 @@ def test_trashing_the_part_itself_goes_up_to_the_bike(signed_in_client):
     bike = _bike()
     saddle = _mk("Saddle", "saddle", parent_bike_id=bike.id)
 
-    response = _hx(signed_in_client, "/builder/delete", {"root": f"component:{saddle.id}", "component_id": str(saddle.id)})
+    response = _hx(signed_in_client, "/builder/delete", {"root": f"component:{saddle.id}", "component_id": str(saddle.id), "confirmed": "true"})
 
     assert response.headers["hx-redirect"] == f"/bikes/{bike.id}"
     assert component_service.get_component(saddle.id) is None
@@ -617,7 +660,7 @@ def test_trashing_a_nested_part_itself_goes_up_to_its_parent_screen(signed_in_cl
     tire = _mk("Tire", "tire", parent_component_id=wheel.id)
 
     response = signed_in_client.post(
-        "/builder/delete", data={"root": f"component:{tire.id}", "component_id": str(tire.id)}, follow_redirects=False
+        "/builder/delete", data={"root": f"component:{tire.id}", "component_id": str(tire.id), "confirmed": "true"}, follow_redirects=False
     )
 
     assert response.status_code == 303 and response.headers["location"] == f"/components/{wheel.id}"
@@ -626,7 +669,7 @@ def test_trashing_a_nested_part_itself_goes_up_to_its_parent_screen(signed_in_cl
 def test_trashing_a_stored_part_itself_goes_to_storage(signed_in_client):
     spare = _mk("Spare saddle", "saddle")
 
-    response = _hx(signed_in_client, "/builder/delete", {"root": f"component:{spare.id}", "component_id": str(spare.id)})
+    response = _hx(signed_in_client, "/builder/delete", {"root": f"component:{spare.id}", "component_id": str(spare.id), "confirmed": "true"})
 
     assert response.headers["hx-redirect"] == "/components"
 

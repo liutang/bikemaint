@@ -66,13 +66,17 @@
   {% if confirm %}
   <div class="confirm" role="alertdialog" aria-labelledby="confirm-title">
     <p id="confirm-title">Delete {{ confirm.component.name }}? {{ confirm.message }}</p>
-    <form class="actions" method="post" action="/builder/delete"
+    <form method="post" action="/builder/delete"
           hx-post="/builder/delete" hx-target="#builder" hx-swap="outerHTML">
       <input type="hidden" name="root" value="{{ confirm.root }}">
       <input type="hidden" name="component_id" value="{{ confirm.component.id }}">
       <input type="hidden" name="confirmed" value="true">
-      <button class="btn btn-danger" type="submit">{{ ui_icons.trash() }}Yes, delete</button>
-      <a class="btn" href="{{ '/bikes/' ~ view.bike.id if view.bike else '/components/' ~ view.component.id }}">Cancel</a>
+      <label class="check"><input type="checkbox" name="keep_history"> Keep install history</label>
+      <p class="text-muted">Unchecked, this part's install history is deleted with it. Checked, it stays (marked deleted) and you can delete the entries later.</p>
+      <div class="actions">
+        <button class="btn btn-danger" type="submit">{{ ui_icons.trash() }}Yes, delete</button>
+        <a class="btn" href="{{ '/bikes/' ~ view.bike.id if view.bike else '/components/' ~ view.component.id }}">Cancel</a>
+      </div>
     </form>
   </div>
   {% endif %}

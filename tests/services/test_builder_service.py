@@ -297,3 +297,40 @@ def test_adding_to_storage_is_allowed_from_a_part_screen_too(db_path):
     )
 
     assert part.parent_component_id is None and part.component_type == "tire"
+
+
+# ------------------------------------------------ specs/030: delete confirmation and keeping history
+
+
+def test_delete_confirmation_names_the_part_and_the_consequences(db_path):
+    bike = bike_service.create_bike(name="Road")
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    _mk("Tire", "tire", parent_component_id=wheel.id)
+
+    component, message = builder_service.delete_confirmation(f"bike:{bike.id}", wheel.id)
+
+    assert component.id == wheel.id and "sub-parts will move to storage" in message
+
+
+def test_delete_confirmation_refuses_a_part_outside_the_screen(db_path):
+    bike = bike_service.create_bike(name="Road")
+    other = bike_service.create_bike(name="Other")
+    frame = _mk("Frame", "frame", parent_bike_id=other.id)
+
+    with pytest.raises(ValueError):
+        builder_service.delete_confirmation(f"bike:{bike.id}", frame.id)
+
+
+def test_delete_part_removes_or_keeps_the_history(db_path):
+    from app.db import components as components_db
+
+    bike = bike_service.create_bike(name="Road")
+    gone = _mk("Gone", "saddle", parent_bike_id=bike.id)
+    kept = _mk("Kept", "saddle", parent_bike_id=bike.id)
+
+    builder_service.delete_part(f"bike:{bike.id}", gone.id, confirmed=True)
+    builder_service.delete_part(f"bike:{bike.id}", kept.id, confirmed=True, keep_history=True)
+
+    with connection.get_connection() as conn:
+        assert components_db.list_periods(conn, gone.id) == []
+        assert len(components_db.list_periods(conn, kept.id)) == 1

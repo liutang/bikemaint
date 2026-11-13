@@ -1,10 +1,14 @@
 <div class="confirm" role="alert">
-  <p>{{ message }} Delete this {{ item_type }} anyway?</p>
-  <div class="actions">
-    <form method="post" action="{{ action }}">
-      <input type="hidden" name="confirmed" value="true">
+  <p>{{ message }} Delete this {{ item_type }}{% if message %} anyway{% endif %}?</p>
+  <form method="post" action="{{ action }}">
+    <input type="hidden" name="confirmed" value="true">
+    {% if offer_keep_history %}
+    <label class="check"><input type="checkbox" name="keep_history"> Keep install history</label>
+    <p class="text-muted">Unchecked, this part's install history is deleted with it. Checked, it stays (marked deleted) and you can delete the entries later.</p>
+    {% endif %}
+    <div class="actions">
       <button class="btn btn-danger" type="submit">Yes, delete</button>
-    </form>
-    <a class="btn" href="{{ cancel_url }}">Cancel</a>
-  </div>
+      <a class="btn" href="{{ cancel_url }}">Cancel</a>
+    </div>
+  </form>
 </div>

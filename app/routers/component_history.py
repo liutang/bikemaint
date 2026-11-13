@@ -188,8 +188,9 @@ async def update_period(request: Request, period_id: int, account=Depends(requir
 
 @router.post("/install-periods/{period_id}/delete", name="delete_install_period")
 def delete_period(request: Request, period_id: int, account=Depends(require_account)):
-    period, component = _period_and_part(period_id)
-    if period is None or component is None:
+    """Delete one closed period, also for a part that has since been deleted (specs/030)."""
+    period = history.get_period(period_id)
+    if period is None:
         return PlainTextResponse("Period not found", status_code=404)
     try:
         history.delete_period(period_id)
@@ -197,7 +198,7 @@ def delete_period(request: Request, period_id: int, account=Depends(require_acco
         return PlainTextResponse(str(exc), status_code=422)
     origin = _from_bike(request)
     return RedirectResponse(
-        url=_bike_history_url(origin) if origin else _list_url(component.id), status_code=303
+        url=_bike_history_url(origin) if origin else _list_url(period.component_id), status_code=303
     )
 
 

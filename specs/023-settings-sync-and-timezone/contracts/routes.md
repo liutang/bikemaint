@@ -10,7 +10,7 @@ Extends `specs/001-bike-maintenance-tracker/contracts/routes.md` (Settings). All
 ## Settings page
 
 - **Strava connection** panel: connection status as before; a form with the "Sync automatically" switch, Hours and Minutes, and Save; a line "Every N h M min" or "Automatic sync is off".
-- **Time zone** section: a `<select>` of about 30 UTC offsets with abbreviations (for example `-05:00 EST`), ordered by offset, current choice selected (an off-list saved zone is added as the current choice), Save. The submitted value is still an IANA zone name (`timezone`).
+- **Time zone** section: a `<select>` of about 30 entries such as `(GMT-5) America/New York (EST)` (standard offset, prominent city, abbreviation), ordered by offset, current choice selected (an off-list saved zone is added as the current choice), Save. The submitted value is still an IANA zone name (`timezone`).
 - "Connected since" is shown in the saved zone.
 
 ## Display

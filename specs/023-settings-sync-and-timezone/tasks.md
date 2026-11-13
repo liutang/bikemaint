@@ -35,6 +35,11 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`.
 - [x] T009 [US2] Tests first: `tests/services/test_clock_service.py` (`timezone_choices(current)`: about 30 entries ordered by offset; each label looks like `-05:00 EST` or just `+03:30` when the zone has no letter abbreviation; `-05:00 EST` is `America/New_York`, `-08:00 PST` is `America/Los_Angeles`, `+05:30 IST` is `Asia/Kolkata`, `+00:00 UTC` is `UTC`; Arizona is `-07:00 MST (no daylight saving)`; values are unique valid zones; a saved zone not in the list is added and flagged current), `tests/routers/test_settings.py` (Time zone is a `<select>` with these options and the current one selected; no `datalist` and no city list; an off-list saved zone stays selectable; saving a choice works; unknown still refused). Watch them fail.
 - [x] T010 [US2] `app/services/clock_service.py` (`timezone_choices`), `app/routers/settings.py` (pass choices), `app/templates/settings/index.html` (`select_field`, updated copy and hint), run the suite, update `specs/023.../contracts/routes.md` and `CLAUDE.md`, PR, merge, confirm publish.
 
+## Phase 6: Amendment from user testing (branch 027-timezone-label-format)
+
+- [ ] T011 [US2] Tests first: `tests/services/test_clock_service.py` (labels such as `(GMT-5) America/New York (EST)`, `(GMT-8) America/Los Angeles (PST)`, `(GMT+0) Europe/London (GMT)`, `(GMT+0) UTC`, `(GMT+5:30) Asia/Kolkata (IST)`, `(GMT-3) America/Sao Paulo` with no brackets, `(GMT-7) America/Phoenix (MST, no daylight saving)`; the offset is the standard one even for southern-hemisphere zones; an off-list zone reads `Current: ...`), `tests/routers/test_settings.py` (option texts, "Currently (GMT-5) America/New York (EST)."). Watch them fail.
+- [ ] T012 [US2] `app/services/clock_service.py` `_label`/`_offset_text`; update `CLAUDE.md` and the contract text; run the suite; PR; merge; confirm publish.
+
 ## Dependencies
 
 - T001 → T002 → US1 (T003 → T004) and US2 (T005 → T006) in either order; US1 is the MVP.

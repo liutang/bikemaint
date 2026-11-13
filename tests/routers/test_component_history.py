@@ -500,3 +500,40 @@ def test_a_live_period_of_an_existing_part_still_cannot_be_deleted_and_has_no_de
 
     assert ">Delete</button>" not in body
     assert signed_in_client.post(f"/install-periods/{period.id}/delete").status_code == 422
+
+
+# ------------------------------------------------ specs/031: place links on both screens
+
+
+def test_part_history_links_existing_places_and_leaves_others_plain(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Front wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+
+    html = signed_in_client.get(f"/components/{tire.id}/install-history").text
+
+    assert f'<td data-label="Installed on"><a href="/components/{wheel.id}">Front wheel</a></td>' in html
+    wheel_html = signed_in_client.get(f"/components/{wheel.id}/install-history").text
+    assert f'<td data-label="Installed on"><a href="/bikes/{bike.id}">Road</a></td>' in wheel_html
+
+
+def test_bike_history_links_the_place_when_it_exists(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Front wheel", component_type="wheel", parent_bike_id=bike.id)
+    component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+
+    body = signed_in_client.get(f"/bikes/{bike.id}/install-history").text.split("<tbody>")[1]
+
+    assert f'<td data-label="Placed in"><a href="/components/{wheel.id}">Front wheel</a></td>' in body
+    assert f'<td data-label="Placed in"><a href="/bikes/{bike.id}">Road</a></td>' in body
+
+
+def test_a_deleted_parent_is_plain_text(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Front wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+    component_service.delete_component(wheel.id, confirmed=True, keep_history=True)
+
+    body = signed_in_client.get(f"/bikes/{bike.id}/install-history").text.split("<tbody>")[1]
+
+    assert '<td data-label="Placed in">a deleted part</td>' in body

@@ -390,3 +390,36 @@ def test_a_removed_moment_that_is_not_possible_changes_nothing(db_path, removed)
 
     assert component_service.get_component(saddle.id).parent_bike_id == bike.id
     assert history.list_history(saddle.id)[0].removed_at is None
+
+
+# ------------------------------------------------ specs/031: places link to what still exists
+
+
+def test_place_urls_point_at_existing_parts_and_bikes_only(db_path):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+    saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=bike.id)
+
+    assert history.describe_history(tire.id)[0]["place_url"] == f"/components/{wheel.id}"
+    assert history.describe_history(saddle.id)[0]["place_url"] == f"/bikes/{bike.id}"
+    rows = {r["component"].name: r for r in history.describe_bike_history(bike.id)}
+    assert rows["Tire"]["place_url"] == f"/components/{wheel.id}"
+    assert rows["Saddle"]["place_url"] == f"/bikes/{bike.id}"
+
+
+def test_a_deleted_parent_or_a_deleted_bike_or_storage_has_no_link(db_path):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+    component_service.delete_component(wheel.id, confirmed=True)  # the tire is kept, in storage
+
+    (period, *_) = history.describe_history(tire.id)
+    assert period["place"] == "a deleted part" and period["place_url"] is None
+
+    spare = component_service.create_component(name="Spare", component_type="saddle")
+    component_service.move_component(spare.id, parent_bike_id=bike.id)
+    component_service.move_component(spare.id)  # back to storage
+    bike_service.delete_bike(bike.id, confirmed=True)
+    for row in history.describe_history(spare.id):
+        assert row["place_url"] is None

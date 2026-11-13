@@ -147,3 +147,9 @@ MVP = Phases 1–3 (theme + shell). Then the attention page (largest behavior ch
 - [x] T102 Migration `0012_account_last_synced_at.sql`; `Account.strava_last_synced_at`; `accounts_db.mark_synced`; `sync_service.sync_incremental` and `backfill_bike` record it; `sync_status_service.last_sync_label` reads it. Full suite, PR, merge, confirm publish.
 
 Note: full suite 1071 passed. After upgrading, the label shows the old ride-based time until the first scheduled or manual sync run completes, then follows each run.
+
+## Amendment from user testing (branch 032-sync-indicator-colors)
+
+- [ ] T103 Tests first (`tests/services/test_sync_status_service.py`, `tests/test_ui_shell.py`, `tests/test_ui_builder_assets.py`): the state is error for a stale connection or no successful sync for two intervals (and never-synced beyond two intervals since connecting), off when automatic sync is off, otherwise ok; the top bar span carries the state class and a tooltip; the dot uses neon green and bright red tokens defined for both themes, not `--success`. Watch fail.
+- [ ] T104 `sync_status_service.sync_state`, Jinja global, `layout.html`, `styles.css` tokens and dot rules; suite; PR; merge; confirm publish.
+

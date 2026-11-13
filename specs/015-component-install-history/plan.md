@@ -7,3 +7,5 @@ No new tables or libraries (constitution v1.3.0 stack unchanged). Layout:
 - `app/models/requests.py` — `BuilderAddRequest` gains `installed_date`/`installed_time`; new `InstallPeriodRequest`.
 - `app/routers/component_history.py` — thin routes; templates `components/install_history.html`, `components/install_period_form.html`; builder partial gains date/time inputs; link from part actions.
 - Tests mirror: `tests/db`, `tests/services`, `tests/routers`.
+
+Design artifacts: [research.md](research.md), [data-model.md](data-model.md), [contracts/routes.md](contracts/routes.md) (added retrospectively).

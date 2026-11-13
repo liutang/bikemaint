@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-11
 
-**Status**: Draft
+**Status**: Implemented (milestones M1–M3 merged as PRs #7, #8, #9)
 
 **Input**: Rider feedback after testing the unified bike screen: (1) deleting a parent part deletes its children; (2) the part screen's palette lists parts that cannot go on that part; (3) maintenance history should log parts being added and removed; (4) history should show time; (5) "Mark done" gives no feedback; (6) a bike needs a ride log with full CRUD; (7) drag a new part into the storage box; (8) the add-part form shows parent IDs; (9) storage is hard to reach and lacks breadcrumbs; (10) the bike and part icons look wrong; (11) maintenance due should name the bike a part belongs to.
 

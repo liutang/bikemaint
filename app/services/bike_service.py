@@ -6,6 +6,7 @@ Per Constitution Principle II this module is callable without FastAPI/request ob
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from app.db import bikes as bikes_db
@@ -15,8 +16,10 @@ from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models.rows import Bike
 from app.models.requests import BIKE_CATEGORIES
-from app.services import sync_service
+from app.services import strava_client, sync_service
 from app.services.component_service import ConfirmationRequiredError, detach_to_storage
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "ConfirmationRequiredError",
@@ -207,7 +210,11 @@ def reimport_strava_history(bike_id: int) -> None:
         raise LookupError(f"No bike with id {bike_id}")
     if not bike.strava_gear_id:
         raise NotPairedError(bike_id)
-    sync_service.backfill_bike(bike_id)
+    try:
+        sync_service.backfill_bike(bike_id)
+    except strava_client.StravaUnavailableError:
+        logger.warning("Strava re-import failed because Strava did not answer bike_id=%s", bike_id)
+        raise
 
 
 def unpair_from_strava(bike_id: int) -> Bike:
@@ -218,4 +225,6 @@ def unpair_from_strava(bike_id: int) -> Bike:
             raise LookupError(f"No bike with id {bike_id}")
         if not bike.strava_gear_id:
             raise NotPairedError(bike_id)
-        return bikes_db.clear_strava_pairing(conn, bike_id)
+        unpaired = bikes_db.clear_strava_pairing(conn, bike_id)
+    logger.info("Bike unpaired from Strava bike_id=%s", bike_id)
+    return unpaired

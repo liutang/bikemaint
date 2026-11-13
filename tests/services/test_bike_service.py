@@ -236,3 +236,41 @@ def test_update_for_a_missing_bike_raises_lookup_error(db_path):
         bike_service.update_bike_from_details(
             999, year=2022, make="Trek", model="Domane", category="road", manual_baseline_mileage=0
         )
+
+
+# ------------------------------------------------ specs/017 remediation R2
+
+
+def _paired(db_path, monkeypatch):
+    bike = bike_service.create_bike(name="Paired Bike")
+    with connection.get_connection() as conn:
+        conn.execute(
+            "UPDATE bike SET strava_gear_id = 'g1', strava_paired_at = '2026-01-01T00:00:00Z' WHERE id = ?",
+            (bike.id,),
+        )
+    return bike
+
+
+def test_unpair_logs_the_bike_id(db_path, monkeypatch, caplog):
+    bike = _paired(db_path, monkeypatch)
+
+    with caplog.at_level("INFO"):
+        bike_service.unpair_from_strava(bike.id)
+
+    assert f"bike_id={bike.id}" in caplog.text and "unpaired" in caplog.text.lower()
+
+
+def test_reimport_timeout_is_logged_and_raised_as_a_domain_error(db_path, monkeypatch, caplog):
+    from app.services import strava_client
+
+    bike = _paired(db_path, monkeypatch)
+
+    def slow(bike_id):
+        raise strava_client.StravaUnavailableError("timed out")
+
+    monkeypatch.setattr("app.services.sync_service.backfill_bike", slow)
+
+    with caplog.at_level("WARNING"), pytest.raises(strava_client.StravaUnavailableError):
+        bike_service.reimport_strava_history(bike.id)
+
+    assert f"bike_id={bike.id}" in caplog.text and "re-import" in caplog.text.lower()

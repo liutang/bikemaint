@@ -11,7 +11,7 @@ The 001 feature is implemented (all tasks in `tasks.md` are checked off). Common
 - Run: export the variables in `.env.example`, then `uvicorn app.main:app --reload`
 - Docker: `docker build -t bikemaint:local .` (see README "Running in Docker")
 
-All features so far are merged into `master`; new work goes on a short-lived feature branch cut from it. Spec chains live under `specs/`: `001-bike-maintenance-tracker` (the app), `002-modern-ui` and `003-cockpit-theme` (the UI). The 001 chain contains:
+All features so far are merged into `master`; new work goes on a short-lived feature branch cut from it. **Every change, however small, goes through the Spec Kit skills first** (`/speckit-specify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`, test-first), with its own `specs/NNN-name/`; never merge code without one. Branch and spec numbers are sequential and must match. Spec chains live under `specs/`: `001-bike-maintenance-tracker` (the app), `002-modern-ui` and `003-cockpit-theme` (the UI). The 001 chain contains:
 - `spec.md` — feature spec (user stories, functional requirements, clarifications)
 - `plan.md` — implementation plan (tech stack choices, constitution gate check, source layout)
 - `research.md` — Phase 0 design decisions and rejected alternatives
@@ -39,7 +39,7 @@ Each feature lives under `specs/NNN-feature-name/`, numbered sequentially; `.spe
 
 ## Constitution (binding on all code in this repo)
 
-`.specify/memory/constitution.md` (currently v1.2.0) is the authoritative governance document — `/speckit-plan`, `/speckit-tasks`, and `/speckit-implement` all read it, and code review is expected to enforce it. Key points future work must not violate:
+`.specify/memory/constitution.md` (currently v1.3.0) is the authoritative governance document — `/speckit-plan`, `/speckit-tasks`, and `/speckit-implement` all read it, and code review is expected to enforce it. Key points future work must not violate:
 
 - **Fixed tech stack**: FastAPI (web/API) + HTMX (server-rendered fragments, no SPA framework/build pipeline) + Jinja2 (templates) + SQLite. Diversifying this (second templating engine, frontend framework, alternate DB) requires a constitution amendment, not a unilateral choice in a feature branch.
 - **Fixed directory layout**: `app/routers/` (route handlers only, no business logic or direct DB queries), `app/services/` (business logic, must be importable/callable without FastAPI or request objects), `app/models/` (Pydantic schemas + row models), `app/db/` (connection setup, parameterized query functions, migrations — no ORM), `app/templates/`, `app/static/`; `tests/` mirrors `app/` 1:1 (e.g. `tests/services/test_x.py` tests `app/services/x.py`). A file must live in the directory matching its *responsibility*, regardless of what it's named.
@@ -70,5 +70,7 @@ Consult `contracts/routes.md` for the full intended HTTP surface (page routes vs
 A Codex CLI config was found at `~/.codex/config.toml`. If you want to import any of it (MCP servers, slash commands, subagents, skills, instructions) into Claude Code, run `/import` to see what's importable, then `/import --yes=<digest>` to apply it.
 
 Ride log (feature 006 M3): rides live in `ride_activity` (source `strava`|`manual`, `user_modified`, `deleted_by_user`); Strava upserts never overwrite a user-modified or user-deleted ride; `ride_service` owns CRUD and recomputes bike and part mileage.
+
+Strava pairing (feature 017): the sign-in scope is `profile:read_all,activity:read_all`; paired bikes offer re-import and unpair (`bike_service`); `strava_client` raises `StravaUnavailableError` and `StravaGearAccessError` so routers never see `httpx`.
 
 Install history (feature 015): `component_history_service` owns install dates (`moment`, `installed_at` on add via `/builder/add`) and manual periods at `/components/{id}/install-history` and `/install-periods/{id}`; periods of one part may not overlap and mileage is recomputed after every change.

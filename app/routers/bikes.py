@@ -7,7 +7,6 @@ and `app/services/component_service.py`.
 
 from __future__ import annotations
 
-import httpx
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from pydantic import ValidationError
@@ -213,7 +212,7 @@ def reimport_strava_history(bike_id: int, account=Depends(require_account)):
         return PlainTextResponse("Bike not found", status_code=404)
     except bike_service.NotPairedError:
         return PlainTextResponse("Bike is not paired with Strava", status_code=409)
-    except httpx.HTTPError:
+    except strava_client.StravaUnavailableError:
         return PlainTextResponse(
             "Strava did not answer in time, so nothing was re-imported. Please try again in a moment.",
             status_code=502,

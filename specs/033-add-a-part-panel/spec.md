@@ -30,6 +30,7 @@ As the rider, I want one "Add a part" panel with the part categories and my stor
 8. **Given** a part from the palette, **When** it is dropped onto the "In storage" section, **Then** a new part of that kind is created in storage, as before.
 9. **Given** a stored part is dragged, **When** it is dropped onto the "In storage" section, **Then** nothing changes (it is already there).
 10. **Given** the section header, **When** used by keyboard or assistive technology, **Then** it opens and closes without a mouse and announces its open state, like the category headers.
+11. **Given** one or more sections are open, **When** a part is added, moved, installed or removed (by drag and drop or by a form) or an action is refused, **Then** the sections that were open stay open and the ones that were closed stay closed. *(Added by feature 034 after user testing.)*
 
 ---
 
@@ -49,6 +50,7 @@ As the rider, I want one "Add a part" panel with the part categories and my stor
 - **FR-002**: The panel MUST list the five part categories (existing order and contents) followed by an "In storage (N)" section, each collapsed by default and independently openable.
 - **FR-003**: The "In storage" section MUST list stored parts as the old card did: name linking to the part's screen, kind chip, drag handle, "Add to…" control or "No place for it here yet", and MUST be draggable to install; empty storage MUST show "Nothing in storage. Drag a part here to take it off."
 - **FR-004**: The "In storage" section MUST remain a drop target, collapsed or open: dropping a tree part takes it to storage; dropping a palette part creates it in storage; dropping a stored part changes nothing.
+- **FR-006**: Adding, moving, installing or removing a part, or a refused action, MUST NOT change which of the six sections are open. *(Added by feature 034.)*
 - **FR-005**: The section header MUST be keyboard operable and expose its open state to assistive technology.
 
 ### Key Entities
@@ -67,3 +69,6 @@ As the rider, I want one "Add a part" panel with the part categories and my stor
 
 - The section reuses the category styling, with the dashed drop-target highlight while dragging.
 - Open or closed state is not remembered between page loads (as for the categories).
+
+## Amendments
+- **2026-11-14 (branch `034-keep-sections-open`)**: user testing found every section collapsing after each add, move or removal, because the screen part is re-rendered closed. Added scenario 11 and FR-006.

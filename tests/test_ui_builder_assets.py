@@ -116,3 +116,13 @@ def test_the_sync_dot_uses_neon_green_and_bright_red_tokens_in_both_themes():
     assert re.search(r"\.sync-status\.sync-off::before \{[^}]*var\(--text-muted\)", css)
     base = re.search(r"\.sync-status::before \{(.*?)\}", css, re.S).group(1)
     assert "var(--success)" not in base  # the dark green that looked black is gone
+
+
+def test_script_keeps_open_palette_sections_open_across_a_swap():
+    # 033 FR-006: the builder is re-rendered after every action; the sections the rider
+    # opened must be remembered before the swap and reopened after it (behavior itself
+    # is verified in a browser).
+    assert "palette-category" in JS
+    assert "htmx:beforeSwap" in JS and "htmx:afterSwap" in JS
+    assert re.search(r"\.open\s*=", JS)
+

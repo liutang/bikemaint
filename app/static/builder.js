@@ -98,6 +98,22 @@
 
   document.addEventListener("dragend", () => { clear(); drag = null; });
 
+  // The builder is swapped whole after every action, which would close the palette sections the
+  // rider opened (specs/033 FR-006). Remember which were open before the swap, reopen them after.
+  let openSections = null;
+  const sections = (root) => Array.from(root.querySelectorAll("details.palette-category"));
+  document.body.addEventListener("htmx:beforeSwap", (event) => {
+    const { target } = event.detail;
+    if (target && target.id === "builder") openSections = sections(target).map((el) => el.open);
+  });
+  document.body.addEventListener("htmx:afterSwap", () => {
+    const root = builder();
+    if (openSections && root) {
+      sections(root).forEach((el, i) => { el.open = Boolean(openSections[i]); });
+    }
+    openSections = null;
+  });
+
   // A refused action comes back as a 422 carrying the whole builder plus the reason.
   document.body.addEventListener("htmx:beforeSwap", (event) => {
     const { xhr, target } = event.detail;

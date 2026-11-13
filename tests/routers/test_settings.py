@@ -170,9 +170,9 @@ def test_the_time_zone_section_is_a_short_offset_dropdown_with_utc_selected_at_f
 
     select = _timezone_select(html)
     assert 'name="timezone"' in select and "<datalist" not in html
-    assert '<option value="America/Los_Angeles">-08:00 PST</option>' in select
-    assert '<option value="America/New_York">-05:00 EST</option>' in select
-    assert re.search(r'<option value="UTC" selected>\+00:00 UTC</option>', select)
+    assert '<option value="America/Los_Angeles">(GMT-8) America/Los Angeles (PST)</option>' in select
+    assert '<option value="America/New_York">(GMT-5) America/New York (EST)</option>' in select
+    assert re.search(r'<option value="UTC" selected>\(GMT\+0\) UTC</option>', select)
     assert "America/Argentina" not in html and len(re.findall(r"<option", select)) <= 45
 
 
@@ -182,7 +182,7 @@ def test_a_zone_saved_earlier_that_is_not_in_the_list_stays_selected(client, mon
 
     select = _timezone_select(client.get("/settings").text)
 
-    assert re.search(r'<option value="Europe/Istanbul" selected>Current: \+03:00', select)
+    assert re.search(r'<option value="Europe/Istanbul" selected>Current: \(GMT\+3\) Europe/Istanbul', select)
 
 
 def test_saving_a_zone_stores_it_and_shows_connected_since_in_it(client, monkeypatch):
@@ -215,4 +215,4 @@ def test_the_current_zone_is_described_by_its_offset_not_a_city(client, monkeypa
 
     html = client.get("/settings").text
 
-    assert "Currently -05:00 EST." in html
+    assert "Currently (GMT-5) America/New York (EST)." in html

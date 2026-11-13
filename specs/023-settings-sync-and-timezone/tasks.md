@@ -37,8 +37,8 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`.
 
 ## Phase 6: Amendment from user testing (branch 027-timezone-label-format)
 
-- [ ] T011 [US2] Tests first: `tests/services/test_clock_service.py` (labels such as `(GMT-5) America/New York (EST)`, `(GMT-8) America/Los Angeles (PST)`, `(GMT+0) Europe/London (GMT)`, `(GMT+0) UTC`, `(GMT+5:30) Asia/Kolkata (IST)`, `(GMT-3) America/Sao Paulo` with no brackets, `(GMT-7) America/Phoenix (MST, no daylight saving)`; the offset is the standard one even for southern-hemisphere zones; an off-list zone reads `Current: ...`), `tests/routers/test_settings.py` (option texts, "Currently (GMT-5) America/New York (EST)."). Watch them fail.
-- [ ] T012 [US2] `app/services/clock_service.py` `_label`/`_offset_text`; update `CLAUDE.md` and the contract text; run the suite; PR; merge; confirm publish.
+- [x] T011 [US2] Tests first: `tests/services/test_clock_service.py` (labels such as `(GMT-5) America/New York (EST)`, `(GMT-8) America/Los Angeles (PST)`, `(GMT+0) Europe/London (GMT)`, `(GMT+0) UTC`, `(GMT+5:30) Asia/Kolkata (IST)`, `(GMT-3) America/Sao Paulo` with no brackets, `(GMT-7) America/Phoenix (MST, no daylight saving)`; the offset is the standard one even for southern-hemisphere zones; an off-list zone reads `Current: ...`), `tests/routers/test_settings.py` (option texts, "Currently (GMT-5) America/New York (EST)."). Watch them fail.
+- [x] T012 [US2] `app/services/clock_service.py` `_label`/`_offset_text`; update `CLAUDE.md` and the contract text; run the suite; PR; merge; confirm publish.
 
 ## Dependencies
 

@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from app.db import bikes as bikes_db
 from app.db import components as components_db
+from app.models.component_kinds import kind_name
 from app.db import mileage as mileage_db
 from app.db.connection import get_connection
 from app.models.rows import ComponentInstallationPeriod
@@ -89,6 +90,36 @@ def describe_history(component_id: int) -> list[dict]:
                 (period.parent_bike_id, period.installed_at, period.removed_at, period.removed_at),
             ).fetchone()["total"]
             rows.append({"period": period, "place": place_name(conn, period), "miles": miles})
+        return rows
+
+
+def describe_bike_history(bike_id: int) -> list[dict]:
+    """Every part that has been on a bike, newest installed first (specs/022).
+
+    Each row: the period, the part (even if deleted since), its kind's display name, where it was
+    placed, and whether the part still exists to link to.
+    """
+    with get_connection() as conn:
+        bike = bikes_db.get_by_id(conn, bike_id)
+        rows = []
+        for period in components_db.list_periods_for_bike(conn, bike_id):
+            part = components_db.get_including_deleted(conn, period.component_id)
+            if part is None:
+                continue
+            if period.parent_component_id is not None:
+                parent = components_db.get_including_deleted(conn, period.parent_component_id)
+                place = "a deleted part" if parent is None or parent.is_deleted else parent.name
+            else:
+                place = bike.name if bike is not None else "the bike"
+            rows.append(
+                {
+                    "period": period,
+                    "component": part,
+                    "kind_name": kind_name(part.component_type),
+                    "place": place,
+                    "linked": not part.is_deleted,
+                }
+            )
         return rows
 
 

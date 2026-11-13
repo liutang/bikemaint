@@ -303,6 +303,26 @@ def list_periods(conn: sqlite3.Connection, component_id: int) -> list[ComponentI
     return [ComponentInstallationPeriod.from_row(row) for row in rows]
 
 
+def list_periods_for_bike(conn: sqlite3.Connection, bike_id: int) -> list[ComponentInstallationPeriod]:
+    """Every installation period of every part that has been on `bike_id`, newest installed first.
+
+    Periods record the top bike, so parts nested under other parts are included. Parts that were
+    deleted later are included too: a history keeps what used to be there.
+    """
+    rows = conn.execute(
+        "SELECT * FROM component_installation_period WHERE parent_bike_id = ? "
+        "ORDER BY installed_at DESC, id DESC",
+        (bike_id,),
+    ).fetchall()
+    return [ComponentInstallationPeriod.from_row(row) for row in rows]
+
+
+def get_including_deleted(conn: sqlite3.Connection, component_id: int) -> Component | None:
+    """A component whether or not it has since been deleted (for history screens)."""
+    row = conn.execute("SELECT * FROM component WHERE id = ?", (component_id,)).fetchone()
+    return Component.from_row(row) if row else None
+
+
 def get_period(conn: sqlite3.Connection, period_id: int) -> ComponentInstallationPeriod | None:
     row = conn.execute(
         "SELECT * FROM component_installation_period WHERE id = ?", (period_id,)

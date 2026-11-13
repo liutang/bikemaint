@@ -9,6 +9,7 @@
 <div class="actions panel part-actions">
   <a class="btn" href="{{ base }}/edit">Edit</a>
   <a class="btn" href="{{ base }}/maintenance">Maintenance history</a>
+  {% if bike %}<a class="btn" href="{{ base }}/install-history">Install history</a>{% endif %}
   <a class="btn" href="{{ base }}/schedules/new">Add schedule</a>
   <a class="btn" href="{{ base }}/rides">Rides</a>
   {% if bike and not bike.strava_gear_id %}<a class="btn" href="{{ base }}/strava-pairing">Pair with Strava</a>{% endif %}

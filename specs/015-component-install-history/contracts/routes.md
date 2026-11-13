@@ -27,3 +27,5 @@ Errors: overlap with another period, removal not after install, future moments, 
 ## Changed route
 
 `POST /builder/add` accepts optional `installed_date` and `installed_time` (blank = now; a time requires a date; not in the future; ignored when `target=storage`). The part's mileage is computed at once from rides on the bike since that moment.
+
+See also `specs/022-install-history-split/contracts/routes.md` for `GET /bikes/{bike_id}/install-history` (a bike's read-only install history). Hand-logging or deleting a period no longer writes a maintenance entry.

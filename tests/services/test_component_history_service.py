@@ -214,3 +214,65 @@ def test_installed_at_in_the_future_is_rejected_on_create(db_path):
         component_service.create_component(
             name="Saddle", component_type="saddle", parent_bike_id=bike.id, installed_at=future
         )
+
+
+# ------------------------------------------------ specs/022: a bike's install history
+
+
+def test_a_parts_history_lists_each_period_in_order_after_moves(db_path):
+    a = bike_service.create_bike(name="A")
+    b = bike_service.create_bike(name="B")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=a.id)
+    component_service.move_component(saddle.id, parent_bike_id=b.id)
+    component_service.move_component(saddle.id)  # to storage
+
+    rows = history.describe_history(saddle.id)
+
+    assert [r["place"] for r in rows] == ["A", "B"]
+    assert all(r["period"].removed_at for r in rows)
+
+
+def test_bike_history_rows_describe_part_place_and_moments(db_path):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Front wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+    saddle = component_service.create_component(name="Old saddle", component_type="saddle", parent_bike_id=bike.id)
+    component_service.move_component(saddle.id)  # removed
+
+    rows = history.describe_bike_history(bike.id)
+
+    by_name = {r["component"].name: r for r in rows}
+    assert by_name["Tire"]["place"] == "Front wheel" and by_name["Tire"]["kind_name"] == "Tire"
+    assert by_name["Front wheel"]["place"] == "Road" and by_name["Front wheel"]["period"].removed_at is None
+    assert by_name["Old saddle"]["period"].removed_at is not None and by_name["Old saddle"]["linked"] is True
+    installed = [r["period"].installed_at for r in rows]
+    assert installed == sorted(installed, reverse=True)
+    assert tire.id
+
+
+def test_a_part_moved_between_bikes_shows_on_each_bike(db_path):
+    a = bike_service.create_bike(name="A")
+    b = bike_service.create_bike(name="B")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=a.id)
+
+    component_service.move_component(saddle.id, parent_bike_id=b.id)
+
+    on_a = history.describe_bike_history(a.id)
+    on_b = history.describe_bike_history(b.id)
+    assert [(r["component"].name, r["period"].removed_at is not None) for r in on_a] == [("Saddle", True)]
+    assert [(r["component"].name, r["period"].removed_at is None) for r in on_b] == [("Saddle", True)]
+
+
+def test_a_deleted_part_and_a_deleted_parent_are_described_without_a_link(db_path):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+    saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=bike.id)
+
+    component_service.delete_component(saddle.id)
+    component_service.delete_component(wheel.id, confirmed=True)  # the tire is kept, in storage
+
+    by_name = {r["component"].name: r for r in history.describe_bike_history(bike.id)}
+    assert by_name["Saddle"]["linked"] is False
+    assert by_name["Tire"]["place"] == "a deleted part" and by_name["Tire"]["linked"] is True
+    assert tire.id

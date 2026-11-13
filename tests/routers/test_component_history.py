@@ -142,3 +142,50 @@ def test_the_add_form_offers_date_and_time(signed_in_client):
     bike = bike_service.create_bike(name="Road A")
     html = signed_in_client.get(f"/bikes/{bike.id}").text
     assert 'name="installed_date"' in html and 'name="installed_time"' in html
+
+
+# ------------------------------------------------ specs/022: a bike's install history screen
+
+
+def test_bike_install_history_requires_sign_in(client):
+    response = client.get("/bikes/1/install-history", follow_redirects=False)
+
+    assert (response.status_code, response.headers["location"]) == (303, "/login")
+
+
+def test_an_unknown_bike_is_a_404(signed_in_client):
+    assert signed_in_client.get("/bikes/99/install-history").status_code == 404
+
+
+def test_the_bike_screen_links_to_its_install_history_beside_maintenance_history(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}").text
+
+    assert f'href="/bikes/{bike.id}/install-history">Install history</a>' in html
+    assert html.index(">Maintenance history<") < html.index(">Install history<")
+
+
+def test_the_empty_bike_history_says_so(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/install-history").text
+
+    assert "No parts have been installed yet" in html and "<form" not in html.split("</header>")[-1]
+
+
+def test_the_bike_history_lists_parts_newest_first_read_only(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Old chain", component_type="chain", parent_bike_id=bike.id)
+    component_service.move_component(chain.id)  # to storage: closes its period
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/install-history").text
+
+    assert html.index("Tire") < html.index("Wheel") < html.index("Old chain")  # newest installed first
+    assert "Still installed" in html and html.count("Still installed") == 2
+    assert f'href="/components/{tire.id}"' in html and f'href="/components/{chain.id}"' in html
+    assert "Front" not in html and 'class="chip">Chain</span>' in html
+    body = html.split("<tbody>")[1]
+    assert "<form" not in body and "Edit" not in body and "Delete" not in body

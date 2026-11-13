@@ -94,7 +94,7 @@ As the rider, I want the "Add a new part" list grouped into categories that star
 
 - **SC-001**: In user testing, the rider can place any part under any other part or the bike on the first attempt, with zero "cannot be mounted" refusals.
 - **SC-002**: 100% of placements that do not put a part inside itself or its own sub-parts succeed.
-- **SC-003**: A rider can reach and drag any one of the 36 palette parts in at most two interactions (expand its category, drag it).
+- **SC-003**: A rider can reach and drag any one of the 34 palette parts in at most two interactions (expand its category, drag it).
 - **SC-004**: With the palette first shown, no more than 5 category headers are visible and no part names are, so a bike screen with a full parts tree is not pushed down by the palette.
 - **SC-005**: All parts, mileage, schedules and histories that existed before the change are unchanged afterwards (suite passes; no data migration loss).
 

@@ -35,7 +35,10 @@
 {% macro part(type, class="icon") -%}
 {%- set kind = {"hub": "wheel", "rim": "tire", "spoke": "wheel", "cassette": "drivetrain", "crankset": "drivetrain",
                 "derailleur": "chain", "shifter": "handlebar", "pad": "brake", "stem": "handlebar",
-                "seatpost": "saddle"}.get(type, type) -%}
+                "seatpost": "saddle", "brake_lever": "brake", "brake_cable": "brake", "bottom_bracket": "drivetrain",
+                "chainrings": "drivetrain", "shifter_cable": "chain", "handlebar_tape": "handlebar",
+                "headset": "fork", "shock": "fork", "axle": "wheel", "trainer": "wheel", "tube": "tire",
+                "wheelset": "wheel"}.get(type, type) -%}
 {%- if kind == "frame" -%}{{ frame(class) }}
 {%- elif kind == "fork" -%}{{ fork(class) }}
 {%- elif kind == "wheel" -%}{{ wheel(class) }}

@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.models.component_kinds import (  # noqa: E402
     ALL_COMPONENT_TYPES,
     COMPONENT_TYPES,
-    MULTI_INSTANCE_COMPONENT_TYPES,
 )
 
 def _validate_component_type(value: str) -> str:

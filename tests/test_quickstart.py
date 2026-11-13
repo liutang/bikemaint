@@ -78,9 +78,9 @@ def test_scenario_1_garage_inventory(signed_in):
     assert _tree_names(client.get("/bikes/2").text) == ["Road Wheel", "Gravel Tire"]
     assert "Gravel Tire" not in client.get("/components").text
 
-    # Cross-cutting: a second single-instance tire on an occupied wheel is rejected (FR-024).
-    duplicate = _add_component(client, "Second Tire", "tire", parent_component_id="3")
-    assert duplicate.status_code == 422
+    # Any number of parts of one kind may share a parent (specs/020 removed the single-instance rule).
+    second = _add_component(client, "Second Tire", "tire", parent_component_id="3")
+    assert second.status_code in (200, 303)
 
 
 def test_scenario_2_strava_sync_adjustment_and_stale_connection(signed_in, monkeypatch):

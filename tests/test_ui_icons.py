@@ -82,3 +82,14 @@ def test_unknown_types_fall_back_to_the_generic_part_icon(env):
     other = env.from_string("{% from 'partials/icons.html' import part %}{{ part('other') }}").render()
 
     assert unknown == other
+
+
+def test_every_catalog_kind_renders_an_icon_with_the_wrench_as_the_fallback():
+    from app.models import component_kinds
+    from jinja2 import Environment, FileSystemLoader
+
+    env = Environment(loader=FileSystemLoader("app/templates"))
+    macro = env.get_template("partials/icons.html").module.part
+    for kind in component_kinds.ALL_COMPONENT_TYPES:
+        assert str(macro(kind, "icon")).strip().startswith("<svg"), kind
+    assert str(macro("not-a-kind", "icon")) == str(macro("lights", "icon"))  # both fall back to the wrench

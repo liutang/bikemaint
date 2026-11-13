@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+from app.models import component_kinds
 from app.services import bike_service, component_service
 
 
@@ -110,19 +111,17 @@ def test_there_is_no_build_or_add_component_button_anywhere(signed_in_client):
         assert "Add component</a>" not in html, path
 
 
-def test_bike_root_is_a_drop_target_with_its_accepted_types(signed_in_client):
+def test_bike_root_is_a_drop_target_that_has_no_accept_list(signed_in_client):
     bike = _bike()
 
     html = signed_in_client.get(f"/bikes/{bike.id}").text
 
     root = re.search(r'<div class="builder-root drop-target"[^>]*>', html).group(0)
-    assert f'data-ref="bike:{bike.id}"' in root
-    accepts = re.search(r'data-accepts="([^"]*)"', root).group(1).split()
-    assert {"frame", "wheel", "brake", "pedal"} <= set(accepts) and "tire" not in accepts
+    assert f'data-ref="bike:{bike.id}"' in root and "data-accepts" not in root
     assert "Drag a frame here to start" in html
 
 
-def test_tree_nodes_are_draggable_drop_targets_with_rules_attached(signed_in_client):
+def test_tree_nodes_are_draggable_drop_targets(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     _mk("Tire", "tire", parent_component_id=wheel.id)
@@ -132,8 +131,7 @@ def test_tree_nodes_are_draggable_drop_targets_with_rules_attached(signed_in_cli
     node = re.search(rf'<div class="node-row drop-target"[^>]*data-id="{wheel.id}"[^>]*>', html).group(0)
     assert 'draggable="true"' in node and 'data-source="node"' in node and 'data-type="wheel"' in node
     assert f'data-ref="component:{wheel.id}"' in node and f'data-parent-ref="bike:{bike.id}"' in node
-    accepts = re.search(r'data-accepts="([^"]*)"', node).group(1).split()
-    assert "other" in accepts and "tire" not in accepts  # the single tire slot is taken
+    assert "data-accepts" not in node  # any part can be dropped on any part
 
 
 def test_every_part_row_has_garage_and_trash_buttons(signed_in_client):
@@ -156,11 +154,8 @@ def test_storage_and_palette_items_are_draggable_sources(signed_in_client):
     html = signed_in_client.get(f"/bikes/{bike.id}").text
 
     assert re.search(rf'<li class="side-item"[^>]*draggable="true"[^>]*data-source="storage"[^>]*data-id="{spare.id}"', html)
-    palette = re.findall(r'data-source="palette" data-type="([a-z]+)"', html)
-    # only kinds with a valid place: nothing here can take a tire or rotor (no wheel), but every
-    # other kind can still go on the bike
-    assert palette == ["frame", "fork", "wheel", "brake", "drivetrain", "chain", "pedal",
-                       "saddle", "handlebar", "other"]
+    palette = re.findall(r'data-source="palette" data-type="([a-z_]+)"', html)
+    assert palette == list(component_kinds.COMPONENT_TYPES)  # every offered kind, in category order
     assert 'data-ref="storage"' in html
 
 
@@ -323,48 +318,56 @@ def test_storage_add_works_from_a_part_screen_and_keeps_that_screen(signed_in_cl
     assert [c.component_type for c in component_service.list_in_storage()] == ["tire"]
 
 
-def test_a_wheel_screen_only_offers_what_fits_a_wheel(signed_in_client):
+def test_a_wheel_screen_offers_the_whole_palette(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
 
     html = signed_in_client.get(f"/components/{wheel.id}").text
 
-    assert re.findall(r'data-source="palette" data-type="([a-z]+)"', html) == ["tire", "rotor", "other"]
+    assert len(re.findall(r'data-source="palette" data-type="([a-z_]+)"', html)) == 34
 
 
 def test_adding_before_a_sibling_orders_it(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    first = _mk("S1", "other", parent_component_id=wheel.id)
+    first = _mk("S1", "tube", parent_component_id=wheel.id)
 
     _hx(signed_in_client, "/builder/add",
-        {"root": _root(bike), "component_type": "other", "target": f"component:{wheel.id}", "before_component_id": str(first.id)})
+        {"root": _root(bike), "component_type": "tube", "target": f"component:{wheel.id}", "before_component_id": str(first.id)})
 
-    assert _names(bike.id) == ["Wheel", "Other part", "S1"]
+    assert _names(bike.id) == ["Wheel", "Tube", "S1"]
 
 
-def test_an_invalid_add_returns_the_fragment_with_a_422_and_the_reason(signed_in_client):
+def test_a_part_of_any_kind_can_be_added_to_a_wheel(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
 
     response = _hx(signed_in_client, "/builder/add",
                    {"root": _root(bike), "component_type": "pedal", "target": f"component:{wheel.id}"})
 
+    assert response.status_code == 200
+    assert _names(bike.id) == ["Wheel", "Pedals"]
+
+
+def test_an_add_of_a_kind_that_is_not_offered_returns_the_fragment_with_a_422(signed_in_client):
+    bike = _bike()
+
+    response = _hx(signed_in_client, "/builder/add",
+                   {"root": _root(bike), "component_type": "rim", "target": f"bike:{bike.id}"})
+
     assert response.status_code == 422
     assert response.text.lstrip().startswith('<div id="builder"') and 'role="alert"' in response.text
-    assert "A pedal can be mounted on the bike, not on a wheel." in response.text
-    assert _names(bike.id) == ["Wheel"]
+    assert _names(bike.id) == []
 
 
-def test_an_invalid_add_without_htmx_renders_the_full_page_with_the_reason(signed_in_client):
+def test_an_unoffered_add_without_htmx_renders_the_full_page_with_the_reason(signed_in_client):
     bike = _bike()
-    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
 
     response = signed_in_client.post(
-        "/builder/add", data={"root": _root(bike), "component_type": "pedal", "target": f"component:{wheel.id}"}
+        "/builder/add", data={"root": _root(bike), "component_type": "rim", "target": f"bike:{bike.id}"}
     )
 
-    assert response.status_code == 422 and "<html" in response.text and "A pedal can be mounted on the bike" in response.text
+    assert response.status_code == 422 and "<html" in response.text
 
 
 @pytest.mark.parametrize(
@@ -404,13 +407,13 @@ def test_adding_outside_the_screens_scope_is_refused(signed_in_client):
     assert response.status_code == 422 and _names(other.id) == []
 
 
-def test_a_second_single_instance_part_is_refused_with_the_existing_message(signed_in_client):
+def test_a_second_part_of_the_same_kind_can_be_added(signed_in_client):
     bike = _bike()
     _mk("Frame", "frame", parent_bike_id=bike.id)
 
     response = _hx(signed_in_client, "/builder/add", {"root": _root(bike), "component_type": "frame", "target": f"bike:{bike.id}"})
 
-    assert response.status_code == 422 and "already installed" in response.text
+    assert response.status_code == 200 and _names(bike.id) == ["Frame", "Frame"]
 
 
 # ---------------------------------------------------------------- move / reorder / unmount
@@ -464,7 +467,7 @@ def test_reordering_siblings_persists_and_shows_on_the_bike_screen(signed_in_cli
     assert html.index("S2") < html.index("S1")
 
 
-def test_an_invalid_move_is_refused_with_the_reason_and_nothing_moves(signed_in_client):
+def test_a_part_can_be_moved_onto_any_other_part(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     pedal = _mk("Pedal", "pedal")
@@ -472,8 +475,8 @@ def test_an_invalid_move_is_refused_with_the_reason_and_nothing_moves(signed_in_
     response = _hx(signed_in_client, "/builder/move",
                    {"root": _root(bike), "component_id": str(pedal.id), "target": f"component:{wheel.id}"})
 
-    assert response.status_code == 422 and "A pedal can be mounted on the bike, not on a wheel." in response.text
-    assert component_service.get_component(pedal.id).parent_component_id is None
+    assert response.status_code == 200
+    assert component_service.get_component(pedal.id).parent_component_id == wheel.id
 
 
 def test_dropping_a_part_into_its_own_subtree_is_refused(signed_in_client):

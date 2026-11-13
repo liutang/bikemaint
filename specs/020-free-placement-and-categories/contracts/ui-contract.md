@@ -32,7 +32,7 @@ No new routes. Behavior changes:
 
 | Route | Change |
 |---|---|
-| `POST /builder/add` | `component_type` must be an offered kind (36); any `target` is accepted; no "already installed there" or "can be mounted" refusals |
+| `POST /builder/add` | `component_type` must be an offered kind (34); any `target` is accepted; no "already installed there" or "can be mounted" refusals |
 | `POST /builder/move` | Any target accepted except itself or its sub-tree (400/422 with "A component cannot be moved into its own installed sub-tree.") |
 | `POST /components`, `POST /components/{id}` | Same relaxation; type choice lists the offered kinds |
 

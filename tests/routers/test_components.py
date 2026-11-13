@@ -52,7 +52,7 @@ def test_in_storage_list_shows_unattached_components(client, monkeypatch):
     assert "Spare Tire" in response.text
 
 
-def test_create_component_rejects_second_single_instance_type_under_same_parent(
+def test_create_component_allows_a_second_part_of_the_same_kind_under_one_parent(
     client, monkeypatch
 ):
     _login(client, monkeypatch)
@@ -74,7 +74,7 @@ def test_create_component_rejects_second_single_instance_type_under_same_parent(
         "/components",
         data={"name": "Second Frame", "component_type": "frame", "parent_bike_id": str(bike_id)},
     )
-    assert second.status_code == 422
+    assert second.status_code in (200, 303)
 
 
 def test_move_component_to_storage(client, monkeypatch):

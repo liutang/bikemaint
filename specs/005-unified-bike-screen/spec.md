@@ -119,3 +119,5 @@ As the rider, I want choosing a bike in the garage to open one screen where I se
 - The Delete bike action stays on the bike screen; deleting a part from its own screen returns to the level above.
 - Older part types are hidden, not migrated; the rider can re-type them by editing.
 - Maintenance, schedule, mileage-adjustment and edit pages keep their own screens, reached by the part's buttons.
+
+> **Superseded in part (2026-11-12)**: the placement rules and the one-per-kind-per-parent limit described here were removed by `specs/020-free-placement-and-categories`; the part palette is now categorised there.

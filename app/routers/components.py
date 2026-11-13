@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from pydantic import ValidationError
 
+from app.models import component_kinds
 from app.models.form_errors import error_context, message_context
 
 from app.models.requests import (
@@ -21,7 +22,7 @@ from app.models.requests import (
 from app.routers.screen import render_screen
 from app.services import builder_service, component_service
 from app.services.auth_dependency import require_account
-from app.services.component_service import ComponentNestingConflictError
+from app.services.component_service import ComponentPlacementError
 
 router = APIRouter()
 
@@ -44,16 +45,11 @@ def _render(request: Request, template: str, context: dict, status_code: int = 2
 
 
 def _form_context(component, parent_bike_id, parent_component_id, extra: dict | None = None) -> dict:
-    """Context for components/form.html: only the types that fit the parent are offered."""
-    types = (
-        component_service.valid_types_for_parent(
-            parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
-        )
-        if component is None or component.parent_bike_id or component.parent_component_id
-        else component_service.valid_types_for_parent()
-    )
+    """Context for components/form.html: every offered kind, plus a part's own older kind."""
+    types = list(component_kinds.COMPONENT_TYPES)
     if component is not None and component.component_type not in types:
         types = [component.component_type, *types]  # an older kind stays selectable on its own part
+    types = [{"value": t, "label": component_kinds.kind_name(t)} for t in types]
     if component is None:
         crumbs = [("Garage", "/"), ("Storage", "/components"), ("Add a part", None)]
     else:
@@ -114,7 +110,7 @@ async def create_component(request: Request, account=Depends(require_account)):
         )
     try:
         component = component_service.create_component(**payload.model_dump())
-    except (ComponentNestingConflictError, LookupError) as exc:
+    except (ComponentPlacementError, LookupError) as exc:
         return _render(
             request,
             "components/form.html",
@@ -170,7 +166,7 @@ async def update_component(request: Request, component_id: int, account=Depends(
         )
     try:
         component = component_service.update_component(component_id, **payload.model_dump())
-    except ComponentNestingConflictError as exc:
+    except ComponentPlacementError as exc:
         return _render(
             request,
             "components/form.html",
@@ -207,7 +203,7 @@ async def move_component(request: Request, component_id: int, account=Depends(re
         )
     try:
         component = component_service.move_component(component_id, **parents)
-    except (ComponentNestingConflictError, ValueError, LookupError) as exc:
+    except (ComponentPlacementError, ValueError, LookupError) as exc:
         return render_screen(request, root, message=_message(exc), status_code=422)
     if request.headers.get("hx-request") == "true":
         return render_screen(request, f"component:{component.id}")

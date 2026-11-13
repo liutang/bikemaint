@@ -4,7 +4,7 @@
 
 ## Summary
 
-Remove the placement rules and the one-per-kind-per-parent limit, and replace the flat palette with five collapsible categories listing exactly the 36 parts the rider supplied. The part catalog (`app/models/component_kinds.py`) gains display names and categories and loses its rules; services keep only the "not inside itself or its own sub-tree" check; the palette and drop targets stop filtering by kind.
+Remove the placement rules and the one-per-kind-per-parent limit, and replace the flat palette with five collapsible categories listing exactly the 34 parts the rider supplied. The part catalog (`app/models/component_kinds.py`) gains display names and categories and loses its rules; services keep only the "not inside itself or its own sub-tree" check; the palette and drop targets stop filtering by kind.
 
 ## Technical Context
 
@@ -20,7 +20,7 @@ Remove the placement rules and the one-per-kind-per-parent limit, and replace th
 
 **Project Type**: web-service (single FastAPI app)
 
-**Performance Goals**: Palette is static (36 items); no measurable change to page cost
+**Performance Goals**: Palette is static (34 items); no measurable change to page cost
 
 **Constraints**: No new JS framework; categories use native `<details>`/`<summary>` (keyboard operable, state announced by the browser); all closed on load, no persistence
 
@@ -82,7 +82,7 @@ tests/                            # mirrors app/: models/test_component_kinds.py
 
 ## Design Decisions (summary; detail in research.md)
 
-1. **Catalog**: one ordered table of `(type, name, category)` for the 36 offered kinds plus a legacy list (`drivetrain`, `other`, `rim`, `spoke`, `bolt`) valid but never offered.
+1. **Catalog**: one ordered table of `(type, name, category)` for the 34 offered kinds plus a legacy list (`drivetrain`, `other`, `rim`, `spoke`, `bolt`) valid but never offered.
 2. **Existing kinds reused** where the palette name matches: `frame fork wheel tire rotor brake chain saddle handlebar hub cassette crankset derailleur stem seatpost`; `pedal` → "Pedals", `shifter` → "Shift levers", `pad` → "Brake Pads" (those three move from legacy to offered; no data change).
 3. **New type ids**: `accessories apparel computer lights brake_cable brake_lever bottom_bracket chainrings shifter_cable handlebar_tape headset shock axle trainer tube wheelset`.
 4. **Placement**: any parent; only the cycle check remains (already implemented for moves).

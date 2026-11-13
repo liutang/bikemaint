@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+from app.models import component_kinds
 from app.services import bike_service, component_service
 
 
@@ -23,18 +24,17 @@ def _options(html, select_id):
 # --- create form
 
 
-def test_creating_a_pedal_on_a_wheel_is_refused_with_a_clear_message(signed_in_client):
+def test_creating_a_pedal_on_a_wheel_works(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
 
     response = signed_in_client.post(
         "/components",
         data={"name": "Pedal", "component_type": "pedal", "parent_component_id": str(wheel.id)},
+        follow_redirects=False,
     )
 
-    assert response.status_code == 422
-    assert "A pedal can be mounted on the bike, not on a wheel." in response.text
-    assert component_service.get_descendants(wheel.id) == []
+    assert response.status_code == 303
 
 
 def test_creating_a_tire_on_a_rim_works(signed_in_client):
@@ -51,28 +51,14 @@ def test_creating_a_tire_on_a_rim_works(signed_in_client):
     assert response.status_code == 303
 
 
-def test_add_form_for_storage_offers_every_type(signed_in_client):
-    types = _options(signed_in_client.get("/components/new").text, "component_type")
+def test_add_form_for_storage_offers_every_offered_kind_by_its_name(signed_in_client):
+    html = signed_in_client.get("/components/new").text
 
-    assert types == ["frame", "fork", "wheel", "tire", "rotor", "brake", "drivetrain", "chain", "pedal", "saddle", "handlebar", "other"]
-
-
-def test_failed_create_keeps_the_filtered_type_list(signed_in_client):
-    bike = _bike()
-    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-
-    response = signed_in_client.post(
-        "/components",
-        data={"name": "Pedal", "component_type": "pedal", "parent_component_id": str(wheel.id)},
-    )
-
-    assert "pedal" not in _options(response.text, "component_type")
+    assert _options(html, "component_type") == list(component_kinds.COMPONENT_TYPES)
+    assert "<option value=\"shifter\">Shift levers</option>" in html
 
 
-# --- edit form
-
-
-def test_changing_a_type_to_one_that_does_not_fit_is_refused(signed_in_client):
+def test_changing_a_type_is_not_limited_by_where_the_part_is(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     hub = _mk("Hub", "hub", parent_component_id=wheel.id)
@@ -80,13 +66,11 @@ def test_changing_a_type_to_one_that_does_not_fit_is_refused(signed_in_client):
     response = signed_in_client.post(
         f"/components/{hub.id}",
         data={"name": "Hub", "component_type": "saddle", "manual_baseline_mileage": "0"},
+        follow_redirects=False,
     )
 
-    assert response.status_code == 422
-    assert "A saddle can be mounted on the bike, not on a wheel." in response.text
-
-
-# --- move control (the no-JS "Move to..." alternative)
+    assert response.status_code == 303
+    assert component_service.get_component(hub.id).component_type == "saddle"
 
 
 def test_moving_with_the_target_field_works(signed_in_client):
@@ -112,30 +96,29 @@ def test_moving_to_storage_with_the_target_field_works(signed_in_client):
     assert component_service.get_component(pedal.id).parent_component_id is None
 
 
-def test_moving_to_an_invalid_target_is_refused_with_the_rule_message(signed_in_client):
+def test_moving_onto_any_part_works(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     pedal = _mk("Pedal", "pedal")
 
     response = signed_in_client.post(
-        f"/components/{pedal.id}/move", data={"target": f"component:{wheel.id}"}
+        f"/components/{pedal.id}/move", data={"target": f"component:{wheel.id}"}, follow_redirects=False
     )
 
-    assert response.status_code == 422
-    assert "A pedal can be mounted on the bike, not on a wheel." in response.text
-    assert component_service.get_component(pedal.id).parent_component_id is None
+    assert response.status_code == 303
+    assert component_service.get_component(pedal.id).parent_component_id == wheel.id
 
 
-def test_the_legacy_parent_id_fields_are_validated_by_the_same_rules(signed_in_client):
+def test_the_legacy_parent_id_fields_still_move_a_part(signed_in_client):
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
     pedal = _mk("Pedal", "pedal")
 
     response = signed_in_client.post(
-        f"/components/{pedal.id}/move", data={"parent_component_id": str(wheel.id)}
+        f"/components/{pedal.id}/move", data={"parent_component_id": str(wheel.id)}, follow_redirects=False
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 303
 
 
 @pytest.mark.parametrize("bad", ["bike:abc", "component:", "x", "storage;drop", "bike:1:2", "bike:-1"])
@@ -234,5 +217,5 @@ def test_adding_a_part_with_the_form_puts_it_in_storage(signed_in_client):
 def test_the_add_part_form_offers_every_kind_and_cancels_back_to_storage(signed_in_client):
     html = signed_in_client.get("/components/new").text
 
-    assert len(_options(html, "component_type")) == 12
+    assert len(_options(html, "component_type")) == 34
     assert 'href="/components">Cancel</a>' in html

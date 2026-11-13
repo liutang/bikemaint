@@ -6,8 +6,6 @@
   let drag = null; // { source, id, type, parentRef, el }
 
   const builder = () => document.getElementById("builder");
-  const words = (value) => (value || "").split(/\s+/).filter(Boolean);
-  const accepts = (el, type) => words(el.dataset.accepts).includes(type);
   const targetFor = (ref) =>
     Array.from(builder().querySelectorAll(".drop-target")).find((el) => el.dataset.ref === ref);
   const insideDragged = (el) => drag.source === "node" && drag.el.closest("li").contains(el);
@@ -16,7 +14,7 @@
   function canPlaceBefore(row) {
     if (drag.source === "node" && row.dataset.parentRef === drag.parentRef) return true;
     const parent = targetFor(row.dataset.parentRef);
-    return Boolean(parent) && accepts(parent, drag.type);
+    return Boolean(parent);
   }
 
   // Where would a drop on `target` land? null means "not allowed here".
@@ -31,7 +29,7 @@
       }
     }
     if (drag.source === "node" && ref === drag.parentRef) return { target: ref, before: "" };
-    return accepts(target, drag.type) ? { target: ref, before: "" } : null;
+    return { target: ref, before: "" };
   }
 
   function markTargets() {

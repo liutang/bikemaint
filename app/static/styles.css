@@ -1584,3 +1584,31 @@ button[disabled],
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Palette categories (specs/020) ---------- */
+.palette-category {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  margin-bottom: 0.5rem;
+}
+
+.palette-category > summary {
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+}
+
+.palette-category > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.palette-category[open] > summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.palette-category .side-list {
+  margin: 0;
+  padding: 0.5rem;
+}

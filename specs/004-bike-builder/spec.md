@@ -137,3 +137,5 @@ As the rider, I want a split-screen builder for each bike, with the bike's compo
 - Touch devices rely on the Move to… control, since native drag and drop is unreliable there.
 - Existing partial-update behavior is reused; a few new routes (builder page, builder actions) are expected.
 - The work ships in three milestones: catalog (User Story 1), compatibility rules (User Story 2), builder (User Story 3).
+
+> **Superseded in part (2026-11-12)**: the placement rules and the one-per-kind-per-parent limit described here were removed by `specs/020-free-placement-and-categories`; the part palette is now categorised there.

@@ -44,8 +44,9 @@ def test_every_data_attribute_the_script_reads_is_emitted_by_the_builder_markup(
         return "data-" + re.sub(r"([A-Z])", lambda m: "-" + m.group(1).lower(), name)
 
     read = {attr(n) for n in re.findall(r"dataset\.([A-Za-z]+)", JS)}
-    assert {"data-source", "data-id", "data-type", "data-ref", "data-parent-ref", "data-accepts",
+    assert {"data-source", "data-id", "data-type", "data-ref", "data-parent-ref",
             "data-root"} <= read
+    assert "data-accepts" not in read  # any part can be dropped anywhere (specs/020)
     for name in read:
         assert f'{name}="' in html, f"markup never emits {name}"
 

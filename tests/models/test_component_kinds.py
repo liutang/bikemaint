@@ -1,103 +1,56 @@
-"""The component kind catalog and placement rules (specs/005-unified-bike-screen, M1)."""
-
-import pytest
+"""The component kind catalog (specs/020-free-placement-and-categories): names, categories, no rules."""
 
 from app.models import component_kinds as kinds
-from app.models.component_kinds import BIKE
 
-OFFERED = ["frame", "fork", "wheel", "tire", "rotor", "brake", "drivetrain", "chain", "pedal",
-           "saddle", "handlebar", "other"]
-LEGACY = {"hub", "rim", "spoke", "cassette", "crankset", "derailleur", "shifter", "pad",
-          "stem", "seatpost", "bolt"}
+CATEGORIES = {
+    "Accessories": ["Accessories", "Apparel", "Computer", "Lights"],
+    "Brakes": ["Brake", "Brake Cable", "Brake Lever", "Brake Pads", "Rotor"],
+    "Drivetrain": ["Bottom Bracket", "Cassette", "Chain", "Chainrings", "Crankset", "Derailleur",
+                   "Pedals", "Shift levers", "Shifter Cable"],
+    "Frame": ["Fork", "Frame", "Handlebar", "Handlebar Tape", "Headset", "Saddle", "Seatpost",
+              "Shock", "Stem"],
+    "Wheels": ["Axle", "Hub", "Trainer", "Tube", "Tire", "Wheel", "Wheel Set"],
+}
+LEGACY = {"drivetrain", "other", "rim", "spoke", "bolt"}
+NEW_IDS = {"accessories", "apparel", "computer", "lights", "brake_cable", "brake_lever",
+           "bottom_bracket", "chainrings", "shifter_cable", "handlebar_tape", "headset", "shock",
+           "axle", "trainer", "tube", "wheelset"}
 
 
-def test_offered_kinds_are_the_short_meaningful_list_in_order():
-    assert list(kinds.COMPONENT_TYPES) == OFFERED
-    assert len(kinds.COMPONENT_TYPES) <= 12
+def test_categories_are_in_the_supplied_order():
+    assert list(kinds.CATEGORIES) == list(CATEGORIES)
 
 
-def test_older_finer_kinds_stay_valid_but_are_never_offered():
+def test_each_category_offers_exactly_the_supplied_parts_in_order():
+    grouped = {name: [k.name for k in items] for name, items in kinds.offered_by_category()}
+    assert grouped == CATEGORIES
+    assert sum(len(v) for v in grouped.values()) == 34
+
+
+def test_offered_types_are_exactly_the_catalog_parts():
+    offered = [k.type for _, items in kinds.offered_by_category() for k in items]
+    assert list(kinds.COMPONENT_TYPES) == offered
+    assert NEW_IDS <= set(offered)
+    assert len(set(offered)) == 34
+
+
+def test_older_kinds_not_in_the_list_stay_valid_but_are_never_offered():
     assert LEGACY == set(kinds.ALL_COMPONENT_TYPES) - set(kinds.COMPONENT_TYPES)
     for legacy in LEGACY:
-        assert kinds.COMPONENT_KINDS[legacy].offered is False
         assert not kinds.is_offered(legacy)
-    assert all(kinds.is_offered(t) for t in OFFERED)
     assert not kinds.is_offered("flux-capacitor")
 
 
-def test_wheels_brakes_and_other_allow_several_everything_else_is_single():
-    assert {"wheel", "brake", "other"} <= kinds.MULTI_INSTANCE_COMPONENT_TYPES
-    for single in ("frame", "fork", "tire", "drivetrain", "chain", "pedal", "saddle", "handlebar"):
-        assert single not in kinds.MULTI_INSTANCE_COMPONENT_TYPES
-    assert {"spoke", "bolt", "pad", "shifter"} <= kinds.MULTI_INSTANCE_COMPONENT_TYPES  # legacy
+def test_existing_kinds_show_the_supplied_names():
+    assert kinds.kind_name("pedal") == "Pedals"
+    assert kinds.kind_name("shifter") == "Shift levers"
+    assert kinds.kind_name("pad") == "Brake Pads"
+    assert kinds.kind_name("wheelset") == "Wheel Set"
+    assert kinds.kind_name("drivetrain") == "Drivetrain"  # legacy kinds still have a name
+    assert kinds.kind_name("not-a-kind") == "not-a-kind"  # unknown ids are shown as they are
 
 
-def test_every_kind_has_a_label_and_parents_that_exist():
-    for kind in kinds.COMPONENT_KINDS.values():
-        assert kind.label
-        for parent in kind.parents or ():
-            assert parent == BIKE or parent in kinds.COMPONENT_KINDS
-
-
-@pytest.mark.parametrize(
-    "child,parent",
-    [
-        ("frame", BIKE), ("fork", BIKE), ("wheel", BIKE), ("brake", BIKE), ("drivetrain", BIKE),
-        ("pedal", BIKE), ("saddle", BIKE), ("handlebar", BIKE), ("chain", BIKE),
-        ("tire", "wheel"), ("rotor", "wheel"), ("chain", "drivetrain"), ("other", BIKE), ("other", "wheel"),
-        ("other", "tire"),
-        # older arrangements keep working
-        ("tire", "rim"), ("rim", "wheel"), ("hub", "wheel"), ("spoke", "wheel"),
-        ("cassette", "hub"), ("pedal", "crankset"), ("bolt", "wheel"), ("pad", "brake"),
-    ],
-)
-def test_valid_placements(child, parent):
-    assert kinds.placement_error(child, parent) is None
-    assert kinds.can_mount(child, parent)
-
-
-@pytest.mark.parametrize(
-    "child,parent",
-    [
-        ("pedal", "wheel"), ("pedal", "tire"), ("tire", BIKE), ("tire", "brake"), ("wheel", "wheel"),
-        ("wheel", "tire"), ("frame", "wheel"), ("brake", "wheel"), ("saddle", "handlebar"),
-        ("chain", "wheel"), ("handlebar", "frame"), ("rim", BIKE),
-    ],
-)
-def test_invalid_placements_are_refused(child, parent):
-    assert kinds.placement_error(child, parent) is not None
-    assert not kinds.can_mount(child, parent)
-
-
-def test_error_message_names_what_is_allowed_and_what_was_tried():
-    assert kinds.placement_error("pedal", "wheel") == "A pedal can be mounted on the bike, not on a wheel."
-    assert kinds.placement_error("tire", BIKE) == "A tire can be mounted on a wheel, not on the bike."
-    assert kinds.placement_error("chain", "wheel") == (
-        "A chain can be mounted on the bike or a drivetrain, not on a wheel."
-    )
-
-
-def test_messages_never_suggest_hidden_kinds():
-    for child in OFFERED:
-        message = kinds.placement_error(child, "tire") or ""
-        for legacy in LEGACY:
-            assert legacy not in message, (child, message)
-
-
-def test_storage_is_always_allowed():
-    for component_type in kinds.ALL_COMPONENT_TYPES:
-        assert kinds.placement_error(component_type, None) is None
-
-
-def test_unknown_types_are_refused():
-    assert kinds.placement_error("flux-capacitor", BIKE) is not None
-
-
-def test_child_and_parent_type_helpers_offer_only_current_kinds():
-    assert kinds.child_types_for("wheel") == ["tire", "rotor", "other"]
-    assert kinds.child_types_for("drivetrain") == ["chain", "other"]
-    assert set(kinds.child_types_for(BIKE)) == set(OFFERED) - {"tire", "rotor"}
-    assert kinds.child_types_for("tire") == ["other"]
-    assert kinds.parent_types_for("tire") == ["wheel", "rim"]
-    assert kinds.parent_types_for("pedal") == [BIKE, "crankset"]
-    assert "wheel" in kinds.parent_types_for("other")
+def test_placement_rules_and_the_one_per_parent_limit_are_gone():
+    for gone in ("placement_error", "can_mount", "child_types_for", "parent_types_for",
+                 "MULTI_INSTANCE_COMPONENT_TYPES"):
+        assert not hasattr(kinds, gone)

@@ -4,7 +4,7 @@
     <span class="bike-card-icon">{{ ui_icons.part(component.component_type, "icon part-icon") }}</span>
     <div>
       <h3><a href="/components/{{ component.id }}">{{ component.name }}</a></h3>
-      <span class="chip">{{ component.component_type }}</span>
+      <span class="chip">{{ component.component_type|kind_name }}</span>
     </div>
   </header>
   <p class="bike-card-figure"><span class="bike-card-stat"><strong>{{ "%.1f"|format(component.total_mileage) }} mi</strong><small>total mileage</small></span></p>

@@ -58,7 +58,7 @@ def test_storage_components_use_the_same_card_style_on_garage_and_storage_pages(
         card = re.search(r'<article class="card bike-card is-storage"[^>]*>(.*?)</article>', html, re.S)
         assert card, path
         assert 'href="/components/1"' in card.group(1) and "Spare Tire" in card.group(1)
-        assert '<span class="chip">tire</span>' in card.group(1)
+        assert '<span class="chip">Tire</span>' in card.group(1)
         assert 'class="bike-card-stat"' in card.group(1)
 
 
@@ -80,7 +80,7 @@ def test_bike_screen_shows_the_part_tree_with_nesting_and_mileage(signed_in_clie
     _add_bike(signed_in_client)
     _add_component(signed_in_client, "Road Wheel", "wheel", parent_bike_id="1")
     _add_component(signed_in_client, "Road Tire", "tire", parent_component_id="1")
-    _add_component(signed_in_client, "Road Valve", "other", parent_component_id="2")
+    _add_component(signed_in_client, "Road Valve", "tube", parent_component_id="2")
 
     html = signed_in_client.get("/bikes/1").text
 
@@ -88,7 +88,7 @@ def test_bike_screen_shows_the_part_tree_with_nesting_and_mileage(signed_in_clie
     assert html.count('<ul class="builder-nodes">') == 3  # bike level, wheel children, tire children
     assert html.index("Road Wheel") < html.index("Road Tire") < html.index("Road Valve")
     assert 'href="/components/1"' in html and 'href="/components/2"' in html
-    for kind in ("wheel", "tire", "other"):
+    for kind in ("wheel", "tire", "tube"):
         assert f'data-type="{kind}"' in html
 
 

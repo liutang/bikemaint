@@ -19,7 +19,7 @@ from app.services import builder_service
 from app.services import component_history_service as history_service
 from app.services.auth_dependency import require_account
 from app.services.component_service import (
-    ComponentNestingConflictError,
+    ComponentPlacementError,
     ConfirmationRequiredError,
 )
 
@@ -80,7 +80,7 @@ async def builder_add(request: Request, account=Depends(require_account)):
         )
     except ValidationError:
         return _refuse(request, root, NOT_UNDERSTOOD)
-    except (ComponentNestingConflictError, ValueError) as exc:
+    except (ComponentPlacementError, ValueError) as exc:
         return _refuse(request, root, str(exc))
     return _done(request, payload.root)
 
@@ -103,7 +103,7 @@ async def builder_move(request: Request, account=Depends(require_account)):
         )
     except ValidationError:
         return _refuse(request, root, NOT_UNDERSTOOD)
-    except (ComponentNestingConflictError, ValueError) as exc:
+    except (ComponentPlacementError, ValueError) as exc:
         return _refuse(request, root, str(exc))
     kind, root_id = builder_service.parse_root(payload.root)
     if kind == "component" and payload.component_id == root_id:
@@ -134,7 +134,7 @@ async def builder_delete(request: Request, account=Depends(require_account)):
         component = component_service.get_component(payload.component_id)
         confirm = {"component": component, "message": str(exc), "root": payload.root}
         return render_screen(request, payload.root, confirm=confirm)
-    except (ComponentNestingConflictError, ValueError) as exc:
+    except (ComponentPlacementError, ValueError) as exc:
         return _refuse(request, root, str(exc))
     kind, root_id = builder_service.parse_root(payload.root)
     if kind == "component" and payload.component_id == root_id:

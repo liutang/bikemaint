@@ -13,12 +13,7 @@ from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db.connection import get_connection
 from app.models import component_kinds
-from app.models.component_kinds import (
-    BIKE,
-    COMPONENT_KINDS,
-    COMPONENT_TYPES,
-    MULTI_INSTANCE_COMPONENT_TYPES,
-)
+from app.models.component_kinds import BIKE
 from app.models.rows import Bike, Component
 from app.services import component_service
 from app.services.component_service import MoveTarget
@@ -29,7 +24,6 @@ class BuilderNode:
     component: Component
     ref: str  # "component:ID", the drop-target reference
     parent_ref: str  # "bike:ID" or "component:ID"
-    accepts: list[str]  # types that can be dropped *inside* this node right now
     targets: list[MoveTarget]  # keyboard "Move to…" choices on this bike (plus storage)
     can_up: bool = False
     up_before: int | None = None
@@ -52,14 +46,19 @@ class PaletteItem:
 
 
 @dataclass
+class PaletteCategory:
+    name: str
+    items: list[PaletteItem]
+
+
+@dataclass
 class BuilderView:
     root_ref: str  # "bike:ID" or "component:ID"
     bike: Bike | None  # set when the root is a bike
     component: Component | None  # set when the root is a part
-    root_accepts: list[str]
     nodes: list[BuilderNode]
     storage: list[StorageItem]
-    palette: list[PaletteItem]
+    palette: list[PaletteCategory]
     crumbs: list[tuple[str, str | None]]
 
     @property
@@ -75,15 +74,6 @@ def parse_root(root: str | int) -> tuple[str, int]:
     if kind not in (BIKE, "component") or not raw.isdigit():
         raise ValueError("That screen does not exist.")
     return kind, int(raw)
-
-
-def _accepts(parent_kind: str, children: list[Component]) -> list[str]:
-    present = {c.component_type for c in children}
-    return [
-        t
-        for t in component_kinds.child_types_for(parent_kind)
-        if t in MULTI_INSTANCE_COMPONENT_TYPES or t not in present
-    ]
 
 
 def breadcrumbs(root: str | int) -> list[tuple[str, str | None]]:
@@ -153,14 +143,12 @@ def build_view(root: str | int) -> BuilderView | None:
                 return None
             tree = components_db.get_tree_for_bike(conn, root_id)
             top = [c for c in tree if c.parent_bike_id == root_id]
-            root_kind = BIKE
         else:
             component = components_db.get_by_id(conn, root_id)
             if component is None:
                 return None
             tree = components_db.get_descendants(conn, root_id)
             top = components_db.list_children(conn, parent_component_id=root_id)
-            root_kind = component.component_type
         storage = [c for c in components_db.list_in_storage(conn) if c.id != root_id or kind == BIKE]
 
     children_of: dict[int | None, list[Component]] = {}
@@ -176,7 +164,6 @@ def build_view(root: str | int) -> BuilderView | None:
                     component=c,
                     ref=f"component:{c.id}",
                     parent_ref=parent_ref,
-                    accepts=_accepts(c.component_type, kids),
                     targets=component_service.list_move_targets(c.id, root=root_ref),
                     can_up=index > 0,
                     up_before=siblings[index - 1].id if index > 0 else None,
@@ -187,18 +174,19 @@ def build_view(root: str | int) -> BuilderView | None:
             )
         return nodes
 
-    # Only kinds that can actually be added here: a wheel offers tires and rotors, not handlebars.
-    palette = []
-    for type_ in COMPONENT_TYPES:
-        targets = component_service.list_type_targets(type_, root=root_ref)
-        if targets:
-            palette.append(PaletteItem(type_, COMPONENT_KINDS[type_].label.capitalize(), targets))
+    # Every offered kind, grouped by category; any part can go in any place (specs/020).
+    places = component_service.list_placement_targets(root=root_ref)
+    palette = [
+        PaletteCategory(
+            category, [PaletteItem(k.type, k.name, list(places)) for k in kinds]
+        )
+        for category, kinds in component_kinds.offered_by_category()
+    ]
 
     return BuilderView(
         root_ref=root_ref,
         bike=bike,
         component=component,
-        root_accepts=_accepts(root_kind, top),
         nodes=_nodes(top, root_ref),
         storage=[
             StorageItem(c, component_service.list_move_targets(c.id, root=root_ref)) for c in storage

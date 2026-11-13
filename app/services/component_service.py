@@ -19,16 +19,12 @@ from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models import component_kinds
 from app.services import component_history_service as history_service
-from app.models.component_kinds import BIKE, MULTI_INSTANCE_COMPONENT_TYPES
+from app.models.component_kinds import BIKE
 from app.models.rows import Component
 
 
-class ComponentNestingConflictError(Exception):
-    """Raised when installing a component would violate FR-024's single-instance rule."""
-
-
-class ComponentPlacementError(ComponentNestingConflictError):
-    """Raised when a component type cannot be mounted on the chosen parent (specs/004, FR-006)."""
+class ComponentPlacementError(Exception):
+    """Raised when a part cannot be created or retyped, such as a kind that is not offered."""
 
 
 @dataclass(frozen=True)
@@ -119,60 +115,14 @@ def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-def _parent_kind(
+def _require_parent_exists(
     conn: sqlite3.Connection, *, parent_bike_id: int | None, parent_component_id: int | None
-) -> str | None:
-    if parent_bike_id is not None:
-        return BIKE
-    if parent_component_id is not None:
-        parent = components_db.get_by_id(conn, parent_component_id)
-        if parent is None:
-            raise LookupError(f"No component with id {parent_component_id}")
-        return parent.component_type
-    return None
-
-
-def _validate_placement(
-    conn: sqlite3.Connection,
-    *,
-    component_type: str,
-    parent_bike_id: int | None,
-    parent_component_id: int | None,
 ) -> None:
-    kind = _parent_kind(conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id)
-    message = component_kinds.placement_error(component_type, kind)
-    if message:
-        raise ComponentPlacementError(message)
-
-
-def _validate_nesting(
-    conn: sqlite3.Connection,
-    *,
-    component_type: str,
-    parent_bike_id: int | None,
-    parent_component_id: int | None,
-    exclude_component_id: int | None,
-) -> None:
-    if parent_bike_id is None and parent_component_id is None:
-        return  # storage always allowed
-    _validate_placement(
-        conn,
-        component_type=component_type,
-        parent_bike_id=parent_bike_id,
-        parent_component_id=parent_component_id,
-    )
-    if component_type in MULTI_INSTANCE_COMPONENT_TYPES:
-        return
-    siblings = components_db.list_children(
-        conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
-    )
-    for sibling in siblings:
-        if sibling.id == exclude_component_id:
-            continue
-        if sibling.component_type == component_type:
-            raise ComponentNestingConflictError(
-                f"A {component_type} is already installed there."
-            )
+    """Refuse a parent that does not exist, instead of failing later on a foreign key."""
+    if parent_bike_id is not None and bikes_db.get_by_id(conn, parent_bike_id) is None:
+        raise LookupError(f"No bike with id {parent_bike_id}")
+    if parent_component_id is not None and components_db.get_by_id(conn, parent_component_id) is None:
+        raise LookupError(f"No component with id {parent_component_id}")
 
 
 def _resolve_top_bike_id(
@@ -234,12 +184,8 @@ def create_component(
     if installed_at is not None:
         history_service.check_not_future(installed_at)
     with get_connection() as conn:
-        _validate_nesting(
-            conn,
-            component_type=component_type,
-            parent_bike_id=parent_bike_id,
-            parent_component_id=parent_component_id,
-            exclude_component_id=None,
+        _require_parent_exists(
+            conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
         )
         component = components_db.create(
             conn,
@@ -278,20 +224,6 @@ def update_component(
         if component_type != component.component_type:
             if not component_kinds.is_offered(component_type):
                 raise ComponentPlacementError(f"{component_type} is not an available part type.")
-            for child in components_db.list_children(conn, parent_component_id=component_id):
-                message = component_kinds.placement_error(child.component_type, component_type)
-                if message:
-                    raise ComponentPlacementError(
-                        f"Changing the type would leave a {child.component_type} without a valid "
-                        f"parent. {message}"
-                    )
-            _validate_nesting(
-                conn,
-                component_type=component_type,
-                parent_bike_id=component.parent_bike_id,
-                parent_component_id=component.parent_component_id,
-                exclude_component_id=component_id,
-            )
         mileage_earned_beyond_baseline = component.total_mileage - component.manual_baseline_mileage
         new_total_mileage = mileage_earned_beyond_baseline + manual_baseline_mileage
         return components_db.update(
@@ -302,20 +234,6 @@ def update_component(
             manual_baseline_mileage=manual_baseline_mileage,
             total_mileage=new_total_mileage,
         )
-
-
-def valid_types_for_parent(
-    *, parent_bike_id: int | None = None, parent_component_id: int | None = None
-) -> list[str]:
-    """Component types that may be added under the given parent (all types for storage)."""
-    with get_connection() as conn:
-        try:
-            kind = _parent_kind(
-                conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
-            )
-        except LookupError:
-            kind = None
-        return component_kinds.child_types_for(kind)
 
 
 @dataclass(frozen=True)
@@ -377,15 +295,12 @@ def _scope_slots(conn: sqlite3.Connection, root: str | None) -> list[_Slot]:
 
 def _candidate_targets(
     conn: sqlite3.Connection,
-    component_type: str,
     *,
-    exclude_id: int | None = None,
     blocked: frozenset[int] = frozenset(),
     skip_parent: tuple[int | None, int | None] = (None, None),
     root: str | None = None,
 ) -> list[MoveTarget]:
-    """Bikes and components inside `root` where a part of `component_type` could be mounted now."""
-    multi = component_type in MULTI_INSTANCE_COMPONENT_TYPES
+    """Every bike and component inside `root` a part could go on (any part goes on any parent)."""
     skip_bike_id, skip_component_id = skip_parent
     targets: list[MoveTarget] = []
     for slot in _scope_slots(conn, root):
@@ -395,23 +310,17 @@ def _candidate_targets(
             continue
         if slot.component_id is not None and slot.component_id == skip_component_id:
             continue
-        if not component_kinds.can_mount(component_type, slot.kind):
-            continue
-        if not multi and any(
-            c.id != exclude_id and c.component_type == component_type for c in slot.children
-        ):
-            continue
         targets.append(MoveTarget(slot.value, slot.label))
     return targets
 
 
-def list_type_targets(
-    component_type: str, *, bike_id: int | None = None, root: str | None = None
+def list_placement_targets(
+    *, bike_id: int | None = None, root: str | None = None
 ) -> list[MoveTarget]:
-    """Places inside a bike (or `root`) where a *new* part of `component_type` could be mounted."""
+    """Every place inside a bike (or `root`) a *new* part could go; any part fits anywhere."""
     scope = root if root is not None else (f"bike:{bike_id}" if bike_id is not None else None)
     with get_connection() as conn:
-        return _candidate_targets(conn, component_type, root=scope)
+        return _candidate_targets(conn, root=scope)
 
 
 def list_move_targets(
@@ -428,8 +337,6 @@ def list_move_targets(
         )
         targets = _candidate_targets(
             conn,
-            component.component_type,
-            exclude_id=component_id,
             blocked=blocked,
             skip_parent=(component.parent_bike_id, component.parent_component_id),
             root=scope,
@@ -475,7 +382,7 @@ def mount_new_component(
             parent_component_id=parent_component_id,
         )
     component = create_component(
-        name=kind.label.capitalize(),
+        name=kind.name,
         component_type=component_type,
         parent_bike_id=parent_bike_id,
         parent_component_id=parent_component_id,
@@ -520,6 +427,9 @@ def move_component(
             assert moved is not None
             return moved
 
+        _require_parent_exists(
+            conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
+        )
         if parent_component_id is not None:
             if parent_component_id == component_id:
                 raise ValueError("A component cannot be installed inside itself.")
@@ -529,13 +439,6 @@ def move_component(
                     "A component cannot be moved into its own installed sub-tree."
                 )
 
-        _validate_nesting(
-            conn,
-            component_type=component.component_type,
-            parent_bike_id=parent_bike_id,
-            parent_component_id=parent_component_id,
-            exclude_component_id=component_id,
-        )
 
         now = _now()
         components_db.close_open_installation_period(conn, component_id, removed_at=now)

@@ -17,9 +17,9 @@
     <meta name="theme-color" content="#1b1e25" media="(prefers-color-scheme: dark)">
     <link rel="preload" href="{{ url_for('static', path='fonts/inter-latin-wght.woff2') }}" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="{{ url_for('static', path='fonts/space-grotesk-latin-wght.woff2') }}" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="{{ url_for('static', path='styles.css') }}">
-    <script src="{{ url_for('static', path='htmx.min.js') }}" defer></script>
-    <script src="{{ url_for('static', path='localtime.js') }}" defer></script>
+    <link rel="stylesheet" href="{{ static_url('styles.css') }}">
+    <script src="{{ static_url('htmx.min.js') }}" defer></script>
+    <script src="{{ static_url('localtime.js') }}" defer></script>
     {% block head_extra %}{% endblock %}
 </head>
 <body>

@@ -100,3 +100,4 @@ def test_the_local_time_script_is_small_dependency_free_and_served(signed_in_cli
     assert signed_in_client.get("/static/localtime.js").status_code == 200
     assert len(js.encode()) <= 2 * 1024 and not re.search(r"https?://|eval\(|innerHTML", js)
     assert "time[data-local]" in js and "toLocale" in js
+

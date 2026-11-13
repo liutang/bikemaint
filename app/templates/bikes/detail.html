@@ -3,7 +3,7 @@
 
 {% block title %}{{ bike.name }} — Bike Maintenance Tracker{% endblock %}
 
-{% block head_extra %}<script src="{{ url_for('static', path='builder.js') }}" defer></script>{% endblock %}
+{% block head_extra %}<script src="{{ static_url('builder.js') }}" defer></script>{% endblock %}
 
 {% block content %}
 {% include "partials/breadcrumb.html" %}

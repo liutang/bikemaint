@@ -32,7 +32,7 @@ Decisions recorded as built, with the alternatives that were available.
 - **Rationale**: Data the rider already has should never be destroyed by a pairing change.
 - **Alternatives**: Delete rides on unpair (data loss); confirmation dialog (extra friction for a reversible action).
 
-## 6. Open items
+## 6. Follow-up decisions (plan R1, R2)
 
-- Transport errors are caught in the router rather than translated by the service (plan R1).
-- Missing logging for the new failure paths (plan R2).
+- Transport errors are translated to `StravaUnavailableError` in `strava_client.get_activities`; the router no longer imports `httpx`.
+- Unpair, missing gear access and re-import failure each write a readable key=value log line with the bike id and no token.

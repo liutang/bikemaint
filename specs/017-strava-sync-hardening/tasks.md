@@ -33,24 +33,24 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`. `[x]` = shipped in PRs 
 
 ### R1 — Keep transport errors out of the router (constitution II)
 
-- [ ] T010 [US4] Write failing test: `bike_service.reimport_strava_history` raises `StravaUnavailableError` when `httpx` fails, in `tests/services/test_bike_service.py`; and `strava_client.get_activities` raises it on timeout, in `tests/services/test_strava_client.py`
-- [ ] T011 [US4] Add `StravaUnavailableError` to `app/services/strava_client.py`, wrapping `httpx.HTTPError` in `get_activities`, and let `bike_service` pass it through
-- [ ] T012 [US4] Change the router to catch `StravaUnavailableError` and remove `import httpx` from `app/routers/bikes.py`; existing `test_reimport_reports_a_strava_timeout_instead_of_crashing` must still pass (adjust its fake to the new error if it patches `httpx`)
+- [x] T010 [US4] Write failing test: `bike_service.reimport_strava_history` raises `StravaUnavailableError` when `httpx` fails, in `tests/services/test_bike_service.py`; and `strava_client.get_activities` raises it on timeout, in `tests/services/test_strava_client.py`
+- [x] T011 [US4] Add `StravaUnavailableError` to `app/services/strava_client.py`, wrapping `httpx.HTTPError` in `get_activities`, and let `bike_service` pass it through
+- [x] T012 [US4] Change the router to catch `StravaUnavailableError` and remove `import httpx` from `app/routers/bikes.py`; existing `test_reimport_reports_a_strava_timeout_instead_of_crashing` must still pass (adjust its fake to the new error if it patches `httpx`)
 
 ### R2 — Log the failure paths (constitution V)
 
-- [ ] T013 [P] [US3] Write failing test with `caplog` that unpair logs an info line containing `bike_id=` in `tests/services/test_bike_service.py`; then add `logger.info("Strava pairing removed bike_id=%s", ...)` in `app/services/bike_service.py`
-- [ ] T014 [P] [US1] Write failing test that a missing gear list logs a warning with no token text; then log it where `StravaGearAccessError` is raised or handled (`app/services/strava_client.py` / `app/routers/bikes.py` per T011 boundary)
-- [ ] T015 [US4] Write failing test that a re-import timeout logs a warning with `bike_id=`; then add it in `app/services/bike_service.py`
+- [x] T013 [P] [US3] Write failing test with `caplog` that unpair logs an info line containing `bike_id=` in `tests/services/test_bike_service.py`; then add `logger.info("Strava pairing removed bike_id=%s", ...)` in `app/services/bike_service.py`
+- [x] T014 [P] [US1] Write failing test that a missing gear list logs a warning with no token text; then log it where `StravaGearAccessError` is raised or handled (`app/services/strava_client.py` / `app/routers/bikes.py` per T011 boundary)
+- [x] T015 [US4] Write failing test that a re-import timeout logs a warning with `bike_id=`; then add it in `app/services/bike_service.py`
 
 ### R3 — Docs
 
-- [ ] T016 [P] Add a "see also" note for `strava-reimport`, `strava-unpair` and the profile scope to `specs/001-bike-maintenance-tracker/contracts/routes.md`
+- [x] T016 [P] Add a "see also" note for `strava-reimport`, `strava-unpair` and the profile scope to `specs/001-bike-maintenance-tracker/contracts/routes.md`
 
 ## Phase 3: Polish
 
-- [ ] T017 Run `.venv/bin/python -m pytest -q`; all tests must pass (947 before this work)
-- [ ] T018 Run `/speckit-analyze` for 017; resolve any CRITICAL or HIGH findings
+- [x] T017 Run `.venv/bin/python -m pytest -q`; all tests must pass (947 before this work)
+- [x] T018 Run `/speckit-analyze` for 017; no CRITICAL or HIGH findings. MEDIUM: FR-011 (404) and FR-013 (sign-in) had no test; added in `tests/routers/test_strava_pairing.py`. MEDIUM: plan/research still listed remediation as open; updated. LOW: FR-014 (logging) added to the spec.
 
 ## Dependencies
 

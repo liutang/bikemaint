@@ -37,13 +37,13 @@ Make Strava pairing and history import dependable: request the extra Strava acce
 | Principle | Result | Notes |
 |---|---|---|
 | I Simplicity | Pass | A plain loop for paging, one exception class for missing gear access, no new abstractions |
-| II Modular design | **Partial** | See Remediation R1: `app/routers/bikes.py` imports `httpx` and catches `httpx.HTTPError`; the service layer should translate transport errors |
+| II Modular design | Pass (after R1) | Was partial; fixed by R1: `app/routers/bikes.py` imports `httpx` and catches `httpx.HTTPError`; the service layer should translate transport errors |
 | III TDD | Pass (evidence by tests) | Each behavior has tests in `tests/routers/test_strava_pairing.py`, `tests/services/test_strava_client.py`, `tests/services/test_sync_service.py`. Spec-first was **not** followed; fixed by this backfill |
 | IV Security | Pass | Both new POST routes depend on `require_account`; no new input; no SQL built from strings (`clear_strava_pairing` is parameterized) |
-| V Observability | **Partial** | See Remediation R2: backfill logs on success, but unpair, gear-access failure and re-import timeout write no log line |
+| V Observability | Pass (after R2) | Was partial; fixed by R2: backfill logs on success, but unpair, gear-access failure and re-import timeout write no log line |
 | Stack / layout | Pass | Files sit in the right directories; no new directory or dependency |
 
-Gate result: no violation that blocks. Two partial results are tracked as remediation tasks rather than waived.
+Gate result: no blocking violation. Two partial results were remediated test-first on this branch.
 
 ## Project Structure
 
@@ -84,7 +84,7 @@ tests/                      # mirrors app/: routers/test_strava_pairing.py, rout
 
 **Structure Decision**: Existing layout; every change lives in the directory matching its responsibility.
 
-## Remediation (gaps found by this analysis)
+## Remediation (gaps found by this analysis; all done, see tasks T010–T016)
 
 - **R1 (Principle II)**: Move transport-error handling out of the router. `strava_client`/`bike_service` should raise a domain error (for example `StravaUnavailableError`) and the router should map that to the 502 response, so `app/routers/bikes.py` no longer imports `httpx`.
 - **R2 (Principle V)**: Add readable key=value log lines for unpair (info), missing gear access (warning) and re-import timeout (warning), each with the bike id and no secrets.

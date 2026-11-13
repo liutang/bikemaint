@@ -26,6 +26,8 @@ Route handlers live only in `app/routers/`; they call into `app/services/` for a
 | `GET /bikes/{bike_id}/strava-pairing` | Form to pick one of the account's unpaired Strava gear entries. |
 | `POST /bikes/{bike_id}/strava-pairing` | Pairs the bike to a `strava_gear_id`; triggers the one-time historical backfill sync (FR-022) as a background task and returns a "syncing" status fragment. |
 
+> **See also**: `specs/017-strava-sync-hardening/contracts/routes.md` for `POST /bikes/{bike_id}/strava-reimport`, `POST /bikes/{bike_id}/strava-unpair`, the pairing screen states, and the `profile:read_all` sign-in scope.
+
 ## Components (User Story 1)
 
 | Method & Path | Purpose |

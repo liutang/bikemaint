@@ -105,6 +105,7 @@ Full-history pages can take much longer than ordinary requests. The app waits lo
 - **FR-011**: Re-import or unpair on an unpaired bike MUST be rejected as a conflict; on an unknown bike MUST return not found.
 - **FR-012**: If Strava fails to answer during re-import, the system MUST respond with a gateway-failure status and a message that nothing was re-imported and the rider should try again.
 - **FR-013**: Both actions MUST require sign-in, like every other route.
+- **FR-014**: Unpairing, a missing gear list and a failed re-import MUST each leave a readable log line identifying the bike (never a token), so an operator can see what happened.
 
 ### Key Entities
 

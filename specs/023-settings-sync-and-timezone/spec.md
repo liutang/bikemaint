@@ -42,8 +42,10 @@ As the rider, I want to choose my time zone, so times the app records in UTC (St
 
 **Acceptance Scenarios**:
 
-1. **Given** Settings, **When** it is shown, **Then** a "Time zone" section shows the current zone (UTC until the rider chooses one) and lets the rider pick any standard IANA time zone by name, with a Save button.
+1. **Given** Settings, **When** it is shown, **Then** a "Time zone" section shows the current zone (UTC until the rider chooses one) and a short dropdown of UTC offsets with their usual abbreviations (for example `-05:00 EST`, `-08:00 PST`, `+05:30 IST`), ordered from earliest to latest offset, with a Save button. The list is not a list of countries and cities. *(Changed after user testing, 2026-11-12: it first offered every IANA name.)*
 2. **Given** an unknown or empty zone, **When** the rider saves, **Then** a clear message appears beside the field and nothing changes.
+2a. **Given** a choice such as `-05:00 EST`, **When** it is saved and times are shown, **Then** daylight saving is applied automatically for that region (EST becomes EDT in summer), and a choice marked "no daylight saving" never changes.
+2b. **Given** a zone saved earlier that is not in the short list, **When** Settings is shown, **Then** it appears as the selected current choice so nothing is lost, and saving the form without changing it keeps it.
 3. **Given** a chosen zone, **When** the ride log shows a Strava ride, **Then** its date and time are shown in that zone with the zone abbreviation (for example "2026-11-12 10:00 PST"), taking daylight saving into account for that date.
 4. **Given** a chosen zone, **When** the maintenance history shows a completed task, **Then** its time is shown in that zone with the abbreviation.
 5. **Given** a chosen zone, **When** Settings shows when Strava was connected, **Then** that moment is shown in the zone.
@@ -75,7 +77,7 @@ As the rider, I want to choose my time zone, so times the app records in UTC (St
 - **FR-003**: Saving MUST apply immediately (no restart): when on, automatic syncs run at the new interval from that moment; when off, no automatic sync runs.
 - **FR-004**: The manual sync action MUST work regardless of the automatic setting.
 - **FR-005**: The saved on/off state and interval MUST survive restarts. Until the rider saves a value, the server's existing interval setting (default 30 minutes) MUST apply and automatic sync MUST be on.
-- **FR-006**: Settings → Time zone MUST let the rider choose any standard IANA zone (default UTC) and MUST refuse unknown zones with a message beside the field.
+- **FR-006**: Settings → Time zone MUST offer a short dropdown of UTC offsets with their usual abbreviations, ordered by offset, each standing for a real region that follows its own daylight saving rules (plus a "no daylight saving" choice where a common region differs, such as Arizona), MUST keep a previously saved zone selectable, and MUST refuse unknown zones with a message beside the field. *(Changed after user testing, 2026-11-12.)*
 - **FR-007**: Times the app records in UTC (Strava rides, completed-task times and other system-made timestamps, Strava connected-since) MUST be shown in the chosen zone with the zone abbreviation, accounting for daylight saving on that date.
 - **FR-008**: Times the rider typed MUST be shown as typed.
 - **FR-009**: The "not in the future" check for typed install and removal moments MUST compare against the current time in the chosen zone.
@@ -102,7 +104,10 @@ As the rider, I want to choose my time zone, so times the app records in UTC (St
 
 - The time zone is display only (decided with the rider): converting stored times would risk wrong mileage, because rides from Strava and "now" defaults are stored in UTC while typed times are stored as typed.
 - The first-run default interval comes from the server's existing `STRAVA_SYNC_INTERVAL_MINUTES` setting (30 minutes if unset); once the rider saves, the saved value wins.
-- Zone names are entered or chosen by their standard name (for example `Europe/London`); the page offers the standard list for completion.
+- The rider picks by UTC offset and abbreviation; each choice is backed by one representative standard zone name (for example `-05:00 EST` is `America/New_York`) so daylight saving is correct. Rarely used zones are not listed; a rider who needs one can still have it saved (it then shows as the current choice).
 - A zone abbreviation is shown after each converted time (for example PST); where a zone has no letter abbreviation, its UTC offset is shown instead (for example +03).
 - The notification check interval is not part of this feature.
 - Single rider; settings live on the one account.
+
+## Amendments
+- **2026-11-12 (branch `025-timezone-picker`)**: user testing found the time zone dropdown, which listed every IANA city name, unusable. Replaced by a short list of UTC offsets with abbreviations (US2 scenarios 1, 2a, 2b; FR-006; the zone-name assumption).

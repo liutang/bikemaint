@@ -68,17 +68,28 @@ def get_period(period_id: int) -> ComponentInstallationPeriod | None:
         return components_db.get_period(conn, period_id)
 
 
-def place_name(conn: sqlite3.Connection, period: ComponentInstallationPeriod) -> str:
-    """Where the part was: its parent part's name, else the bike's, else 'a bike (deleted)'."""
+def place(conn: sqlite3.Connection, period: ComponentInstallationPeriod) -> tuple[str, str | None]:
+    """Where the part was and a link to it if it still exists (specs/031-screen-polish).
+
+    The parent part's name (linked to its screen), else the bike's (linked to its screen); plain
+    text for a deleted part or bike, or Storage.
+    """
     if period.parent_component_id is not None:
         parent = components_db.get_by_id(conn, period.parent_component_id)
         if parent is not None:
-            return parent.name
+            return parent.name, f"/components/{parent.id}"
+        return "a deleted part", None
     if period.parent_bike_id is not None:
         bike = bikes_db.get_by_id(conn, period.parent_bike_id)
         if bike is not None:
-            return bike.name
-    return "Storage"
+            return bike.name, f"/bikes/{bike.id}"
+        return "a bike (deleted)", None
+    return "Storage", None
+
+
+def place_name(conn: sqlite3.Connection, period: ComponentInstallationPeriod) -> str:
+    """Where the part was: its parent part's name, else the bike's, else 'Storage'."""
+    return place(conn, period)[0]
 
 
 def describe_history(component_id: int) -> list[dict]:
@@ -94,7 +105,8 @@ def describe_history(component_id: int) -> list[dict]:
                 """,
                 (period.parent_bike_id, period.installed_at, period.removed_at, period.removed_at),
             ).fetchone()["total"]
-            rows.append({"period": period, "place": place_name(conn, period), "miles": miles})
+            name, url = place(conn, period)
+            rows.append({"period": period, "place": name, "place_url": url, "miles": miles})
         return rows
 
 
@@ -113,15 +125,19 @@ def describe_bike_history(bike_id: int) -> list[dict]:
                 continue
             if period.parent_component_id is not None:
                 parent = components_db.get_including_deleted(conn, period.parent_component_id)
-                place = "a deleted part" if parent is None or parent.is_deleted else parent.name
+                if parent is None or parent.is_deleted:
+                    place_text, url = "a deleted part", None
+                else:
+                    place_text, url = parent.name, f"/components/{parent.id}"
             else:
-                place = bike.name if bike is not None else "the bike"
+                place_text, url = (bike.name, f"/bikes/{bike.id}") if bike is not None else ("the bike", None)
             rows.append(
                 {
                     "period": period,
                     "component": part,
                     "kind_name": kind_name(part.component_type),
-                    "place": place,
+                    "place": place_text,
+                    "place_url": url,
                     "linked": not part.is_deleted,
                 }
             )

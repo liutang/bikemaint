@@ -111,13 +111,13 @@ def test_strava_ride_times_follow_the_chosen_time_zone(signed_in_client):
     assert "data-local" not in "".join(rows)
 
 
-def test_every_ride_row_can_be_edited_or_deleted_and_the_start_row_links_to_the_bike_edit(signed_in_client):
+def test_every_ride_row_can_be_edited_or_deleted_and_the_start_row_has_no_link(signed_in_client):
     bike = _bike()
     _strava(bike, 1, 10)
 
     rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
 
-    assert f'href="/bikes/{bike.id}/edit"' in rows[0]
+    assert "<a " not in rows[0]  # specs/031: the baseline is edited on the Edit screen, not from here
     assert 'href="/rides/1/edit"' in rows[1] and 'action="/rides/1/delete"' in rows[1]
 
 
@@ -303,3 +303,35 @@ def test_the_old_adjust_mileage_pages_still_work_for_existing_links(signed_in_cl
     bike = _bike()
 
     assert signed_in_client.get(f"/bikes/{bike.id}/mileage/adjust").status_code == 200
+
+
+# ------------------------------------------------ specs/031: no redundant starting mileage link
+
+
+def test_the_starting_row_stays_but_has_no_edit_link_on_a_bike(signed_in_client):
+    bike = _bike(baseline=100.0)
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/rides").text
+
+    assert "Starting mileage" in html and "100.0" in html and "Baseline" in html
+    assert "Edit starting mileage" not in html
+
+
+def test_the_starting_row_stays_but_has_no_edit_link_on_a_part(signed_in_client):
+    bike = _bike()
+    chain = component_service.create_component(
+        name="Chain", component_type="chain", parent_bike_id=bike.id, manual_baseline_mileage=40.0
+    )
+
+    html = signed_in_client.get(f"/components/{chain.id}/rides").text
+
+    assert "Starting mileage" in html and "40.0" in html
+    assert "Edit starting mileage" not in html
+
+
+def test_the_baseline_is_still_edited_on_the_edit_screens(signed_in_client):
+    bike = _bike()
+    chain = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)
+
+    assert 'name="manual_baseline_mileage"' in signed_in_client.get(f"/bikes/{bike.id}/edit").text
+    assert 'name="manual_baseline_mileage"' in signed_in_client.get(f"/components/{chain.id}/edit").text

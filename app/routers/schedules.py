@@ -57,6 +57,9 @@ def _form_context(
         "field_errors": field_errors or {},
         "values": values or {},
         "action": f"/schedules/{schedule.id}" if schedule else f"/{kind}s/{owner.id}/schedules",
+        # a new schedule is added from the part or bike, so Cancel goes back there; an existing
+        # schedule is edited from the Maintenance due page (specs/031-screen-polish)
+        "cancel_url": "/maintenance/due" if schedule else f"/{kind}s/{owner.id}",
     }
 
 

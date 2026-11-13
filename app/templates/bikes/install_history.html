@@ -32,7 +32,7 @@
           {% if row.linked %}<a href="/components/{{ row.component.id }}">{{ row.component.name }}</a>{% else %}{{ row.component.name }} <span class="text-muted">(deleted)</span>{% endif %}
           <span class="chip">{{ row.kind_name }}</span>
         </td>
-        <td data-label="Placed in">{{ row.place }}</td>
+        <td data-label="Placed in">{% if row.place_url %}<a href="{{ row.place_url }}">{{ row.place }}</a>{% else %}{{ row.place }}{% endif %}</td>
         <td data-label="Installed">{{ row.period.installed_at[:10] }} {{ row.period.installed_at[11:16] }}</td>
         <td data-label="Removed">{% if row.period.removed_at %}{{ row.period.removed_at[:10] }} {{ row.period.removed_at[11:16] }}{% else %}Still installed{% endif %}</td>
         <td data-label="Actions">

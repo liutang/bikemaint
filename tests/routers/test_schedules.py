@@ -100,3 +100,50 @@ def test_edit_and_delete_schedule(client, monkeypatch):
 
     client.post("/schedules/1/delete")
     assert "New name" not in client.get("/maintenance/due").text
+
+
+# ------------------------------------------------ specs/031: Cancel returns where the rider came from
+
+
+def _signed_in_bike_and_part(signed_in_client):
+    from app.services import component_service
+
+    bike = bike_service.create_bike(name="Road Bike")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+    return bike, wheel
+
+
+def test_cancel_on_a_new_part_schedule_returns_to_the_part(signed_in_client):
+    bike, wheel = _signed_in_bike_and_part(signed_in_client)
+
+    html = signed_in_client.get(f"/components/{wheel.id}/schedules/new").text
+
+    assert f'<a class="btn" href="/components/{wheel.id}">Cancel</a>' in html
+
+
+def test_cancel_on_a_new_bike_schedule_returns_to_the_bike(signed_in_client):
+    bike, _ = _signed_in_bike_and_part(signed_in_client)
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/schedules/new").text
+
+    assert f'<a class="btn" href="/bikes/{bike.id}">Cancel</a>' in html
+
+
+def test_cancel_still_returns_to_the_part_after_a_validation_error(signed_in_client):
+    _, wheel = _signed_in_bike_and_part(signed_in_client)
+
+    response = signed_in_client.post(f"/components/{wheel.id}/schedules", data={"name": ""})
+
+    assert response.status_code == 422
+    assert f'<a class="btn" href="/components/{wheel.id}">Cancel</a>' in response.text
+
+
+def test_cancel_on_an_existing_schedule_still_returns_to_the_due_page(signed_in_client):
+    from app.services import schedule_service
+
+    bike, _ = _signed_in_bike_and_part(signed_in_client)
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Service", interval_days=30)
+
+    html = signed_in_client.get(f"/schedules/{schedule.id}/edit").text
+
+    assert '<a class="btn" href="/maintenance/due">Cancel</a>' in html

@@ -132,21 +132,21 @@ def test_scenario_3_maintenance_log_follows_the_component(signed_in):
     _add_bike(client, "Bike B")
     _add_component(client, "Chain", "chain", parent_bike_id="1")
 
-    client.post("/components/1/maintenance", data={"description": "Waxed", "performed_at": "2026-05-01"})
-    assert "Waxed" in client.get("/components/1/maintenance").text
+    client.post("/components/1/maintenance", data={"service_type": "Lube/Wax", "performed_at": "2026-05-01"})
+    assert "Lube/Wax" in client.get("/components/1/maintenance").text
 
     client.post("/components/1/move", data={"parent_bike_id": "2"})
-    assert "Waxed" in client.get("/components/1/maintenance").text
-    assert "Waxed" not in client.get("/bikes/1/maintenance").text
+    assert "Lube/Wax" in client.get("/components/1/maintenance").text
+    assert "Lube/Wax" not in client.get("/bikes/1/maintenance").text
 
-    waxed = next(e for e in maintenance_service.list_for_component(1) if e.description == "Waxed")
+    waxed = next(e for e in maintenance_service.list_for_component(1) if e.description == "Lube/Wax")
     client.post(
         f"/maintenance/{waxed.id}",
-        data={"description": "Waxed and checked", "performed_at": "2026-05-02"},
+        data={"service_type": "Check", "performed_at": "2026-05-02"},
     )
-    assert "Waxed and checked" in client.get("/components/1/maintenance").text
+    assert "Check" in client.get("/components/1/maintenance").text
     client.post(f"/maintenance/{waxed.id}/delete")
-    assert "Waxed" not in client.get("/components/1/maintenance").text
+    assert "Check" not in client.get("/components/1/maintenance").text
 
 
 @respx.mock

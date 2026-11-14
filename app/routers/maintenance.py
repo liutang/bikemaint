@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from app.models.form_errors import error_context
 from app.models.requests import MaintenanceLogRequest
+from app.models.schedule_kinds import SERVICE_TYPES
 from app.services import bike_service, component_service, maintenance_service
 from app.services.auth_dependency import require_account
 
@@ -34,7 +35,7 @@ def _optional_float(value: str | None) -> float | None:
 
 def _parse(form) -> MaintenanceLogRequest:
     return MaintenanceLogRequest(
-        description=form.get("description", ""),
+        service_type=form.get("service_type", ""),
         performed_at=form.get("performed_at", ""),
         performed_time=form.get("performed_time", ""),
         mileage_at_service=_optional_float(form.get("mileage_at_service")),
@@ -65,6 +66,8 @@ def _form_context(
         "errors": list(errors),
         "field_errors": field_errors or {},
         "values": values or {},
+        "service_types": [{"value": t, "label": t} for t in SERVICE_TYPES],
+        "older_entry": bool(entry and entry.description not in SERVICE_TYPES),
         "action": (
             f"/maintenance/{entry.id}" if entry else _history_url(kind, item.id)
         ),
@@ -105,7 +108,7 @@ async def _create(request: Request, kind: str, item_id: int):
         )
     maintenance_service.log_maintenance(
         **{f"{kind}_id": item_id},
-        description=payload.description,
+        description=payload.service_type,
         performed_at=payload.performed_at.isoformat(),
         performed_time=payload.performed_time,
         mileage_at_service=payload.mileage_at_service,
@@ -184,7 +187,7 @@ async def update_maintenance(request: Request, entry_id: int, account=Depends(re
         )
     maintenance_service.update_entry(
         entry_id,
-        description=payload.description,
+        description=payload.service_type,
         performed_at=payload.performed_at.isoformat(),
         performed_time=payload.performed_time,
         mileage_at_service=(

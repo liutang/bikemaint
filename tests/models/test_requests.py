@@ -68,18 +68,18 @@ from app.models.requests import MaintenanceLogRequest  # noqa: E402
 
 @pytest.mark.parametrize("value", ["00:00", "09:05", "14:30", "23:59"])
 def test_maintenance_time_accepts_hh_mm(value):
-    assert MaintenanceLogRequest(description="x", performed_at="2026-05-01", performed_time=value).performed_time == value
+    assert MaintenanceLogRequest(service_type="Topup", performed_at="2026-05-01", performed_time=value).performed_time == value
 
 
 def test_maintenance_time_is_optional_and_blank_means_none():
-    assert MaintenanceLogRequest(description="x", performed_at="2026-05-01").performed_time is None
-    assert MaintenanceLogRequest(description="x", performed_at="2026-05-01", performed_time="").performed_time is None
+    assert MaintenanceLogRequest(service_type="Topup", performed_at="2026-05-01").performed_time is None
+    assert MaintenanceLogRequest(service_type="Topup", performed_at="2026-05-01", performed_time="").performed_time is None
 
 
 @pytest.mark.parametrize("value", ["24:00", "12:60", "9:5", "noon", "12:30:00", "<b>"])
 def test_maintenance_time_rejects_anything_else(value):
     with pytest.raises(ValidationError):
-        MaintenanceLogRequest(description="x", performed_at="2026-05-01", performed_time=value)
+        MaintenanceLogRequest(service_type="Topup", performed_at="2026-05-01", performed_time=value)
 
 
 @pytest.mark.parametrize("value,ok", [("1:30", True), ("0:45", True), ("99:59", True), ("", True),

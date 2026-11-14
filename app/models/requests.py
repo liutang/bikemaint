@@ -193,7 +193,9 @@ class BuilderDeleteRequest(BaseModel):
 
 
 class MaintenanceLogRequest(BaseModel):
-    description: str = Field(min_length=1)
+    """Log or edit maintenance: the service type is one of the schedule's (specs/042)."""
+
+    service_type: Literal["Charge", "Check", "Clean", "Lube/Wax", "Replace", "Service", "Topup"]
     performed_at: date
     performed_time: str | None = Field(default=None, pattern=r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
     mileage_at_service: float | None = Field(default=None, ge=0)

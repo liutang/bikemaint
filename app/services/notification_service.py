@@ -38,8 +38,14 @@ def build_webhook_payload(item: DueItem) -> dict:
         f'🔧 Maintenance {status}: {item.schedule.name} on "{item.owner_name}" — '
         f"projected {due}"
     )
-    if projection.remaining_miles is not None:
-        summary += f" (approx. {projection.remaining_miles:.0f} mi remaining)"
+    if projection.remaining is not None:
+        left = projection.remaining
+        if projection.remaining_unit == "miles":
+            summary += f" (approx. {left:.0f} mi remaining)"
+        elif projection.remaining_unit == "hours":
+            summary += f" (approx. {left:.1f} hours remaining)"
+        else:
+            summary += f" (approx. {left:.0f} {projection.remaining_unit} remaining)"
     return {
         "content": summary,
         "schedule": {
@@ -51,6 +57,8 @@ def build_webhook_payload(item: DueItem) -> dict:
             "owner_name": item.owner_name,
             "projected_due_at": due,
             "projected_remaining_miles": projection.remaining_miles,
+            "projected_remaining": projection.remaining,
+            "projected_remaining_unit": projection.remaining_unit,
             "is_low_confidence": projection.is_low_confidence,
         },
     }
@@ -97,6 +105,8 @@ def check_due_schedules(*, today: date | None = None) -> list[Notification]:
     created: list[Notification] = []
     for item in schedule_service.list_due_overview(today=day):
         due_at = item.projection.due_at
+        if not item.schedule.notify:
+            continue  # the rider turned notifications off for this schedule (specs/040 FR-007)
         if due_at is None or (due_at - day).days > account.notification_lead_time_days:
             continue
         with get_connection() as conn:

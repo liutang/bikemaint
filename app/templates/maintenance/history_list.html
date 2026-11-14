@@ -30,7 +30,7 @@
       <tr>
         <td data-label="Date &amp; time">
           {%- if entry.performed_time -%}
-            {{ entry.performed_at }} {{ entry.performed_time }}
+            {{ (entry.performed_at ~ "T" ~ entry.performed_time ~ ":00.000000Z")|wall_time }}
           {%- elif entry.schedule_id -%}
             <time datetime="{{ entry.created_at }}">{{ entry.created_at|local_time }}</time>
           {%- else -%}

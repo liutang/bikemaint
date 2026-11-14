@@ -69,3 +69,4 @@ A "Clock" setting on the Settings screen offers "12-hour" and "24-hour". Saving 
 
 - The space between the time and AM/PM is omitted, as in the rider's example (`2:26PM`).
 - Display only; stored values do not change.
+- **FR-006** *(added by branch `052-local-maintenance-times`)*: A maintenance entry's typed date and time MUST be shown through the same rule as FR-003 (`2026-05-01 2:30PM`) on bike and part histories; an entry with no time shows only the date. Completed-task entries already use FR-002.

@@ -79,9 +79,9 @@ As the rider, I want to choose my time zone, so times the app records in UTC (St
 - **FR-005**: The saved on/off state and interval MUST survive restarts. Until the rider saves a value, the server's existing interval setting (default 30 minutes) MUST apply and automatic sync MUST be on.
 - **FR-006**: Settings → Time zone MUST offer a short dropdown ordered by offset whose entries read `(GMT<standard offset>) <Region/City> (<abbreviation>)`, one entry per common offset, each standing for a real region that follows its own daylight saving rules (with a "no daylight saving" note where a common region differs, such as Arizona); the abbreviation is omitted where none is well known. A previously saved zone that is not in the list MUST stay selectable, and unknown zones MUST be refused with a message beside the field. *(Changed after user testing.)*
 - **FR-007**: Times the app records in UTC (Strava rides, completed-task times and other system-made timestamps, Strava connected-since) MUST be shown in the chosen zone with the zone abbreviation, accounting for daylight saving on that date.
-- **FR-008**: Times the rider typed MUST be shown as typed.
+- **FR-008**: Times the rider typed MUST be shown as typed. Install and removal moments the app recorded itself (a part added, moved or taken off with no typed time) are system-recorded instants: they MUST be shown in the chosen zone, like other system times, in Install History and when prefilling the install-period form. A recorded instant is told from a typed time by having seconds or microseconds (typed times are always whole minutes). *(Amended by feature 049 after user testing: a part added at 11:05 PM showed an install time of 4:03 AM.)*
 - **FR-009**: The "not in the future" check for typed install and removal moments MUST compare against the current time in the chosen zone.
-- **FR-010**: No stored time MUST change, and a blank install date ("now") MUST still be recorded in UTC, so mileage results are unchanged.
+- **FR-010**: No stored time MUST change, and a blank install date ("now") MUST still be recorded in UTC, so mileage results are unchanged (display only).
 - **FR-011**: The conversion to the viewing browser's own zone MUST be removed; the saved zone MUST be used everywhere.
 - **FR-012**: The application image MUST include the data needed to resolve every IANA zone.
 - **FR-013**: The settings changes MUST require sign-in like every other route and MUST log a readable line when sync scheduling changes (enabled or disabled, interval), without secrets.
@@ -112,3 +112,5 @@ As the rider, I want to choose my time zone, so times the app records in UTC (St
 ## Amendments
 - **2026-11-13 (branch `027-timezone-label-format`)**: the rider wants the most prominent city and the well-known code on each entry, as `(GMT-5) America/New York (EST)`; US2 scenario 1 and FR-006 updated. The offset stays the standard one (the rider chose this over the current offset).
 - **2026-11-12 (branch `025-timezone-picker`)**: user testing found the time zone dropdown, which listed every IANA city name, unusable. Replaced by a short list of UTC offsets with abbreviations (US2 scenarios 1, 2a, 2b; FR-006; the zone-name assumption).
+- **2026-11-15 (branch `049-local-recorded-times`)**: Install History showed system-recorded install/removal moments as if typed, so they appeared in UTC (11:05 PM EST as 4:03 AM). FR-008 amended; the display converts recorded instants to the chosen zone.
+

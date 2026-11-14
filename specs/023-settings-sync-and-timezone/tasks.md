@@ -46,3 +46,5 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`.
 - T007–T008 last.
 
 Note (T010): full suite 1061 passed. The picker reuses the app's existing select component, so it matches the other dropdowns; not checked in a browser by Claude.
+- [x] T0xx (049) Show system-recorded install/removal instants in the chosen zone (Install History, form prefill): tests in `tests/services/test_clock_service.py` and `tests/routers/test_component_history.py`; `clock_service.format_wall`/`to_wall` convert instants with seconds or microseconds.
+

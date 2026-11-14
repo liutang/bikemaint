@@ -71,6 +71,7 @@ def create_app() -> FastAPI:
     app.state.templates.env.globals["static_url"] = asset_service.static_url
     app.state.templates.env.filters["local_time"] = clock_service.format_utc
     app.state.templates.env.filters["wall_time"] = clock_service.format_wall
+    app.state.templates.env.filters["to_wall"] = clock_service.to_wall
     app.state.templates.env.filters["duration"] = ride_service.format_duration
     app.state.templates.env.filters["html_pattern"] = confirmation_service.html_pattern
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

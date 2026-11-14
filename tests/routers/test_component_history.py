@@ -583,3 +583,23 @@ def test_a_blank_removal_from_the_bike_form_also_installs(signed_in_client):
 
     assert response.status_code == 303
     assert component_service.get_component(chain.id).parent_bike_id == bike.id
+
+
+def test_a_part_added_now_shows_its_install_time_in_the_chosen_zone_not_utc(signed_in_client):
+    # The rider's report: added at 11:05 PM local, the install time read 4:03 AM (UTC).
+    from app.services import settings_service
+
+    settings_service.set_timezone(1, "America/New_York")
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE component_installation_period SET installed_at = '2026-11-14T04:03:21.123456Z'")
+
+    html = signed_in_client.get(f"/components/{chain.id}/install-history").text
+    bike_html = signed_in_client.get(f"/bikes/{bike.id}/install-history").text
+    form = signed_in_client.get(f"/install-periods/1/edit").text
+
+    assert "2026-11-13 11:03PM" in html and "4:03AM" not in html
+    assert "2026-11-13 11:03PM" in bike_html
+    assert 'value="2026-11-13"' in form and 'value="23:03"' in form
+

@@ -70,15 +70,38 @@ def _clock(moment: datetime) -> str:
     return f"{hour}:{moment:%M}{'AM' if moment.hour < 12 else 'PM'}"
 
 
+def _wall_moment(value: str | None) -> datetime | None:
+    """A stored moment as a wall-clock time in the chosen zone, or None if it is not a time.
+
+    Typed times are stored as typed, always whole minutes, and are shown as typed. A moment the app
+    recorded itself (such as installing a part "now") carries seconds or microseconds and is a UTC
+    instant, so it is converted to the chosen zone (specs/023 FR-008, amended by 049).
+    """
+    if not value:
+        return None
+    try:
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if moment.second or moment.microsecond:
+        return moment.astimezone(_zone()).replace(tzinfo=None)  # `Z` text is read as UTC
+    return moment.replace(tzinfo=None)
+
+
 def format_wall(value: str | None) -> str:
-    """A typed (wall-clock) time as `YYYY-MM-DD time`, no zone; other text is returned as is."""
+    """A stored time as `YYYY-MM-DD time`, no zone label; other text is returned as is."""
     if not value:
         return ""
-    try:
-        moment = datetime.fromisoformat(value.replace("Z", ""))
-    except ValueError:
-        return value
-    return f"{moment:%Y-%m-%d} {_clock(moment)}"
+    moment = _wall_moment(value)
+    return value if moment is None else f"{moment:%Y-%m-%d} {_clock(moment)}"
+
+
+def to_wall(value: str | None) -> str:
+    """Like `format_wall` but as `YYYY-MM-DDTHH:MM`, to prefill a date and a time field."""
+    if not value:
+        return ""
+    moment = _wall_moment(value)
+    return value if moment is None else f"{moment:%Y-%m-%dT%H:%M}"
 
 
 def _zone() -> ZoneInfo:

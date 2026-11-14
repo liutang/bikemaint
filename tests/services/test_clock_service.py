@@ -168,3 +168,22 @@ def test_typed_times_follow_the_clock_without_a_zone(account):
     assert clock_service.format_wall("2026-09-02 19:05") == "2026-09-02 7:05PM"
     assert clock_service.format_wall("") == "" and clock_service.format_wall(None) == ""
     assert clock_service.format_wall("not a time") == "not a time"
+
+
+def test_a_system_recorded_instant_is_shown_in_the_zone_but_a_typed_time_is_shown_as_typed(account):
+    # 023 FR-008 (049): 4:03 AM UTC recorded by the app is 11:03 PM the evening before in New York.
+    settings_service.set_timezone(account.id, "America/New_York")
+    settings_service.set_clock_format(account.id, "24")
+
+    assert clock_service.format_wall("2026-11-14T04:03:21.123456Z") == "2026-11-13 23:03"
+    assert clock_service.format_wall("2026-11-14T04:03:00.000000Z") == "2026-11-14 04:03"  # typed: as typed
+    assert clock_service.to_wall("2026-11-14T04:03:21.123456Z") == "2026-11-13T23:03"
+    assert clock_service.to_wall("2026-11-14T04:03:00.000000Z") == "2026-11-14T04:03"
+    assert clock_service.to_wall(None) == "" and clock_service.to_wall("junk") == "junk"
+
+
+def test_summer_time_is_applied_to_recorded_instants(account):
+    settings_service.set_timezone(account.id, "America/New_York")
+
+    assert clock_service.format_wall("2026-07-01T03:30:10.500000Z") == "2026-06-30 11:30PM"
+

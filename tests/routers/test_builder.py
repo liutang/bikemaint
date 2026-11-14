@@ -174,18 +174,21 @@ def test_every_drag_action_has_a_form_with_only_valid_targets(signed_in_client):
     assert not any('value="rim"' in f for f in add_forms)
 
 
-def test_reorder_buttons_exist_for_siblings(signed_in_client):
+def test_part_rows_have_only_garage_and_trash_actions(signed_in_client):
+    # 041: no reorder arrows and no Move to…; moving and reordering are by drag and drop.
     bike = _bike()
     wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    s1 = _mk("S1", "other", parent_component_id=wheel.id)
-    s2 = _mk("S2", "other", parent_component_id=wheel.id)
+    _mk("S1", "other", parent_component_id=wheel.id)
+    _mk("S2", "other", parent_component_id=wheel.id)
+    _mk("Spare tire", "tire")
 
     html = signed_in_client.get(f"/bikes/{bike.id}").text
 
-    assert 'aria-label="Move S2 up"' in html and 'aria-label="Move S1 down"' in html
-    assert 'aria-label="Move S1 up"' not in html and 'aria-label="Move S2 down"' not in html
-    up = re.search(r'<form class="node-form"[^>]*>(?:(?!</form>).)*aria-label="Move S2 up".*?</form>', html, re.S).group(0)
-    assert f'name="before_component_id" value="{s1.id}"' in up and f'name="component_id" value="{s2.id}"' in up
+    assert "node-more" not in html and "Move S1" not in html and "Move S2" not in html and "to…" not in html.split('class="builder-tree"')[1].split('class="builder-side"')[0]
+    tree = html.split('class="builder-tree"')[1].split('class="builder-side"')[0]
+    for row in re.findall(r'<span class="node-actions">(.*?)</span>\s*</div>', tree, re.S):
+        labels = re.findall(r'aria-label="([^"]+)"', row)
+        assert [l.split(" ")[0] for l in labels] == ["Garage", "Trash"], labels
 
 
 def test_every_form_has_a_plain_post_action(signed_in_client):
@@ -875,17 +878,3 @@ def test_the_same_panel_shows_on_a_part_screen(signed_in_client):
     html = signed_in_client.get(f"/components/{wheel.id}").text
 
     assert '<h2 id="palette-heading">Add a part</h2>' in html and "In storage (0)" in html
-
-
-def test_the_move_control_is_an_icon_with_an_accessible_name(signed_in_client):
-    # 035 FR-003: no visible "Move to…" text; the name stays for assistive technology.
-    bike = _bike()
-    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
-    _mk("Spare tire", "tire")
-
-    html = signed_in_client.get(f"/bikes/{bike.id}").text
-
-    summary = re.search(r'<details class="node-more">\s*<summary([^>]*)>(.*?)</summary>', html, re.S)
-    assert summary and f'aria-label="Move Wheel to…"' in summary.group(1)
-    assert "<svg" in summary.group(2) and "Move to" not in re.sub(r"<[^>]+>", "", summary.group(2))
-

@@ -215,7 +215,19 @@ def test_history_shows_only_the_logged_work_in_time_order(signed_in_client):
 
     descriptions = [e.description for e in maintenance_service.list_for_bike(bike.id)]
 
-    assert descriptions == ["Old job", "New job"]
+    assert descriptions == ["New job", "Old job"]  # latest first (specs/044)
+
+
+def test_history_is_latest_first_by_time_then_recorded_order_for_both_owners(signed_in_client):
+    bike = bike_service.create_bike(name="Road Bike")
+    chain = component_service.create_component(name="Chain", component_type="chain")
+    for owner in ({"bike_id": bike.id}, {"component_id": chain.id}):
+        maintenance_service.log_maintenance(**owner, description="Clean", performed_at="2026-05-01", performed_time="09:00")
+        maintenance_service.log_maintenance(**owner, description="Check", performed_at="2026-05-01", performed_time="17:30")
+        maintenance_service.log_maintenance(**owner, description="Topup", performed_at="2026-04-30", performed_time="23:00")
+
+    for entries in (maintenance_service.list_for_bike(bike.id), maintenance_service.list_for_component(chain.id)):
+        assert [e.description for e in entries] == ["Check", "Clean", "Topup"]
 
 
 def test_the_history_page_no_longer_loads_a_browser_time_script(signed_in_client):

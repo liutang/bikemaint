@@ -57,13 +57,13 @@ def test_events_do_not_count_for_components_either(conn):
     assert maintenance.has_entries_for_component(conn, part.id) is False
 
 
-def test_entries_sort_by_date_then_time(conn):
+def test_entries_sort_latest_first_by_date_then_time(conn):
     bike = bikes.create(conn, name="B")
     late = _entry(conn, bike.id, performed_at="2026-05-01", performed_time="18:00", description="late")
     early = _entry(conn, bike.id, performed_at="2026-05-01", performed_time="08:00", description="early")
     next_day = _entry(conn, bike.id, performed_at="2026-05-02", description="next day")
 
-    assert [e.description for e in maintenance.list_for_bike(conn, bike.id)] == ["early", "late", "next day"]
+    assert [e.description for e in maintenance.list_for_bike(conn, bike.id)] == ["next day", "late", "early"]
     assert late.id and early.id and next_day.id
 
 

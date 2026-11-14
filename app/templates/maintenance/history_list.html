@@ -18,7 +18,7 @@
     <thead>
       <tr>
         <th scope="col">Date &amp; time</th>
-        {% if item_kind == "component" %}<th scope="col">Part</th>{% endif %}
+        <th scope="col">Part</th>
         <th scope="col">Service type</th>
         <th scope="col">Mileage at service</th>
         <th scope="col">Actions</th>
@@ -37,9 +37,7 @@
             {{ entry.performed_at }}
           {%- endif -%}
         </td>
-        {% if item_kind == "component" %}
-        <td data-label="Part">{% if row.is_own %}This part{% else %}<a href="/components/{{ row.part_id }}/maintenance">{{ row.part_name }}</a>{% endif %}</td>
-        {% endif %}
+        <td data-label="Part">{% if row.is_own %}This {{ "bike" if item_kind == "bike" else "part" }}{% else %}<a href="/components/{{ row.part_id }}/maintenance">{{ row.part_name }}</a>{% endif %}</td>
         <td data-label="Service type">{{ entry.description }}</td>
         <td data-label="Mileage at service">{{ "%.1f"|format(entry.mileage_at_service) }} mi</td>
         <td data-label="Actions">

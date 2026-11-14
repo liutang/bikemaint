@@ -45,7 +45,12 @@ def _sort_key(row: HistoryRow):
 
 
 def list_for_bike_rows(bike_id: int) -> list[HistoryRow]:
-    return [HistoryRow(e, None, None, True) for e in list_for_bike(bike_id)]
+    """A bike's own entries plus those of every part currently attached to it, latest first."""
+    with get_connection() as conn:
+        rows = [HistoryRow(e, None, None, True) for e in maintenance_db.list_for_bike(conn, bike_id)]
+        for part in components_db.get_tree_for_bike(conn, bike_id):
+            rows += [HistoryRow(e, part.id, part.name, False) for e in maintenance_db.list_for_component(conn, part.id)]
+    return sorted(rows, key=_sort_key, reverse=True)
 
 
 def list_for_component_tree(component_id: int) -> list[HistoryRow]:

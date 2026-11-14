@@ -362,13 +362,38 @@ def test_a_parts_history_has_a_part_column_with_this_part_and_links_to_attached_
     assert "This part" in mine and f'href="/maintenance/{own.id}/edit"' in mine and f'action="/maintenance/{own.id}/delete"' in mine
 
 
-def test_a_bikes_history_is_unchanged_with_no_part_column(signed_in_client):
+def test_a_bikes_history_includes_all_attached_parts_recursively_latest_first(signed_in_client):
+    # 048 FR-004
     bike = bike_service.create_bike(name="Road")
-    maintenance_service.log_maintenance(bike_id=bike.id, description="Clean", performed_at="2026-05-01")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Road tire", component_type="tire", parent_component_id=wheel.id)
+    spare = component_service.create_component(name="Spare", component_type="tire")
+    mine = maintenance_service.log_maintenance(bike_id=bike.id, description="Clean", performed_at="2026-03-01")
+    maintenance_service.log_maintenance(component_id=wheel.id, description="Check", performed_at="2026-04-01")
+    deep = maintenance_service.log_maintenance(component_id=tire.id, description="Topup", performed_at="2026-05-01")
+    maintenance_service.log_maintenance(component_id=spare.id, description="Replace", performed_at="2026-06-01")
 
     html = signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
 
-    assert '<th scope="col">Part</th>' not in html and "This part" not in html and "/edit" in html
+    assert re.findall(r'<th scope="col">([^<]*)</th>', html) == ["Date &amp; time", "Part", "Service type", "Mileage at service", "Actions"]
+    rows = re.findall(r"<tr>.*?</tr>", html.split("<tbody>")[1], re.S)
+    assert [re.search(r'data-label="Service type">([^<]*)', r).group(1) for r in rows] == ["Topup", "Check", "Clean"]
+    assert f'<a href="/components/{tire.id}/maintenance">Road tire</a>' in rows[0]
+    assert f'<a href="/components/{wheel.id}/maintenance">Wheel</a>' in rows[1]
+    assert "/edit" not in rows[0] and "/edit" not in rows[1]
+    assert "This bike" in rows[2] and f'href="/maintenance/{mine.id}/edit"' in rows[2]
+    assert "Replace" not in html and deep.id
+
+
+def test_a_bikes_history_leaves_out_parts_taken_off(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)
+    maintenance_service.log_maintenance(component_id=chain.id, description="Lube/Wax", performed_at="2026-05-01")
+    component_service.move_component(chain.id)
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
+
+    assert "Lube/Wax" not in html and "No maintenance logged yet" in html
 
 
 def test_a_part_with_only_its_own_entries_marks_them_this_part(signed_in_client):

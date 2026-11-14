@@ -28,7 +28,7 @@ Opening a part's Maintenance history (for example a wheel) lists its own entries
 
 ### Edge Cases
 
-- A bike's Maintenance history is unchanged by this feature (its own entries only, no Part column).
+- A bike's Maintenance history follows the same rules (see FR-004); its own entries read "This bike".
 - Mileage-at-service of an attached part's entry is shown as recorded.
 
 ## Requirements *(mandatory)*
@@ -38,6 +38,8 @@ Opening a part's Maintenance history (for example a wheel) lists its own entries
 - **FR-001**: A part's Maintenance history MUST include the entries of its currently attached parts at any depth, in the same date-and-time-descending order.
 - **FR-002**: The part's history MUST show a Part column between Date & time and Service type: "This part", or the attached part's name linking to `/components/{id}/maintenance`.
 - **FR-003**: Entries of attached parts MUST NOT offer Edit or Delete on that screen.
+
+- **FR-004**: A bike's Maintenance history MUST likewise include the entries of every part currently attached to the bike at any depth, in date-and-time-descending order, with the same Part column ("This bike" for the bike's own entries, otherwise the part's name linking to `/components/{id}/maintenance`) and no Edit or Delete on attached parts' rows. *(Added after the rider pointed out bikes were missed.)*
 
 ### Key Entities
 
@@ -53,3 +55,6 @@ Opening a part's Maintenance history (for example a wheel) lists its own entries
 ## Assumptions
 
 - "Attached" means currently installed in the part's sub-tree (not parts that used to be attached).
+
+## Amendments
+- **2026-11-15 (branch `050-bike-history-tree`)**: the feature covered parts only; bikes added (FR-004).

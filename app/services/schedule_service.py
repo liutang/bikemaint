@@ -191,6 +191,41 @@ def _top_bike_id(conn, schedule: MaintenanceSchedule) -> int | None:
     return None
 
 
+def _baseline_for(conn, owner, *, bike_id, component_id, service_type: str, today: date) -> dict:
+    """Where a new schedule starts counting (specs/040 FR-011).
+
+    From the latest logged maintenance of the same service type on this bike or part: its date and
+    time, the mileage recorded on it, and the rides and hours after it. If there is none, from when
+    tracking began: all rides (not the starting mileage) and, for a period, the earliest install
+    date of a part, else when the bike or part was added.
+    """
+    entry = maintenance_db.latest_for_owner_and_type(
+        conn, bike_id=bike_id, component_id=component_id, service_type=service_type
+    )
+    if entry is not None:
+        moment = (
+            f"{entry.performed_at}T{entry.performed_time}:00.000000Z"
+            if entry.performed_time
+            else f"{entry.performed_at}T23:59:59.999999Z"
+        )
+        return {
+            "baseline_mileage": entry.mileage_at_service,
+            "baseline_date": entry.performed_at,
+            "baseline_at": moment,
+        }
+    # created_at is UTC; compare it with "today" the way the rest of the module does (server-local)
+    started = datetime.fromisoformat(owner.created_at.replace("Z", "+00:00")).astimezone().date().isoformat()
+    if component_id is not None:
+        installs = [p.installed_at[:10] for p in components_db.list_periods(conn, component_id)]
+        if installs:
+            started = min(installs)
+    return {
+        "baseline_mileage": owner.manual_baseline_mileage,
+        "baseline_date": started,
+        "baseline_at": "1970-01-01T00:00:00.000000Z",
+    }
+
+
 def create_schedule(
     *,
     bike_id: int | None = None,
@@ -226,15 +261,24 @@ def create_schedule(
         )
         if owner is None:
             raise LookupError("No such bike or component to schedule maintenance for.")
+        if typed:
+            baseline = _baseline_for(
+                conn, owner, bike_id=bike_id, component_id=component_id,
+                service_type=service_type, today=_today(today),
+            )
+        else:
+            baseline = {
+                "baseline_mileage": owner.total_mileage,
+                "baseline_date": _today(today).isoformat(),
+                "baseline_at": _now_stored(),
+            }
         return schedules_db.create(
             conn,
             bike_id=bike_id,
             component_id=component_id,
-            baseline_mileage=owner.total_mileage,
-            baseline_date=_today(today).isoformat(),
-            baseline_at=_now_stored(),
             is_recurring=is_recurring,
             notify=notify,
+            **baseline,
             **fields,
         )
 

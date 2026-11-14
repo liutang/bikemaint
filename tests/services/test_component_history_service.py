@@ -170,7 +170,7 @@ def test_open_period_edit_changes_only_install_and_place(db_path):
         open_period.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at=None
     )
     assert _miles(saddle.id) == 10
-    with pytest.raises(ValueError, match="removal"):
+    with pytest.raises(ValueError, match="overlaps"):
         history.log_period(
             saddle.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at=None
         )
@@ -423,3 +423,38 @@ def test_a_deleted_parent_or_a_deleted_bike_or_storage_has_no_link(db_path):
     bike_service.delete_bike(bike.id, confirmed=True)
     for row in history.describe_history(spare.id):
         assert row["place_url"] is None
+
+
+def test_logging_a_period_without_a_removal_installs_the_part_now(db_path):
+    # 022 FR-012: the part is in storage after its first period was ended; a second period with
+    # no removal puts it back on the bike as of that moment.
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)
+    first = history.describe_history(chain.id)[0]["period"]
+    history.update_period(
+        first.id, bike_id=bike.id, parent_component_id=None,
+        installed_at="2026-01-01T00:00:00.000000Z", removed_at="2026-03-01T00:00:00.000000Z",
+    )
+    assert component_service.get_component(chain.id).parent_bike_id is None  # in storage
+
+    history.log_period(
+        chain.id, bike_id=bike.id, installed_at="2026-04-01T00:00:00.000000Z", removed_at=None
+    )
+
+    part = component_service.get_component(chain.id)
+    assert part.parent_bike_id == bike.id
+    rows = history.describe_history(chain.id)
+    assert [(r["period"].installed_at[:10], r["period"].removed_at) for r in rows] == [
+        ("2026-04-01", None), ("2026-01-01", "2026-03-01T00:00:00.000000Z"),
+    ]
+
+
+def test_an_open_logged_period_cannot_overlap_another(db_path):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)
+
+    with pytest.raises(ValueError, match="overlaps"):
+        history.log_period(
+            chain.id, bike_id=bike.id, installed_at="2026-04-01T00:00:00.000000Z", removed_at=None
+        )
+

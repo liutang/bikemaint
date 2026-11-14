@@ -44,6 +44,8 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`.
 - T006 → T007 (red, green). US3 needs only the existing periods, so it can start once T001–T004 are green.
 - T008–T009 last.
 
+- [x] T010 (037) Log a period accepts a blank removal and installs the part (FR-012): tests in `tests/services/test_component_history_service.py`, `tests/routers/test_component_history.py`; `log_period` moves the part onto the bike as of the installed moment; forms mark removal optional.
+
 ## Implementation Strategy
 
 MVP is Phase 1 (the history is clean). Then the bike screen. The suite stays green at the end of each phase.

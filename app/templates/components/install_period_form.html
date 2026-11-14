@@ -12,8 +12,8 @@
   {{ field("parent_component_id", "Inside part (optional)", period.parent_component_id if period and period.parent_component_id else "", values, field_errors, type="number", min=1, hint="Part number it was mounted in, for example a wheel. Leave blank for the frame or bike.") }}
   {{ field("installed_date", "Installed on", period.installed_at[:10] if period else "", values, field_errors, type="date", required=true) }}
   {{ field("installed_time", "Time (optional)", period.installed_at[11:16] if period else "", values, field_errors, type="time", hint="Blank counts as midnight.") }}
-  {% if period and not period.removed_at %}
-  {{ field("removed_date", "Removed on (optional)", "", values, field_errors, type="date", hint="Still installed. Filling this in ends the installation: the part moves to storage at that moment.") }}
+  {% if not period or not period.removed_at %}
+  {{ field("removed_date", "Removed on (optional)", "", values, field_errors, type="date", hint=("Still installed. Filling this in ends the installation: the part moves to storage at that moment." if period else "Leave blank if the part is on the bike now: saving installs it as of the installed moment.")) }}
   {{ field("removed_time", "Time (optional)", "", values, field_errors, type="time", hint="Blank counts as midnight.") }}
   {% else %}
   {{ field("removed_date", "Removed on", period.removed_at[:10] if period and period.removed_at else "", values, field_errors, type="date", required=true) }}

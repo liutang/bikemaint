@@ -51,7 +51,7 @@ def get_by_id(conn: sqlite3.Connection, entry_id: int) -> MaintenanceLogEntry | 
 
 def list_for_bike(conn: sqlite3.Connection, bike_id: int) -> list[MaintenanceLogEntry]:
     rows = conn.execute(
-        "SELECT * FROM maintenance_log_entry WHERE bike_id = ? ORDER BY performed_at, COALESCE(performed_time, substr(created_at, 12, 5)), id",
+        "SELECT * FROM maintenance_log_entry WHERE bike_id = ? ORDER BY performed_at DESC, COALESCE(performed_time, substr(created_at, 12, 5)) DESC, id DESC",
         (bike_id,),
     ).fetchall()
     return [MaintenanceLogEntry.from_row(row) for row in rows]
@@ -59,7 +59,7 @@ def list_for_bike(conn: sqlite3.Connection, bike_id: int) -> list[MaintenanceLog
 
 def list_for_component(conn: sqlite3.Connection, component_id: int) -> list[MaintenanceLogEntry]:
     rows = conn.execute(
-        "SELECT * FROM maintenance_log_entry WHERE component_id = ? ORDER BY performed_at, COALESCE(performed_time, substr(created_at, 12, 5)), id",
+        "SELECT * FROM maintenance_log_entry WHERE component_id = ? ORDER BY performed_at DESC, COALESCE(performed_time, substr(created_at, 12, 5)) DESC, id DESC",
         (component_id,),
     ).fetchall()
     return [MaintenanceLogEntry.from_row(row) for row in rows]

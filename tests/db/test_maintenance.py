@@ -25,7 +25,7 @@ def _entry(conn, bike_id, performed_at, description="Service"):
     )
 
 
-def test_list_for_bike_is_chronological_by_performed_at(conn):
+def test_list_for_bike_is_latest_first_by_performed_at(conn):
     bike = bikes_db.create(conn, name="Road Bike")
     _entry(conn, bike.id, "2026-03-01", "Third")
     _entry(conn, bike.id, "2026-01-01", "First")
@@ -33,7 +33,7 @@ def test_list_for_bike_is_chronological_by_performed_at(conn):
 
     entries = maintenance_db.list_for_bike(conn, bike.id)
 
-    assert [e.description for e in entries] == ["First", "Second", "Third"]
+    assert [e.description for e in entries] == ["Third", "Second", "First"]
 
 
 def test_list_for_bike_excludes_other_bikes_entries(conn):

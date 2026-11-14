@@ -137,3 +137,11 @@ def mark_synced(conn: sqlite3.Connection, account_id: int) -> None:
     conn.execute(
         "UPDATE account SET strava_last_synced_at = ? WHERE id = ?", (_now(), account_id)
     )
+
+
+def update_clock_format(conn: sqlite3.Connection, account_id: int, clock_format: str) -> None:
+    conn.execute(
+        "UPDATE account SET clock_format = ?, updated_at = ? WHERE id = ?",
+        (clock_format, _now(), account_id),
+    )
+

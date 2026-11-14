@@ -40,3 +40,13 @@ def test_known_zone_names_are_accepted(name):
 def test_unknown_or_malformed_zone_names_are_refused(name):
     with pytest.raises(ValidationError):
         TimezoneSettingsRequest(timezone=name)
+
+
+def test_the_clock_setting_accepts_only_12_or_24():
+    from app.models.requests import ClockSettingsRequest
+
+    assert ClockSettingsRequest(clock_format="12").clock_format == "12"
+    assert ClockSettingsRequest(clock_format="24").clock_format == "24"
+    for bad in ("", "13", "am", "12 "):
+        with pytest.raises(ValidationError):
+            ClockSettingsRequest(clock_format=bad)

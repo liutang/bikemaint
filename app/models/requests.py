@@ -309,3 +309,10 @@ class InstallPeriodRequest(BaseModel):
     @classmethod
     def _blank_is_none(cls, value):
         return None if isinstance(value, str) and not value.strip() else value
+
+
+class ClockSettingsRequest(BaseModel):
+    """12- or 24-hour display of times (specs/036-twelve-hour-clock)."""
+
+    clock_format: Literal["12", "24"]
+

@@ -42,6 +42,45 @@ def remember_zone(name: str) -> None:
     _cache[_key()] = name
 
 
+_clock_cache: dict[str, str] = {}
+
+
+def clock_format() -> str:
+    """`12` (default) or `24`: how displayed times are written (specs/036)."""
+    key = _key()
+    if key not in _clock_cache:
+        try:
+            with get_connection() as conn:
+                account = accounts_db.get_singleton(conn)
+        except Exception:
+            return "12"
+        _clock_cache[key] = account.clock_format if account is not None else "12"
+    return _clock_cache[key]
+
+
+def remember_clock(value: str) -> None:
+    _clock_cache[_key()] = value
+
+
+def _clock(moment: datetime) -> str:
+    """`h:MMAM` on the 12-hour clock (2:26PM), `HH:MM` on the 24-hour one."""
+    if clock_format() == "24":
+        return f"{moment:%H:%M}"
+    hour = moment.hour % 12 or 12
+    return f"{hour}:{moment:%M}{'AM' if moment.hour < 12 else 'PM'}"
+
+
+def format_wall(value: str | None) -> str:
+    """A typed (wall-clock) time as `YYYY-MM-DD time`, no zone; other text is returned as is."""
+    if not value:
+        return ""
+    try:
+        moment = datetime.fromisoformat(value.replace("Z", ""))
+    except ValueError:
+        return value
+    return f"{moment:%Y-%m-%d} {_clock(moment)}"
+
+
 def _zone() -> ZoneInfo:
     try:
         return ZoneInfo(zone_name())
@@ -50,7 +89,7 @@ def _zone() -> ZoneInfo:
 
 
 def format_utc(value: str | None) -> str:
-    """A stored UTC time as `YYYY-MM-DD HH:MM ABBR` in the saved zone; other text is returned as is."""
+    """A stored UTC time as `YYYY-MM-DD time ABBR` in the saved zone and clock; other text is returned as is."""
     if not value:
         return ""
     try:
@@ -60,7 +99,7 @@ def format_utc(value: str | None) -> str:
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=timezone.utc)
     local = moment.astimezone(_zone())
-    return f"{local:%Y-%m-%d %H:%M} {local:%Z}"
+    return f"{local:%Y-%m-%d} {_clock(local)} {local:%Z}"
 
 
 def now_in_zone_moment() -> str:

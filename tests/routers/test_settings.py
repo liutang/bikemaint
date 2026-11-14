@@ -11,6 +11,7 @@ import pytest
         ("post", "/settings/notifications"),
         ("post", "/settings/strava/sync"),
         ("post", "/settings/timezone"),
+        ("post", "/settings/clock"),
     ],
 )
 def test_settings_routes_redirect_unauthenticated_requests_to_login(client, method, path):
@@ -194,7 +195,7 @@ def test_saving_a_zone_stores_it_and_shows_connected_since_in_it(client, monkeyp
     assert (response.status_code, response.headers["location"]) == (303, "/settings")
     assert _account_now().timezone == "America/Los_Angeles"
     html = client.get("/settings").text
-    assert "America/Los_Angeles" in html and re.search(r"since \d{4}-\d\d-\d\d \d\d:\d\d P[SD]T", html)
+    assert "America/Los_Angeles" in html and re.search(r"since \d{4}-\d\d-\d\d \d{1,2}:\d\d[AP]M P[SD]T", html)
     assert account.strava_connected_at[:4] in html
 
 
@@ -216,3 +217,28 @@ def test_the_current_zone_is_described_by_its_offset_not_a_city(client, monkeypa
     html = client.get("/settings").text
 
     assert "Currently (GMT-5) America/New York (EST)." in html
+
+
+def test_the_clock_defaults_to_twelve_hour_and_can_be_switched(client, monkeypatch):
+    _login(client, monkeypatch)
+    html = client.get("/settings").text
+    assert 'id="clock-heading"' in html
+    assert re.search(r'<option value="12" selected>', html) and '<option value="24"' in html
+
+    response = client.post("/settings/clock", data={"clock_format": "24"}, follow_redirects=False)
+
+    assert (response.status_code, response.headers["location"]) == (303, "/settings")
+    assert _account_now().clock_format == "24"
+    assert re.search(r'<option value="24" selected>', client.get("/settings").text)
+
+
+@pytest.mark.parametrize("value", ["", "13", "am"])
+def test_an_invalid_clock_is_refused(client, monkeypatch, value):
+    _login(client, monkeypatch)
+
+    response = client.post("/settings/clock", data={"clock_format": value})
+
+    assert response.status_code == 422
+    assert 'id="clock_format-error"' in response.text
+    assert _account_now().clock_format == "12"
+

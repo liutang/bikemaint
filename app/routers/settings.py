@@ -16,6 +16,7 @@ from app.models.requests import (
     LeadTimeSettingsRequest,
     SyncSettingsRequest,
     ThemeSettingsRequest,
+    ClockSettingsRequest,
     TimezoneSettingsRequest,
     WebhookSettingsRequest,
 )
@@ -95,6 +96,18 @@ async def update_timezone_setting(request: Request, account=Depends(require_acco
     except ValidationError as exc:
         return _settings_page(request, account.id, error_context(form, exc), 422)
     settings_service.set_timezone(account.id, payload.timezone)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/clock", name="update_clock_setting")
+async def update_clock_setting(request: Request, account=Depends(require_account)):
+    """12- or 24-hour display of times (display only; specs/036)."""
+    form = await request.form()
+    try:
+        payload = ClockSettingsRequest(clock_format=form.get("clock_format", ""))
+    except ValidationError as exc:
+        return _settings_page(request, account.id, error_context(form, exc), 422)
+    settings_service.set_clock_format(account.id, payload.clock_format)
     return RedirectResponse(url="/settings", status_code=303)
 
 

@@ -89,8 +89,8 @@ def test_strava_ride_times_are_converted_to_local_time_and_manual_ones_shown_as_
 
     rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
 
-    assert "2026-09-02 07:30" in rows[0] and "<time" not in rows[0]
-    assert '<time datetime="2026-09-01T08:00:00.000000Z">2026-09-01 08:00 UTC</time>' in rows[1]
+    assert "2026-09-02 7:30AM" in rows[0] and "<time" not in rows[0]
+    assert '<time datetime="2026-09-01T08:00:00.000000Z">2026-09-01 8:00AM UTC</time>' in rows[1]
 
 
 def test_strava_ride_times_follow_the_chosen_time_zone(signed_in_client):
@@ -106,8 +106,8 @@ def test_strava_ride_times_follow_the_chosen_time_zone(signed_in_client):
 
     rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
 
-    assert "2026-09-01 11:00 PDT" in rows[1]  # converted
-    assert "2026-09-02 07:30" in rows[0] and "PDT" not in rows[0]  # typed: shown as typed
+    assert "2026-09-01 11:00AM PDT" in rows[1]  # converted
+    assert "2026-09-02 7:30AM" in rows[0] and "PDT" not in rows[0]  # typed: shown as typed
     assert "data-local" not in "".join(rows)
 
 

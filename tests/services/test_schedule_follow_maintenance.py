@@ -113,3 +113,35 @@ def test_new_rides_show_in_the_projection_without_any_other_change(db_path):
         )
 
     assert schedule_service.project_due_date(_now(schedule.id), today=TODAY).remaining == before - 1
+
+
+def _insert_entry_directly(owner_column, owner_id, service, day):
+    """An entry that bypassed the service (as ones logged before feature 046 did)."""
+    with connection.get_connection() as conn:
+        conn.execute(
+            f"INSERT INTO maintenance_log_entry ({owner_column}, description, performed_at, mileage_at_service,"
+            " kind, created_at, updated_at) VALUES (?, ?, ?, 0, 'service', 'x', 'x')",
+            (owner_id, service, day),
+        )
+
+
+def test_a_projection_counts_from_the_latest_matching_entry_even_if_the_schedule_was_never_restarted(db_path):
+    # The rider's report: stuck on 9/1/2023 although Topups were logged on 2/23/2024 and 6/29/2024.
+    wheel, schedule = _wheel_with_old_topup_schedule()
+    _insert_entry_directly("component_id", wheel.id, "Topup", "2024-02-23")
+    _insert_entry_directly("component_id", wheel.id, "Topup", "2024-06-29")
+
+    projection = schedule_service.project_due_date(_now(schedule.id), today=TODAY)
+
+    assert projection.due_at == date(2024, 10, 29)
+    item = schedule_service.get_due_item(schedule.id, today=TODAY)
+    assert item.days_until == (date(2024, 10, 29) - TODAY).days
+
+
+def test_an_entry_older_than_the_saved_starting_point_does_not_pull_a_schedule_back(db_path):
+    wheel, schedule = _wheel_with_old_topup_schedule()
+    maintenance_service.log_maintenance(component_id=wheel.id, description="Topup", performed_at="2025-05-01")
+    _insert_entry_directly("component_id", wheel.id, "Topup", "2024-01-01")
+
+    assert schedule_service.project_due_date(_now(schedule.id), today=TODAY).due_at == date(2025, 9, 1)
+

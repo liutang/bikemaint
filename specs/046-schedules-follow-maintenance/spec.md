@@ -37,6 +37,7 @@ Logging (or editing) a maintenance entry of a service type on a bike or part res
 - **FR-001**: Logging a maintenance entry MUST restart (count from the entry, new cycle) every active schedule on the same bike or part with the same service type whose starting point is earlier than the entry, except for the entry a schedule's own completion creates.
 - **FR-002**: Editing an entry MUST re-base such schedules the same way without starting a new cycle.
 - **FR-003**: Projections and the board MUST continue to be computed on read so usage changes always show.
+- **FR-004**: When a projection is computed, a typed schedule MUST count from the latest matching maintenance entry (same bike or part, same service type) whenever that entry is more recent than the schedule's saved starting point, however and whenever the entry was logged. This also repairs schedules left stale by entries logged before this feature. *(Added after the rider reported a schedule still counting from 9/1/2023 after Topups on 2/23/2024 and 6/29/2024 were logged.)*
 
 ### Key Entities
 
@@ -51,3 +52,6 @@ Logging (or editing) a maintenance entry of a service type on a bike or part res
 ## Assumptions
 
 - "Same service type" is the entry's service type equal to the schedule's.
+
+## Amendments
+- **2026-11-15 (branch `047-schedule-uses-latest-service`)**: FR-004 added. Restarting only at the moment of logging left a schedule stale when entries pre-dated the feature or were logged any other way; the projection now also looks at the latest matching entry.

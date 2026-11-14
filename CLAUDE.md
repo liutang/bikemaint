@@ -110,3 +110,5 @@ Maintenance log (feature 042): Log and Edit maintenance take a Service type from
 New schedules (feature 043, 040 FR-011): a typed schedule counts from the latest maintenance entry of the same service type on that bike or part (its date/time, recorded mileage, rides and hours after it); with none, from when tracking began (all rides, not the starting mileage; a period from the earliest install date, else when it was added). `schedule_service._baseline_for`.
 
 Notifications (feature 045): `account.notifications_muted` (Settings "Mute notifications") makes `notification_service.check_due_schedules` record and send nothing; "Send test notification" (`POST /settings/notifications/test`, `notification_service.send_test`) posts to the saved webhook, works even when muted, and records nothing.
+
+Schedules follow maintenance (feature 046): logging a maintenance entry (not a schedule's own completion) restarts the owner's active schedules of the same service type whose starting point is earlier (new cycle, `maintenance_service._rebase_matching_schedules`); editing an entry re-bases without a new cycle; usage-based projections are always computed on read.

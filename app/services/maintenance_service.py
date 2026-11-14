@@ -12,6 +12,7 @@ from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db import maintenance as maintenance_db
 from app.db import mileage as mileage_db
+from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models.rows import MaintenanceLogEntry
 
@@ -29,6 +30,37 @@ def list_for_bike(bike_id: int) -> list[MaintenanceLogEntry]:
 def list_for_component(component_id: int) -> list[MaintenanceLogEntry]:
     with get_connection() as conn:
         return maintenance_db.list_for_component(conn, component_id)
+
+
+def entry_moment(entry: MaintenanceLogEntry) -> str:
+    """When an entry was performed, in the stored format (a blank time counts the whole day)."""
+    if entry.performed_time:
+        return f"{entry.performed_at}T{entry.performed_time}:00.000000Z"
+    return f"{entry.performed_at}T23:59:59.999999Z"
+
+
+def _rebase_matching_schedules(conn, entry: MaintenanceLogEntry, *, new_cycle: bool) -> None:
+    """Restart counting for this owner's active schedules of the entry's service type (specs/046).
+
+    Only schedules whose current starting point is earlier than the entry move; a new cycle lets
+    due-soon notifications fire again.
+    """
+    schedules = (
+        schedules_db.list_active_for_bike(conn, entry.bike_id)
+        if entry.bike_id is not None
+        else schedules_db.list_active_for_component(conn, entry.component_id)
+    )
+    moment = entry_moment(entry)
+    for schedule in schedules:
+        if schedule.service_type != entry.description:
+            continue
+        if moment <= (schedule.baseline_at or f"{schedule.baseline_date}T00:00:00.000000Z"):
+            continue
+        args = dict(baseline_mileage=entry.mileage_at_service, baseline_date=entry.performed_at)
+        if new_cycle:
+            schedules_db.complete(conn, schedule.id, baseline_at=moment, **args)
+        else:
+            schedules_db.rebase(conn, schedule.id, baseline_at=moment, **args)
 
 
 def log_maintenance(
@@ -60,7 +92,7 @@ def log_maintenance(
             if component is None:
                 raise LookupError(f"No component with id {component_id}")
             mileage_then = lambda conn: mileage_db.component_mileage_at(conn, component_id, at)  # noqa: E731
-        return maintenance_db.create(
+        entry = maintenance_db.create(
             conn,
             bike_id=bike_id,
             component_id=component_id,
@@ -70,6 +102,9 @@ def log_maintenance(
             schedule_id=schedule_id,
             performed_time=performed_time,
         )
+        if schedule_id is None:  # a schedule's own completion restarts itself
+            _rebase_matching_schedules(conn, entry, new_cycle=True)
+        return entry
 
 
 def update_entry(
@@ -83,7 +118,7 @@ def update_entry(
     with get_connection() as conn:
         if maintenance_db.get_by_id(conn, entry_id) is None:
             raise LookupError(f"No maintenance entry with id {entry_id}")
-        return maintenance_db.update(
+        entry = maintenance_db.update(
             conn,
             entry_id,
             description=description,
@@ -91,6 +126,8 @@ def update_entry(
             mileage_at_service=mileage_at_service,
             performed_time=performed_time,
         )
+        _rebase_matching_schedules(conn, entry, new_cycle=False)
+        return entry
 
 
 def delete_entry(entry_id: int) -> None:

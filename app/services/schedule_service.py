@@ -203,15 +203,10 @@ def _baseline_for(conn, owner, *, bike_id, component_id, service_type: str, toda
         conn, bike_id=bike_id, component_id=component_id, service_type=service_type
     )
     if entry is not None:
-        moment = (
-            f"{entry.performed_at}T{entry.performed_time}:00.000000Z"
-            if entry.performed_time
-            else f"{entry.performed_at}T23:59:59.999999Z"
-        )
         return {
             "baseline_mileage": entry.mileage_at_service,
             "baseline_date": entry.performed_at,
-            "baseline_at": moment,
+            "baseline_at": maintenance_service.entry_moment(entry),
         }
     # created_at is UTC; compare it with "today" the way the rest of the module does (server-local)
     started = datetime.fromisoformat(owner.created_at.replace("Z", "+00:00")).astimezone().date().isoformat()

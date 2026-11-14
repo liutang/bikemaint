@@ -265,3 +265,18 @@ def test_a_part_moved_off_no_longer_contributes_and_a_bare_part_has_only_its_own
 
     assert [r.part_name for r in maintenance_service.list_for_component_tree(wheel.id)] == ["Wheel"]
     assert [r.is_own for r in maintenance_service.list_for_component_tree(tire.id)] == [True]
+
+
+def test_a_bikes_rows_include_every_attached_part_latest_first(db_path):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+    maintenance_service.log_maintenance(bike_id=bike.id, description="Clean", performed_at="2026-03-01")
+    maintenance_service.log_maintenance(component_id=tire.id, description="Topup", performed_at="2026-05-01")
+    maintenance_service.log_maintenance(component_id=wheel.id, description="Check", performed_at="2026-04-01")
+
+    rows = maintenance_service.list_for_bike_rows(bike.id)
+
+    assert [(r.entry.description, r.part_name, r.is_own) for r in rows] == [
+        ("Topup", "Tire", False), ("Check", "Wheel", False), ("Clean", None, True)]
+

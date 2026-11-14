@@ -37,6 +37,7 @@
         <td data-label="Removed">{% if row.period.removed_at %}{{ row.period.removed_at|wall_time }}{% else %}Still installed{% endif %}</td>
         <td data-label="Actions">
           <div class="actions">
+            <a class="btn" href="/install-periods/{{ row.period.id }}/rides?from_bike={{ bike.id }}">Rides</a>
             {% if row.linked %}
             <a class="btn" href="/install-periods/{{ row.period.id }}/edit?from_bike={{ bike.id }}">Edit</a>
             {% endif %}

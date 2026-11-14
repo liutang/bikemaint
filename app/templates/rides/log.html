@@ -8,7 +8,7 @@
 <div class="page-head">
   <div>
     <h1>Rides</h1>
-    <p class="text-muted">{{ log.owner_name }}{% if log.owner_kind == "component" %} · read-only: rides while this part was on a bike{% endif %}</p>
+    <p class="text-muted">{{ log.owner_name }}{% if log.owner_kind == "component" %} · read-only: rides while this part was on a bike{% elif log.owner_kind == "period" %} · read-only: rides from {{ log.period.installed_at|wall_time }} to {% if log.period.removed_at %}{{ log.period.removed_at|wall_time }}{% else %}now{% endif %}{% endif %}</p>
   </div>
   <div class="actions">
     <div class="stat"><small>Total mileage</small><strong>{{ "%.1f"|format(log.total) }} mi</strong></div>
@@ -18,6 +18,12 @@
   </div>
 </div>
 
+{% if log.owner_kind == "period" and not log.rows %}
+<div class="empty-state">
+  <p class="empty-title">No rides counted in this period</p>
+  <p>No ride on the bike started between the install and the removal.</p>
+</div>
+{% else %}
 <div class="table-responsive">
   <table>
     <thead>
@@ -78,6 +84,7 @@
     </tbody>
   </table>
 </div>
+{% endif %}
 {% if log.rows|length == 1 %}
 <div class="empty-state">
   <p class="empty-title">No rides yet</p>

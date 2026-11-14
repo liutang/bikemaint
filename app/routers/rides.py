@@ -158,3 +158,21 @@ def component_rides(request: Request, component_id: int, account=Depends(require
         "rides/log.html",
         {"log": ride_service.get_log_for_component(component_id), "component": component, "crumbs": crumbs},
     )
+
+
+@router.get("/install-periods/{period_id}/rides", name="period_rides")
+def period_rides(request: Request, period_id: int, from_bike: int | None = None, account=Depends(require_account)):
+    """The rides that count toward one install period, read-only (specs/053-period-rides)."""
+    try:
+        log = ride_service.get_log_for_period(period_id)
+    except LookupError:
+        return PlainTextResponse("Installation period not found", status_code=404)
+    if from_bike is not None and bike_service.get_bike(from_bike) is not None:
+        trail = builder_service.breadcrumbs(f"bike:{from_bike}")
+        back = (f"/bikes/{from_bike}/install-history")
+        crumbs = [*trail[:-1], (trail[-1][0], f"/bikes/{from_bike}"), ("Install history", back), ("Rides", None)]
+    else:
+        trail = builder_service.breadcrumbs(f"component:{log.owner_id}")
+        back = f"/components/{log.owner_id}/install-history"
+        crumbs = [*trail[:-1], (trail[-1][0], f"/components/{log.owner_id}"), ("Install history", back), ("Rides", None)]
+    return _render(request, "rides/log.html", {"log": log, "crumbs": crumbs})

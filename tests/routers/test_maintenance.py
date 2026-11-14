@@ -236,7 +236,7 @@ def test_a_completed_task_shows_in_the_chosen_time_zone(signed_in_client):
 
     row = _rows(signed_in_client.get(f"/bikes/{bike.id}/maintenance").text)[0]
 
-    assert re.search(r"\d{4}-\d\d-\d\d \d\d:\d\d IST</time>", row)
+    assert re.search(r"\d{4}-\d\d-\d\d \d{1,2}:\d\d[AP]M IST</time>", row)
 
 
 def test_logged_maintenance_stays_editable_and_deletable_after_the_install_history_split(signed_in_client):

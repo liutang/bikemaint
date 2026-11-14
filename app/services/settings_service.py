@@ -67,3 +67,11 @@ def set_timezone(account_id: int, timezone: str) -> None:
     with get_connection() as conn:
         accounts_db.update_timezone(conn, account_id, timezone)
     clock_service.remember_zone(timezone)
+
+
+def set_clock_format(account_id: int, clock_format: str) -> None:
+    """Save 12- or 24-hour display of times (display only; specs/036)."""
+    with get_connection() as conn:
+        accounts_db.update_clock_format(conn, account_id, clock_format)
+    clock_service.remember_clock(clock_format)
+

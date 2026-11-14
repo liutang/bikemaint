@@ -107,3 +107,14 @@ def test_a_new_account_has_no_recorded_sync_and_mark_synced_records_the_time(db_
         saved = accounts.get_by_id(conn, account.id)
 
     assert saved.strava_last_synced_at.endswith("Z") and saved.strava_last_synced_at[:4] >= "2026"
+
+
+def test_the_clock_is_twelve_hour_until_changed(db_path):
+    with connection.get_connection() as conn:
+        account = accounts.upsert_from_strava(
+            conn, strava_athlete_id=7, access_token="a", refresh_token="r",
+            expires_at="2099-01-01T00:00:00.000000Z",
+        )
+        assert account.clock_format == "12"
+        accounts.update_clock_format(conn, account.id, "24")
+        assert accounts.get_singleton(conn).clock_format == "24"

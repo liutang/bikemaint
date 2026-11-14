@@ -47,7 +47,7 @@
           {%- elif row.source == "strava" -%}
             <time datetime="{{ row.occurred_at }}">{{ row.occurred_at|local_time }}</time>
           {%- else -%}
-            {{ row.occurred_at[:10] }} {{ row.occurred_at[11:16] }}
+            {{ row.occurred_at|wall_time }}
           {%- endif -%}
         </td>
         <td data-label="Miles">{{ "%.1f"|format(row.miles) }}</td>

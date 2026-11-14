@@ -23,31 +23,31 @@ def account(tmp_path, monkeypatch):
 
 def test_the_zone_is_utc_until_the_rider_chooses_one(account):
     assert clock_service.zone_name() == "UTC"
-    assert clock_service.format_utc("2026-01-15T18:00:00.000000Z") == "2026-01-15 18:00 UTC"
+    assert clock_service.format_utc("2026-01-15T18:00:00.000000Z") == "2026-01-15 6:00PM UTC"
 
 
 def test_a_utc_time_is_shown_in_the_chosen_zone_with_its_abbreviation(account):
     settings_service.set_timezone(account.id, "America/Los_Angeles")
 
-    assert clock_service.format_utc("2026-01-15T18:00:00.000000Z") == "2026-01-15 10:00 PST"
+    assert clock_service.format_utc("2026-01-15T18:00:00.000000Z") == "2026-01-15 10:00AM PST"
 
 
 def test_daylight_saving_follows_the_date(account):
     settings_service.set_timezone(account.id, "America/Los_Angeles")
 
-    assert clock_service.format_utc("2026-07-15T18:00:00.000000Z") == "2026-07-15 11:00 PDT"
+    assert clock_service.format_utc("2026-07-15T18:00:00.000000Z") == "2026-07-15 11:00AM PDT"
 
 
 def test_the_date_can_change_across_midnight(account):
     settings_service.set_timezone(account.id, "Asia/Kolkata")
 
-    assert clock_service.format_utc("2026-01-15T22:00:00.000000Z") == "2026-01-16 03:30 IST"
+    assert clock_service.format_utc("2026-01-15T22:00:00.000000Z") == "2026-01-16 3:30AM IST"
 
 
 def test_a_zone_without_a_letter_abbreviation_shows_its_offset(account):
     settings_service.set_timezone(account.id, "Europe/Istanbul")
 
-    assert clock_service.format_utc("2026-01-15T10:00:00.000000Z") == "2026-01-15 13:00 +03"
+    assert clock_service.format_utc("2026-01-15T10:00:00.000000Z") == "2026-01-15 1:00PM +03"
 
 
 def test_text_that_is_not_a_time_is_returned_unchanged(account):
@@ -145,3 +145,26 @@ def test_a_saved_zone_that_is_not_in_the_list_stays_selectable_and_is_marked_cur
 
 def test_a_saved_zone_in_the_list_adds_nothing():
     assert len(clock_service.timezone_choices("America/New_York")) == len(clock_service.timezone_choices("UTC"))
+
+
+def test_times_read_on_a_twelve_hour_clock_by_default(account):
+    # 036: default is 12-hour, written like 2:26PM.
+    assert clock_service.clock_format() == "12"
+    assert clock_service.format_utc("2026-11-13T14:26:00.000000Z") == "2026-11-13 2:26PM UTC"
+    assert clock_service.format_utc("2026-11-13T12:00:00.000000Z") == "2026-11-13 12:00PM UTC"
+    assert clock_service.format_utc("2026-11-13T00:05:00.000000Z") == "2026-11-13 12:05AM UTC"
+    assert clock_service.format_utc("2026-11-13T07:30:00.000000Z") == "2026-11-13 7:30AM UTC"
+
+
+def test_the_twenty_four_hour_clock_keeps_the_old_form(account):
+    settings_service.set_clock_format(account.id, "24")
+
+    assert clock_service.format_utc("2026-11-13T14:26:00.000000Z") == "2026-11-13 14:26 UTC"
+    assert clock_service.format_wall("2026-09-02T07:30:00.000000Z") == "2026-09-02 07:30"
+
+
+def test_typed_times_follow_the_clock_without_a_zone(account):
+    assert clock_service.format_wall("2026-09-02T07:30:00.000000Z") == "2026-09-02 7:30AM"
+    assert clock_service.format_wall("2026-09-02 19:05") == "2026-09-02 7:05PM"
+    assert clock_service.format_wall("") == "" and clock_service.format_wall(None) == ""
+    assert clock_service.format_wall("not a time") == "not a time"

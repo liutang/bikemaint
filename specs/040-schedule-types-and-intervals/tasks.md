@@ -1,8 +1,8 @@
 # Tasks: 040 Schedule Service Types and Intervals
 
 ## Phase 1: Data
-- [ ] T001 Tests first: `tests/db/test_migration_0015.py` (old rows and ids survive, new columns default, Rides/Hours row insertable, foreign keys intact), `tests/db/test_schedules.py` (new fields round trip; `complete` sets `baseline_at`), `tests/db/test_mileage_usage.py` (`usage_since`, `recent_usage_for_bike`). Watch fail.
-- [ ] T002 Migration 0015, `rows.py`, `app/db/schedules.py`, `app/db/mileage.py`.
+- [x] T001 Tests first: `tests/db/test_migration_0015.py` (old rows and ids survive, new columns default, Rides/Hours row insertable, foreign keys intact), `tests/db/test_schedules.py` (new fields round trip; `complete` sets `baseline_at`), `tests/db/test_mileage_usage.py` (`usage_since`, `recent_usage_for_bike`). Watch fail.
+- [x] T002 Migration 0015, `rows.py`, `app/db/schedules.py`, `app/db/mileage.py`.
 
 ## Phase 2: Domain (US1, US2, US3, US4)
 - [ ] T003 [US1] Tests first: `tests/models/test_schedule_request.py` (service types, kind/unit pairing, number > 0), `tests/services/test_schedule_service.py` (month and year arithmetic incl. month ends, weeks, rides and hours projection and overdue, part counts only installed rides, legacy schedules unchanged, one interval only).

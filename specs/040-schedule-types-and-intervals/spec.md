@@ -103,4 +103,5 @@ On a new schedule form the rider picks a Service Type, chooses Usage or Period, 
 ## Amendments
 - **2026-11-14 (branch `043-schedule-backdated-baseline`)**: User Story 1 scenario 3 said a new schedule counts from now. Replaced by FR-011: it counts from the last matching logged service, else from when tracking began. Chosen by the rider.
 - **2026-11-15 (branch `046-schedules-follow-maintenance`)**: FR-011 only set the starting point when a schedule was created; logging a newer matching service afterwards left the schedule stale. See `specs/046-schedules-follow-maintenance/spec.md`: logging or editing maintenance restarts matching schedules.
-
+- **FR-012** *(added by branch `054-due-tab-polish`)*: A schedule overdue by usage MUST show how far past its interval it is, as the date-based ones show days: the progress ring reads `314mi` / `late` (aria label "Overdue by 314 miles"; rides and hours likewise, singular for one), and a row in the other-tasks list reads `314 mi over` instead of `0 mi left`. A schedule overdue by date still shows days. This replaces the earlier plain "Late" for usage overdue.
+- **FR-013** *(same branch)*: On Maintenance due, the Edit and Delete buttons, and the Garage bike card's Maintenance history button, MUST have a visible border (the standard button, not the borderless quiet one).

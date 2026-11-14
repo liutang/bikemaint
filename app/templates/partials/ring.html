@@ -2,7 +2,16 @@
 {% macro ring(item) -%}
 {%- set d = item.days_until -%}
 {%- if item.status == "overdue" -%}
-  {%- if d is none or d >= 0 -%}
+  {%- set over = item.projection.over -%}
+  {%- set unit = item.projection.remaining_unit -%}
+  {%- if (d is none or d >= 0) and over and unit -%}
+    {#- Overdue by usage (specs/040 FR-012): say how far past, like the date rings do. -#}
+    {%- set n = (("%.1f" if unit == "hours" else "%.0f")|format(over)) -%}
+    {%- set one = (n == "1" or n == "1.0") -%}
+    {%- set short = {"miles": "mi", "rides": "r", "hours": "h"}[unit] -%}
+    {%- set word = {"miles": ("mile" if one else "miles"), "rides": ("ride" if one else "rides"), "hours": ("hour" if one else "hours")}[unit] -%}
+    {%- set value, caption, label = (n ~ short), "late", ("Overdue by " ~ n ~ " " ~ word) -%}
+  {%- elif d is none or d >= 0 -%}
     {%- set value, caption, label = "Late", "", "Overdue" -%}
   {%- else -%}
     {%- set value, caption, label = (-d ~ "d"), "late", ("Overdue by " ~ (-d) ~ (" day" if d == -1 else " days")) -%}

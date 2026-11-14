@@ -84,19 +84,46 @@ def test_due_today_never_says_zero_days_or_late(signed_in_client):
     assert "0d" not in card and "late" not in card.lower().replace("ring-caption", "")
 
 
-def test_overdue_by_mileage_without_a_date_says_late_without_a_number(signed_in_client):
+def _usage_overdue_card(client, **schedule):
     bike = bike_service.create_bike(name="Mileage Bike", manual_baseline_mileage=0)
-    schedule_service.create_schedule(bike_id=bike.id, name="Chain", interval_miles=1)
+    schedule_service.create_schedule(bike_id=bike.id, name="Chain", **schedule)
     from app.db import connection
 
     with connection.get_connection() as conn:
         conn.execute("UPDATE bike SET total_mileage = 500")
+    return _card(client.get("/maintenance/due").text, 1)
+
+
+def test_overdue_by_mileage_shows_how_many_miles_over(signed_in_client):
+    card = _usage_overdue_card(signed_in_client, interval_miles=186)  # 500 ridden, due at 186
+
+    assert 'aria-label="Overdue by 314 miles"' in card
+    assert 'class="ring-value">314mi<' in card and 'class="ring-caption">late<' in card
+
+
+def test_one_mile_over_is_singular(signed_in_client):
+    card = _usage_overdue_card(signed_in_client, interval_miles=499)
+
+    assert 'aria-label="Overdue by 1 mile"' in card
+
+
+def test_a_date_overdue_still_shows_days(signed_in_client):
+    bike = _bike()
+    _overdue(bike, "Chain", 5)
 
     card = _card(signed_in_client.get("/maintenance/due").text, 1)
 
-    assert 'aria-label="Overdue"' in card
-    assert 'class="ring-value">Late<' in card
-    assert "ring-caption" not in card
+    assert 'aria-label="Overdue by 5 days"' in card
+
+
+def test_edit_has_a_visible_border_on_the_cards_and_the_other_rows(signed_in_client):
+    bike = _bike()
+    _overdue(bike, "Chain", 5)
+
+    html = signed_in_client.get("/maintenance/due").text
+
+    assert 'class="btn" href="/schedules/1/edit"' in html
+    assert "btn-quiet" not in _card(html, 1)
 
 
 def test_urgent_cards_are_ordered_most_overdue_first(signed_in_client):

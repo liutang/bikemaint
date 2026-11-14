@@ -19,4 +19,4 @@
 
 ## Amendment 043
 - [x] T010 (043) New schedules count from the last matching logged service, else from when tracking began (FR-011): tests in `tests/services/test_schedule_intervals.py` and `tests/routers/test_schedule_form.py`; `schedule_service.create_schedule` works out the baseline; `maintenance_db.latest_for_owner_and_type`.
-
+- [x] T-054 Show miles/rides/hours over on usage-overdue schedules and give the Due tab Edit/Delete and the Garage Maintenance history buttons a border (FR-012, FR-013): `Projection.over`, `ring.html`, `other_row.html`, `attention_card.html`, `bike_row.html`; tests in `tests/test_ui_attention.py`, `tests/test_ui_pages.py`.

@@ -40,6 +40,7 @@ class Projection:
     is_overdue: bool
     remaining: float | None = None  # usage left, in `remaining_unit` (specs/040)
     remaining_unit: str | None = None  # "miles" | "rides" | "hours"
+    over: float | None = None  # how far past a usage interval, in `remaining_unit` (specs/040 FR-012)
 
 
 @dataclass(frozen=True)
@@ -441,6 +442,7 @@ def _project(conn, schedule: MaintenanceSchedule, today: date) -> Projection:
     remaining: float | None = None
     unit: str | None = None
     usage_exceeded = False
+    over: float | None = None
     usage = _usage(schedule)
     if usage is not None:
         unit, interval = usage
@@ -451,6 +453,7 @@ def _project(conn, schedule: MaintenanceSchedule, today: date) -> Projection:
             remaining = interval - _used_since_baseline(conn, schedule, unit)
             pace, ride_days = _trailing_usage_pace(conn, _top_bike_id(conn, schedule), today, unit)
         if remaining <= 0:
+            over = -remaining
             usage_exceeded = True
             usage_due = today
             usage_trusted = True  # already past the interval: no pace needed to know that
@@ -476,6 +479,7 @@ def _project(conn, schedule: MaintenanceSchedule, today: date) -> Projection:
         is_overdue=is_overdue,
         remaining=remaining,
         remaining_unit=unit,
+        over=over,
     )
 
 

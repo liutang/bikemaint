@@ -47,7 +47,7 @@ def test_garage_bike_card_uses_the_cockpit_card_layout(signed_in_client):
     assert re.search(r'<a class="btn btn-primary" href="/bikes/1">View</a>', card)
     # secondary actions are quiet, so View is the one primary action on the card
     assert card.count("btn-primary") == 1
-    assert 'class="btn btn-quiet" href="/bikes/1/maintenance"' in card
+    assert 'class="btn" href="/bikes/1/maintenance"' in card
 
 
 def test_storage_components_use_the_same_card_style_on_garage_and_storage_pages(signed_in_client):

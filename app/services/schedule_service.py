@@ -10,7 +10,7 @@ from __future__ import annotations
 import calendar
 import logging
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 
 from app.db import bikes as bikes_db
@@ -411,7 +411,26 @@ def _trailing_usage_pace(conn, bike_id: int | None, today: date, unit: str) -> t
     return amount / PACE_WINDOW_DAYS, ride_days
 
 
+def _with_latest_service(conn, schedule: MaintenanceSchedule) -> MaintenanceSchedule:
+    """A typed schedule counts from its latest matching logged service when that is more recent
+    than its saved starting point, however the entry got there (specs/046 FR-004)."""
+    if schedule.service_type is None:
+        return schedule
+    entry = maintenance_db.latest_for_owner_and_type(
+        conn, bike_id=schedule.bike_id, component_id=schedule.component_id, service_type=schedule.service_type
+    )
+    if entry is None:
+        return schedule
+    moment = maintenance_service.entry_moment(entry)
+    if moment <= (schedule.baseline_at or f"{schedule.baseline_date}T00:00:00.000000Z"):
+        return schedule
+    return replace(
+        schedule, baseline_mileage=entry.mileage_at_service, baseline_date=entry.performed_at, baseline_at=moment
+    )
+
+
 def _project(conn, schedule: MaintenanceSchedule, today: date) -> Projection:
+    schedule = _with_latest_service(conn, schedule)
     owner = _owner(conn, schedule)
     current_mileage = owner.total_mileage if owner is not None else schedule.baseline_mileage
 

@@ -43,7 +43,7 @@ class RideLog:
     owner_kind: str  # "bike" | "component"
     owner_id: int
     owner_name: str
-    rows: list[RideRow]  # the start row first, then newest first
+    rows: list[RideRow]  # newest first, then the start row last
     total: float
 
 
@@ -95,7 +95,7 @@ def _build_rows(
             total += entry.delta_miles
             built.append(RideRow("adjustment", entry_id, when, entry.delta_miles, total, note=entry.reason))
     built.reverse()
-    return [RideRow("start", None, None, baseline, baseline), *built], total
+    return [*built, RideRow("start", None, None, baseline, baseline)], total
 
 
 def get_log_for_bike(bike_id: int) -> RideLog:

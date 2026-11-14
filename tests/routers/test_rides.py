@@ -64,9 +64,9 @@ def test_the_log_starts_with_the_starting_mileage_then_shows_rides_newest_first(
     html = signed_in_client.get(f"/bikes/{bike.id}/rides").text
     rows = _rows(html)
 
-    assert "Starting mileage" in rows[0] and "100.0" in rows[0]
-    assert "5.5" in rows[1] and "Commute" in rows[1] and "Manual" in rows[1] and "115.5" in rows[1]
-    assert "10.0" in rows[2] and "Strava" in rows[2] and "110.0" in rows[2]
+    assert "Starting mileage" in rows[-1] and "100.0" in rows[-1]
+    assert "5.5" in rows[0] and "Commute" in rows[0] and "Manual" in rows[0] and "115.5" in rows[0]
+    assert "10.0" in rows[1] and "Strava" in rows[1] and "110.0" in rows[1]
     assert "115.5 mi" in html  # the total
     assert re.search(r"<h1[^>]*>\s*Rides\s*</h1>", html)
 
@@ -89,8 +89,8 @@ def test_strava_ride_times_are_converted_to_local_time_and_manual_ones_shown_as_
 
     rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
 
-    assert "2026-09-02 07:30" in rows[1] and "<time" not in rows[1]
-    assert '<time datetime="2026-09-01T08:00:00.000000Z">2026-09-01 08:00 UTC</time>' in rows[2]
+    assert "2026-09-02 07:30" in rows[0] and "<time" not in rows[0]
+    assert '<time datetime="2026-09-01T08:00:00.000000Z">2026-09-01 08:00 UTC</time>' in rows[1]
 
 
 def test_strava_ride_times_follow_the_chosen_time_zone(signed_in_client):
@@ -106,8 +106,8 @@ def test_strava_ride_times_follow_the_chosen_time_zone(signed_in_client):
 
     rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
 
-    assert "2026-09-01 11:00 PDT" in rows[2]  # converted
-    assert "2026-09-02 07:30" in rows[1] and "PDT" not in rows[1]  # typed: shown as typed
+    assert "2026-09-01 11:00 PDT" in rows[1]  # converted
+    assert "2026-09-02 07:30" in rows[0] and "PDT" not in rows[0]  # typed: shown as typed
     assert "data-local" not in "".join(rows)
 
 
@@ -117,8 +117,8 @@ def test_every_ride_row_can_be_edited_or_deleted_and_the_start_row_has_no_link(s
 
     rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
 
-    assert "<a " not in rows[0]  # specs/031: the baseline is edited on the Edit screen, not from here
-    assert 'href="/rides/1/edit"' in rows[1] and 'action="/rides/1/delete"' in rows[1]
+    assert "<a " not in rows[-1]  # specs/031: the baseline is edited on the Edit screen, not from here
+    assert 'href="/rides/1/edit"' in rows[0] and 'action="/rides/1/delete"' in rows[0]
 
 
 def test_adjustments_are_listed_but_read_only(signed_in_client):
@@ -127,7 +127,7 @@ def test_adjustments_are_listed_but_read_only(signed_in_client):
     bike = _bike(baseline=0)
     sync_service.adjust_bike_mileage(bike.id, delta_miles=-3, reason="Wrong ride")
 
-    row = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)[1]
+    row = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)[0]
 
     assert "Adjustment" in row and "Wrong ride" in row and "-3.0" in row and "/edit" not in row
 
@@ -291,8 +291,8 @@ def test_a_parts_ride_log_is_read_only_and_starts_with_its_baseline(signed_in_cl
     html = signed_in_client.get(f"/components/{chain.id}/rides").text
     rows = _rows(html)
 
-    assert "Starting mileage" in rows[0] and "40.0" in rows[0]
-    assert "Loop" in rows[1] and "Road Bike" in rows[1] and "50.0" in rows[1]
+    assert "Starting mileage" in rows[-1] and "40.0" in rows[-1]
+    assert "Loop" in rows[0] and "Road Bike" in rows[0] and "50.0" in rows[0]
     assert not re.search(r"/rides/\d+/(edit|delete)", html)  # no per-ride controls
     assert "Add a ride" not in html and "read-only" in html.lower()
     crumbs = re.search(r'<nav class="breadcrumb".*?</nav>', html, re.S).group(0)

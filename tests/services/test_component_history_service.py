@@ -214,7 +214,7 @@ def test_installed_at_in_the_future_is_rejected_on_create(db_path):
 # ------------------------------------------------ specs/022: a bike's install history
 
 
-def test_a_parts_history_lists_each_period_in_order_after_moves(db_path):
+def test_a_parts_history_lists_the_latest_period_first_after_moves(db_path):
     a = bike_service.create_bike(name="A")
     b = bike_service.create_bike(name="B")
     saddle = component_service.create_component(name="Saddle", component_type="saddle", parent_bike_id=a.id)
@@ -223,7 +223,7 @@ def test_a_parts_history_lists_each_period_in_order_after_moves(db_path):
 
     rows = history.describe_history(saddle.id)
 
-    assert [r["place"] for r in rows] == ["A", "B"]
+    assert [r["place"] for r in rows] == ["B", "A"]  # latest installed first
     assert all(r["period"].removed_at for r in rows)
 
 

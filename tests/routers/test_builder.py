@@ -875,3 +875,17 @@ def test_the_same_panel_shows_on_a_part_screen(signed_in_client):
     html = signed_in_client.get(f"/components/{wheel.id}").text
 
     assert '<h2 id="palette-heading">Add a part</h2>' in html and "In storage (0)" in html
+
+
+def test_the_move_control_is_an_icon_with_an_accessible_name(signed_in_client):
+    # 035 FR-003: no visible "Move to…" text; the name stays for assistive technology.
+    bike = _bike()
+    wheel = _mk("Wheel", "wheel", parent_bike_id=bike.id)
+    _mk("Spare tire", "tire")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}").text
+
+    summary = re.search(r'<details class="node-more">\s*<summary([^>]*)>(.*?)</summary>', html, re.S)
+    assert summary and f'aria-label="Move Wheel to…"' in summary.group(1)
+    assert "<svg" in summary.group(2) and "Move to" not in re.sub(r"<[^>]+>", "", summary.group(2))
+

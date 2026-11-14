@@ -41,11 +41,12 @@ class RideRow:
 
 @dataclass(frozen=True)
 class RideLog:
-    owner_kind: str  # "bike" | "component"
+    owner_kind: str  # "bike" | "component" | "period"
     owner_id: int
     owner_name: str
     rows: list[RideRow]  # newest first, then the start row last
     total: float
+    period: object | None = None  # the install period, for kind "period" (specs/053)
 
 
 def parse_duration(text: str | None) -> int | None:
@@ -93,6 +94,7 @@ def _build_rows(
     adjustments: list,
     *,
     editable: bool,
+    with_start: bool = True,
 ) -> tuple[list[RideRow], float]:
     """Running totals are computed oldest to newest; the log is shown newest first."""
     events = [(r.occurred_at, 0, r.id, "ride", r, bike) for r, bike in rides]
@@ -112,7 +114,7 @@ def _build_rows(
             total += entry.delta_miles
             built.append(RideRow("adjustment", entry_id, when, entry.delta_miles, total, note=entry.reason))
     built.reverse()
-    return [*built, RideRow("start", None, None, baseline, baseline)], total
+    return ([*built, RideRow("start", None, None, baseline, baseline)] if with_start else built), total
 
 
 def get_log_for_bike(bike_id: int) -> RideLog:
@@ -140,6 +142,20 @@ def get_log_for_component(component_id: int) -> RideLog:
         adjustments = mileage_db.list_adjustments(conn, component_id=component_id)
         rows, total = _build_rows(component.manual_baseline_mileage, rides, adjustments, editable=False)
     return RideLog("component", component.id, component.name, rows, total)
+
+
+def get_log_for_period(period_id: int) -> RideLog:
+    """Read-only: the rides that count toward one install period, no start row (specs/053)."""
+    with get_connection() as conn:
+        period = components_db.get_period(conn, period_id)
+        if period is None:
+            raise LookupError(f"No installation period with id {period_id}")
+        part = components_db.get_including_deleted(conn, period.component_id)
+        bike = bikes_db.get_by_id(conn, period.parent_bike_id)
+        bike_name = bike.name if bike else "Bike"
+        rides = [(r, bike_name) for r in mileage_db.list_rides_for_period(conn, period)]
+        rows, total = _build_rows(0.0, rides, [], editable=False, with_start=False)
+    return RideLog("period", period.component_id, part.name if part else "Part", rows, total, period)
 
 
 def get_ride(ride_id: int) -> RideActivity | None:

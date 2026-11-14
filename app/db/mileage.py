@@ -253,6 +253,22 @@ def list_rides_for_component(conn: sqlite3.Connection, component_id: int) -> lis
     return [RideActivity.from_row(row) for row in rows]
 
 
+def list_rides_for_period(conn: sqlite3.Connection, period) -> list[RideActivity]:
+    """Live rides on the period's bike that count toward it, oldest first (specs/053, 015 FR-013)."""
+    rows = conn.execute(
+        """
+        SELECT * FROM ride_activity
+        WHERE bike_id = ?
+          AND ride_wall(occurred_at, source) >= period_wall(?)
+          AND (? IS NULL OR ride_wall(occurred_at, source) < period_wall(?))
+          AND is_deleted_upstream = 0 AND deleted_by_user = 0
+        ORDER BY occurred_at, id
+        """,
+        (period.parent_bike_id, period.installed_at, period.removed_at, period.removed_at),
+    ).fetchall()
+    return [RideActivity.from_row(row) for row in rows]
+
+
 def list_adjustments(
     conn: sqlite3.Connection, *, bike_id: int | None = None, component_id: int | None = None
 ) -> list[MileageAdjustment]:

@@ -58,7 +58,7 @@ def test_creating_a_schedule_stores_the_kind_and_the_matching_unit(signed_in_cli
 
     response = signed_in_client.post(f"/bikes/{bike.id}/schedules", data=data, follow_redirects=False)
 
-    assert (response.status_code, response.headers["location"]) == (303, "/maintenance/due")
+    assert (response.status_code, response.headers["location"]) == (303, f"/bikes/{bike.id}/schedules")
     (schedule,) = schedule_service.list_for_bike(bike.id)
     assert (schedule.service_type, schedule.interval_kind, schedule.interval_unit, schedule.interval_value) == (
         "Replace", kind, expect_unit, 3.0)

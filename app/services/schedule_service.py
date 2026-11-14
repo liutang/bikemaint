@@ -519,6 +519,40 @@ def _due_item(
     )
 
 
+def _count(value: float, unit: str) -> str:
+    """`186 miles`, `1 ride`, `2.5 hours`: the unit is singular for exactly one."""
+    word = unit[:-1] if value == 1 else unit
+    return f"{value:g} {word}"
+
+
+def interval_text(schedule: MaintenanceSchedule) -> str:
+    """The interval in words for the Schedules page (specs/056)."""
+    if schedule.interval_unit and schedule.interval_value is not None:
+        return f"Every {_count(schedule.interval_value, schedule.interval_unit)}"
+    parts = []
+    if schedule.interval_miles is not None:
+        parts.append(_count(schedule.interval_miles, "miles"))
+    if schedule.interval_days is not None:
+        parts.append(_count(schedule.interval_days, "days"))
+    return f"Every {' or '.join(parts)}" if parts else "No interval"
+
+
+def list_overview_for_owner(
+    kind: str, owner_id: int, *, today: date | None = None, lead_time_days: int = DEFAULT_LEAD_TIME_DAYS
+) -> list[DueItem]:
+    """One bike's or part's active schedules with their status, in the order they were made (specs/056)."""
+    day = _today(today)
+    with get_connection() as conn:
+        schedules = (
+            schedules_db.list_active_for_bike(conn, owner_id)
+            if kind == "bike"
+            else schedules_db.list_active_for_component(conn, owner_id)
+        )
+        return [
+            item for schedule in schedules if (item := _due_item(conn, schedule, day, lead_time_days)) is not None
+        ]
+
+
 def get_due_item(
     schedule_id: int, *, today: date | None = None, lead_time_days: int = DEFAULT_LEAD_TIME_DAYS
 ) -> DueItem | None:

@@ -16,6 +16,7 @@ from app.models.requests import ScheduleRequest
 from app.models.schedule_kinds import PERIOD_UNITS, SERVICE_TYPES, UNIT_LABELS, USAGE_UNITS
 from app.services import (
     bike_service,
+    builder_service,
     component_service,
     notification_service,
     schedule_service,
@@ -48,8 +49,25 @@ def _owner(kind: str, item_id: int):
     return bike_service.get_bike(item_id) if kind == "bike" else component_service.get_component(item_id)
 
 
+def _owner_page(kind: str, owner_id: int) -> str:
+    return f"/{kind}s/{owner_id}/schedules"
+
+
+def _from_owner(request: Request) -> bool:
+    """Only the fixed flag `from=owner` is honored, never a URL (no open redirect)."""
+    return request.query_params.get("from") == "owner"
+
+
+def _after(request: Request, schedule) -> str:
+    """Where to go after changing a schedule: its owner's Schedules page, or Maintenance due."""
+    if _from_owner(request):
+        kind, owner = _schedule_owner(schedule)
+        return _owner_page(kind, owner.id)
+    return "/maintenance/due"
+
+
 def _form_context(
-    kind: str, owner, schedule, errors=(), field_errors=None, values=None
+    kind: str, owner, schedule, errors=(), field_errors=None, values=None, from_owner: bool = False
 ) -> dict:
     return {
         "owner": owner,
@@ -62,10 +80,12 @@ def _form_context(
         "service_types": [{"value": t, "label": t} for t in SERVICE_TYPES],
         "usage_options": [{"value": u, "label": UNIT_LABELS[u]} for u in USAGE_UNITS],
         "period_options": [{"value": u, "label": UNIT_LABELS[u]} for u in PERIOD_UNITS],
-        "action": f"/schedules/{schedule.id}" if schedule else f"/{kind}s/{owner.id}/schedules",
-        # a new schedule is added from the part or bike, so Cancel goes back there; an existing
-        # schedule is edited from the Maintenance due page (specs/031-screen-polish)
-        "cancel_url": "/maintenance/due" if schedule else f"/{kind}s/{owner.id}",
+        "action": (f"/schedules/{schedule.id}" + ("?from=owner" if from_owner else ""))
+        if schedule
+        else _owner_page(kind, owner.id),
+        # a new schedule is added from the item's Schedules page (056); an existing one is edited
+        # from there (`from=owner`) or from the Maintenance due page (specs/031-screen-polish)
+        "cancel_url": _owner_page(kind, owner.id) if (from_owner or not schedule) else "/maintenance/due",
     }
 
 
@@ -113,6 +133,24 @@ def acknowledge_notification(
     return RedirectResponse(url="/maintenance/due", status_code=303)
 
 
+def _list_view(request: Request, account, kind: str, item_id: int):
+    """The item's Schedules page: add, edit and delete in one place (specs/056)."""
+    owner = _owner(kind, item_id)
+    if owner is None:
+        return PlainTextResponse(f"{kind.capitalize()} not found", status_code=404)
+    trail = builder_service.breadcrumbs(f"{kind}:{item_id}")
+    crumbs = [*trail[:-1], (owner.name, f"/{kind}s/{item_id}"), ("Schedules", None)]
+    items = schedule_service.list_overview_for_owner(
+        kind, item_id, lead_time_days=account.notification_lead_time_days
+    )
+    rows = [{"item": item, "interval": schedule_service.interval_text(item.schedule)} for item in items]
+    return _render(
+        request,
+        "schedules/owner_list.html",
+        {"owner": owner, "owner_kind": kind, "rows": rows, "crumbs": crumbs, "new_url": f"{_owner_page(kind, item_id)}/new"},
+    )
+
+
 def _new_view(request: Request, kind: str, item_id: int):
     owner = _owner(kind, item_id)
     if owner is None:
@@ -143,7 +181,17 @@ async def _create(request: Request, kind: str, item_id: int):
         is_recurring=payload.is_recurring,
         notify=payload.notify,
     )
-    return RedirectResponse(url="/maintenance/due", status_code=303)
+    return RedirectResponse(url=_owner_page(kind, item_id), status_code=303)
+
+
+@router.get("/bikes/{bike_id}/schedules", name="bike_schedules")
+def bike_schedules(request: Request, bike_id: int, account=Depends(require_account)):
+    return _list_view(request, account, "bike", bike_id)
+
+
+@router.get("/components/{component_id}/schedules", name="component_schedules")
+def component_schedules(request: Request, component_id: int, account=Depends(require_account)):
+    return _list_view(request, account, "component", component_id)
 
 
 @router.get("/bikes/{bike_id}/schedules/new", name="new_bike_schedule_form")
@@ -176,7 +224,9 @@ def edit_schedule_form(request: Request, schedule_id: int, account=Depends(requi
     if schedule is None:
         return PlainTextResponse("Schedule not found", status_code=404)
     kind, owner = _schedule_owner(schedule)
-    return _render(request, "schedules/form.html", _form_context(kind, owner, schedule, []))
+    return _render(
+        request, "schedules/form.html", _form_context(kind, owner, schedule, [], from_owner=_from_owner(request))
+    )
 
 
 @router.post("/schedules/{schedule_id}", name="update_schedule")
@@ -192,7 +242,7 @@ async def update_schedule(request: Request, schedule_id: int, account=Depends(re
         return _render(
             request,
             "schedules/form.html",
-            _form_context(kind, owner, schedule, **error_context(form, exc)),
+            _form_context(kind, owner, schedule, from_owner=_from_owner(request), **error_context(form, exc)),
             status_code=422,
         )
     schedule_service.update_schedule(
@@ -205,7 +255,7 @@ async def update_schedule(request: Request, schedule_id: int, account=Depends(re
         notify=payload.notify,
         is_active=payload.is_active,
     )
-    return RedirectResponse(url="/maintenance/due", status_code=303)
+    return RedirectResponse(url=_after(request, schedule), status_code=303)
 
 
 @router.post("/schedules/{schedule_id}/complete", name="complete_schedule")
@@ -228,8 +278,9 @@ def complete_schedule(
 
 @router.post("/schedules/{schedule_id}/delete", name="delete_schedule")
 def delete_schedule(request: Request, schedule_id: int, account=Depends(require_account)):
+    schedule = schedule_service.get_schedule(schedule_id)
     try:
         schedule_service.delete_schedule(schedule_id)
     except LookupError:
         return PlainTextResponse("Schedule not found", status_code=404)
-    return RedirectResponse(url="/maintenance/due", status_code=303)
+    return RedirectResponse(url=_after(request, schedule), status_code=303)

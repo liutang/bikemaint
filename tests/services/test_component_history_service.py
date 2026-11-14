@@ -458,3 +458,28 @@ def test_an_open_logged_period_cannot_overlap_another(db_path):
             chain.id, bike_id=bike.id, installed_at="2026-04-01T00:00:00.000000Z", removed_at=None
         )
 
+
+
+def test_describe_history_miles_use_the_same_clock_as_mileage(tmp_path, monkeypatch):
+    from app.db import accounts, bikes, components, connection, mileage
+    from app.services import component_history_service
+
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "t.sqlite3"))
+    connection.run_migrations()
+    with connection.get_connection() as conn:
+        account = accounts.upsert_from_strava(
+            conn, strava_athlete_id=1, access_token="a", refresh_token="r", expires_at="2099-01-01T00:00:00Z"
+        )
+        accounts.update_timezone(conn, account.id, "America/New_York")
+        bike = bikes.create(conn, name="Madone")
+        part = components.create(conn, name="Chain", component_type="chain")
+        mileage.upsert_ride_activity(
+            conn, strava_activity_id=1, strava_gear_id="g", bike_id=bike.id,
+            distance_miles=22.1, occurred_at="2024-08-22T16:41:10.000000Z",  # 12:41PM EDT
+        )
+        components.insert_period(
+            conn, part.id, parent_bike_id=bike.id, parent_component_id=None,
+            installed_at="2024-08-22T12:51:00.000000Z", removed_at="2025-02-27T00:00:00.000000Z",
+        )
+    rows = component_history_service.describe_history(part.id)
+    assert rows[0]["miles"] == 0

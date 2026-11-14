@@ -12,6 +12,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
+from app.db import frames
+
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 
@@ -24,6 +26,7 @@ def get_connection() -> Iterator[sqlite3.Connection]:
     conn = sqlite3.connect(_database_path())
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    frames.register(conn)
     try:
         yield conn
         conn.commit()

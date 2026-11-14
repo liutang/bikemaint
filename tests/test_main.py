@@ -117,3 +117,27 @@ def test_outbound_http_client_logging_does_not_leak_webhook_urls(db_path):
     create_app()
 
     assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING
+
+
+def test_startup_recomputes_part_totals(db_path):
+    from app.db import bikes, components, mileage
+
+    connection.run_migrations()
+    with connection.get_connection() as conn:
+        bike = bikes.create(conn, name="Road")
+        part = components.create(conn, name="Chain", component_type="chain")
+        components.insert_period(
+            conn, part.id, parent_bike_id=bike.id, parent_component_id=None,
+            installed_at="2024-01-01T00:00:00.000000Z", removed_at=None,
+        )
+        mileage.upsert_ride_activity(
+            conn, strava_activity_id=1, strava_gear_id="g", bike_id=bike.id,
+            distance_miles=12.0, occurred_at="2024-02-01T15:00:00.000000Z",
+        )
+        conn.execute("UPDATE component SET total_mileage = 999 WHERE id = ?", (part.id,))
+
+    with TestClient(create_app(), base_url="https://testserver"):
+        pass
+
+    with connection.get_connection() as conn:
+        assert components.get_by_id(conn, part.id).total_mileage == 12.0

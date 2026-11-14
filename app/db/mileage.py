@@ -212,9 +212,9 @@ def recompute_component_total_mileage(conn: sqlite3.Connection, component_id: in
         FROM component_installation_period
         JOIN ride_activity
           ON ride_activity.bike_id = component_installation_period.parent_bike_id
-         AND ride_activity.occurred_at >= component_installation_period.installed_at
+         AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= period_wall(component_installation_period.installed_at)
          AND (component_installation_period.removed_at IS NULL
-              OR ride_activity.occurred_at < component_installation_period.removed_at)
+              OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(component_installation_period.removed_at))
         WHERE component_installation_period.component_id = ?
           AND ride_activity.is_deleted_upstream = 0
           AND ride_activity.deleted_by_user = 0
@@ -241,8 +241,8 @@ def list_rides_for_component(conn: sqlite3.Connection, component_id: int) -> lis
         FROM component_installation_period AS period
         JOIN ride_activity
           ON ride_activity.bike_id = period.parent_bike_id
-         AND ride_activity.occurred_at >= period.installed_at
-         AND (period.removed_at IS NULL OR ride_activity.occurred_at < period.removed_at)
+         AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= period_wall(period.installed_at)
+         AND (period.removed_at IS NULL OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(period.removed_at))
         WHERE period.component_id = ?
           AND ride_activity.is_deleted_upstream = 0
           AND ride_activity.deleted_by_user = 0
@@ -340,9 +340,9 @@ def component_mileage_at(conn: sqlite3.Connection, component_id: int, at: str) -
         FROM component_installation_period
         JOIN ride_activity
           ON ride_activity.bike_id = component_installation_period.parent_bike_id
-         AND ride_activity.occurred_at >= component_installation_period.installed_at
+         AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= period_wall(component_installation_period.installed_at)
          AND (component_installation_period.removed_at IS NULL
-              OR ride_activity.occurred_at < component_installation_period.removed_at)
+              OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(component_installation_period.removed_at))
         WHERE component_installation_period.component_id = ?
           AND ride_activity.occurred_at <= ?
           AND ride_activity.is_deleted_upstream = 0
@@ -388,8 +388,8 @@ def usage_since(
                 FROM component_installation_period AS period
                 JOIN ride_activity
                   ON ride_activity.bike_id = period.parent_bike_id
-                 AND ride_activity.occurred_at >= period.installed_at
-                 AND (period.removed_at IS NULL OR ride_activity.occurred_at < period.removed_at)
+                 AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= period_wall(period.installed_at)
+                 AND (period.removed_at IS NULL OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(period.removed_at))
                 WHERE period.component_id = ? AND ride_activity.occurred_at > ? AND {_LIVE_RIDE}
             )
             """,
@@ -411,3 +411,11 @@ def recent_usage_for_bike(conn: sqlite3.Connection, bike_id: int, *, since: str)
     ).fetchone()
     return row["rides"], row["seconds"], row["ride_days"]
 
+
+
+def recompute_all_component_totals(conn: sqlite3.Connection) -> int:
+    """Recompute every live part's stored total; returns how many were checked (specs/015 FR-013)."""
+    ids = [row["id"] for row in conn.execute("SELECT id FROM component WHERE is_deleted = 0").fetchall()]
+    for component_id in ids:
+        recompute_component_total_mileage(conn, component_id)
+    return len(ids)

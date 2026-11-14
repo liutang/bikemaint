@@ -101,7 +101,8 @@ def describe_history(component_id: int) -> list[dict]:
             miles = conn.execute(
                 """
                 SELECT COALESCE(SUM(distance_miles), 0) AS total FROM ride_activity
-                WHERE bike_id = ? AND occurred_at >= ? AND (? IS NULL OR occurred_at < ?)
+                WHERE bike_id = ? AND ride_wall(occurred_at, source) >= period_wall(?)
+                  AND (? IS NULL OR ride_wall(occurred_at, source) < period_wall(?))
                   AND is_deleted_upstream = 0 AND deleted_by_user = 0
                 """,
                 (period.parent_bike_id, period.installed_at, period.removed_at, period.removed_at),

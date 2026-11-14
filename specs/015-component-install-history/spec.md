@@ -22,6 +22,7 @@ Each part has an "Install history" screen (`/components/{id}/install-history`) l
 - **FR-007**: Periods of one part must not overlap (touching ends are fine). Removal must be after install; neither may be in the future.
 - **FR-008**: After any add/edit/delete the part's mileage is recomputed (baseline + rides across all periods + adjustments).
 - **FR-009**: Add/delete leave a "Parts" event on the part's maintenance history dated at the logged moment. *(Superseded by `specs/022-install-history-split`: add/delete of a period no longer writes any maintenance entry.)*
+- **FR-013** *(added by branch `051-period-boundary-frames`)*: A ride counts toward a period when it started at or after the install moment and before the removal moment, with both read as wall-clock times in the saved time zone: Strava rides are UTC instants and are converted; typed install/removal and manual-ride times are used as typed; moments the app recorded itself are UTC and are converted. Example: a ride at 12:41PM EDT is outside a period installed 12:51PM EDT. Part totals are recomputed at startup so stored totals follow this rule.
 - **FR-010**: All routes require sign-in; invalid input re-renders the form with inline errors.
 
 ## Assumptions
@@ -30,3 +31,4 @@ Each part has an "Install history" screen (`/components/{id}/install-history`) l
 
 ## Amendments
 - **2026-11-14 (branch `037-log-open-period`)**: see 022 FR-012; Log a period accepts a blank removal.
+- **2026-11-14 (branch `051-period-boundary-frames`)**: FR-013. The old comparison matched Strava UTC times against typed local times, so a ride up to the zone offset before an install (or after a removal) could be counted.

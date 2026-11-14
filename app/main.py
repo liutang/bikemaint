@@ -16,7 +16,8 @@ from app.models import component_kinds
 from app.services import asset_service, clock_service, confirmation_service, ride_service
 from starlette.middleware.sessions import SessionMiddleware
 
-from app.db.connection import run_migrations
+from app.db import mileage as mileage_db
+from app.db.connection import get_connection, run_migrations
 from app.routers import (
     auth,
     bikes,
@@ -40,6 +41,9 @@ STATIC_DIR = APP_DIR / "static"
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     run_migrations()
+    with get_connection() as conn:
+        # Totals follow the rides and periods as they are now (specs/015 FR-013 corrected how they match).
+        mileage_db.recompute_all_component_totals(conn)
     scheduler.start()
     yield
     scheduler.shutdown()

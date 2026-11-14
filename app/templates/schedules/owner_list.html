@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+{% import "partials/icons.html" as ui_icons %}
+{% from "partials/badges.html" import status_badge, low_confidence_badge %}
+
+{% block title %}Schedules — {{ owner.name }}{% endblock %}
+
+{% block content %}
+{% include "partials/breadcrumb.html" %}
+<div class="page-head">
+  <div>
+    <h1>Schedules</h1>
+    <p class="text-muted">{{ owner.name }} — add, edit and delete its maintenance schedules.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ new_url }}">{{ ui_icons.plus() }}Add schedule</a>
+</div>
+
+{% if rows %}
+<div class="table-responsive">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Service type</th>
+        <th scope="col">Interval</th>
+        <th scope="col">Repeats</th>
+        <th scope="col">Notifications</th>
+        <th scope="col">Status</th>
+        <th scope="col">Next due</th>
+        <th scope="col">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      {% set item = row.item %}
+      <tr>
+        <td data-label="Service type">{{ item.schedule.service_type or item.schedule.name }}</td>
+        <td data-label="Interval">{{ row.interval }}</td>
+        <td data-label="Repeats">{{ "Recurring" if item.schedule.is_recurring else "One-time" }}</td>
+        <td data-label="Notifications">{{ "On" if item.schedule.notify else "Off" }}</td>
+        <td data-label="Status">{{ status_badge(item.status) }}{% if item.projection.is_low_confidence %} {{ low_confidence_badge() }}{% endif %}</td>
+        <td data-label="Next due">
+          {%- if item.projection.over and item.projection.remaining_unit -%}
+            {{ ("%.1f" if item.projection.remaining_unit == "hours" else "%.0f")|format(item.projection.over) }} {{ "mi" if item.projection.remaining_unit == "miles" else item.projection.remaining_unit }} over
+          {%- elif item.projection.due_at -%}
+            {{ item.projection.due_at.isoformat() }}
+          {%- else -%}
+            No date yet
+          {%- endif -%}
+        </td>
+        <td data-label="Actions">
+          <div class="actions">
+            <a class="btn" href="/schedules/{{ item.schedule.id }}/edit?from=owner">Edit</a>
+            <form method="post" action="/schedules/{{ item.schedule.id }}/delete?from=owner">
+              <button class="btn" type="submit">Delete</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <p class="empty-title">No schedules yet</p>
+  <p>Add a schedule to be reminded when {{ owner.name }} needs service.</p>
+  <a class="btn btn-primary" href="{{ new_url }}">Add schedule</a>
+</div>
+{% endif %}
+{% endblock %}

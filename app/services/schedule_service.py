@@ -239,6 +239,28 @@ def create_schedule(
         )
 
 
+def form_defaults(schedule: MaintenanceSchedule | None) -> dict:
+    """What the schedule form shows for a new schedule, a typed one, or one made before feature 040.
+
+    An older schedule has no service type (the rider must choose one) and its interval is prefilled
+    to review: miles as Usage/Miles, otherwise days as Period/Weeks (days / 7, at least 1).
+    """
+    if schedule is None:
+        return {"service_type": "", "interval_kind": "usage", "interval_value": "", "interval_unit": "miles",
+                "is_recurring": True, "notify": True, "older": False}
+    common = {"is_recurring": schedule.is_recurring, "notify": schedule.notify}
+    if schedule.service_type is not None:
+        value = schedule.interval_value
+        return {**common, "service_type": schedule.service_type, "interval_kind": schedule.interval_kind,
+                "interval_value": f"{value:g}", "interval_unit": schedule.interval_unit, "older": False}
+    if schedule.interval_miles is not None:
+        return {**common, "service_type": "", "interval_kind": "usage",
+                "interval_value": f"{schedule.interval_miles:g}", "interval_unit": "miles", "older": True}
+    weeks = max(1, round((schedule.interval_days or 7) / 7))
+    return {**common, "service_type": "", "interval_kind": "period", "interval_value": str(weeks),
+            "interval_unit": "weeks", "older": True}
+
+
 def get_schedule(schedule_id: int) -> MaintenanceSchedule | None:
     with get_connection() as conn:
         return schedules_db.get_by_id(conn, schedule_id)

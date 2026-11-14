@@ -11,8 +11,8 @@
 - [x] T006 [US3] Tests then code: `notification_service` skips `notify` off; payload and summary units.
 
 ## Phase 3: Screens
-- [ ] T007 [US1][US4] Tests first: `tests/routers/test_schedules.py` and `tests/test_ui_schedule_form.py` (fields, defaults, units per kind, 422 messages, legacy prefill, Service Type required on legacy edit). Update older tests posting `name`/`interval_*`.
-- [ ] T008 [US1][US4] Router, `schedules/form.html`, `styles.css` (`:has`), `other_row.html`, dashboard text, contract docs.
+- [x] T007 [US1][US4] Tests first: `tests/routers/test_schedules.py` and `tests/test_ui_schedule_form.py` (fields, defaults, units per kind, 422 messages, legacy prefill, Service Type required on legacy edit). Update older tests posting `name`/`interval_*`.
+- [x] T008 [US1][US4] Router, `schedules/form.html`, `styles.css` (`:has`), `other_row.html`, dashboard text, contract docs.
 
 ## Phase 4: Wrap-up
-- [ ] T009 `CLAUDE.md` note; full suite; PR; merge; confirm publish.
+- [x] T009 `CLAUDE.md` note; full suite; PR; merge; confirm publish.

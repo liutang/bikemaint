@@ -1624,3 +1624,23 @@ button[disabled],
   margin: 0;
   padding: 0.5rem;
 }
+
+/* Schedule form: only the unit list that fits the chosen interval kind is shown, no script (specs/040). */
+.interval-kind {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.interval-kind legend {
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+
+.interval:has(#interval-usage:checked) .unit-period,
+.interval:has(#interval-period:checked) .unit-usage {
+  display: none;
+}

@@ -12,19 +12,21 @@
   <a class="btn btn-primary" href="/{{ item_kind }}s/{{ item.id }}/maintenance/new">{{ ui_icons.plus() }}Log maintenance</a>
 </div>
 
-{% if entries %}
+{% if rows %}
 <div class="table-responsive">
   <table>
     <thead>
       <tr>
         <th scope="col">Date &amp; time</th>
+        {% if item_kind == "component" %}<th scope="col">Part</th>{% endif %}
         <th scope="col">Service type</th>
         <th scope="col">Mileage at service</th>
         <th scope="col">Actions</th>
       </tr>
     </thead>
     <tbody>
-      {% for entry in entries %}
+      {% for row in rows %}
+      {% set entry = row.entry %}
       <tr>
         <td data-label="Date &amp; time">
           {%- if entry.performed_time -%}
@@ -35,15 +37,20 @@
             {{ entry.performed_at }}
           {%- endif -%}
         </td>
+        {% if item_kind == "component" %}
+        <td data-label="Part">{% if row.is_own %}This part{% else %}<a href="/components/{{ row.part_id }}/maintenance">{{ row.part_name }}</a>{% endif %}</td>
+        {% endif %}
         <td data-label="Service type">{{ entry.description }}</td>
         <td data-label="Mileage at service">{{ "%.1f"|format(entry.mileage_at_service) }} mi</td>
         <td data-label="Actions">
+          {% if row.is_own %}
           <div class="actions">
             <a class="btn" href="/maintenance/{{ entry.id }}/edit">Edit</a>
             <form method="post" action="/maintenance/{{ entry.id }}/delete">
               <button class="btn btn-quiet" type="submit">Delete</button>
             </form>
           </div>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}

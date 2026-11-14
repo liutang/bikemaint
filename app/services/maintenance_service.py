@@ -8,6 +8,8 @@ when it moves between bikes (Acceptance Scenario US3-2).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db import maintenance as maintenance_db
@@ -25,6 +27,40 @@ def get_entry(entry_id: int) -> MaintenanceLogEntry | None:
 def list_for_bike(bike_id: int) -> list[MaintenanceLogEntry]:
     with get_connection() as conn:
         return maintenance_db.list_for_bike(conn, bike_id)
+
+
+@dataclass(frozen=True)
+class HistoryRow:
+    """One line of a maintenance history: the entry and which part it belongs to (specs/048)."""
+
+    entry: MaintenanceLogEntry
+    part_id: int | None  # None on a bike's history
+    part_name: str | None
+    is_own: bool  # the entry belongs to the screen's own part or bike (editable there)
+
+
+def _sort_key(row: HistoryRow):
+    entry = row.entry
+    return (entry.performed_at, entry.performed_time or entry.created_at[11:16], entry.id)
+
+
+def list_for_bike_rows(bike_id: int) -> list[HistoryRow]:
+    return [HistoryRow(e, None, None, True) for e in list_for_bike(bike_id)]
+
+
+def list_for_component_tree(component_id: int) -> list[HistoryRow]:
+    """A part's own entries plus those of every part currently attached to it, latest first."""
+    with get_connection() as conn:
+        part = components_db.get_by_id(conn, component_id)
+        if part is None:
+            raise LookupError(f"No component with id {component_id}")
+        parts = [(part, True)] + [(p, False) for p in components_db.get_descendants(conn, component_id)]
+        rows = [
+            HistoryRow(entry, p.id, p.name, own)
+            for p, own in parts
+            for entry in maintenance_db.list_for_component(conn, p.id)
+        ]
+    return sorted(rows, key=_sort_key, reverse=True)
 
 
 def list_for_component(component_id: int) -> list[MaintenanceLogEntry]:

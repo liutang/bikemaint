@@ -100,3 +100,5 @@ Install history cleanup (feature 030): editing a still-installed period with a r
 Install history (feature 015): `component_history_service` owns install dates (`moment`, `installed_at` on add via `/builder/add`) and manual periods at `/components/{id}/install-history` and `/install-periods/{id}`; periods of one part may not overlap and mileage is recomputed after every change.
 
 Clock (feature 036): `account.clock_format` (`12` default, or `24`; `POST /settings/clock`) controls how every displayed time is written: UTC-recorded times through `clock_service.format_utc` (Jinja `local_time`) as `2026-11-13 2:26PM EST`, typed times through `clock_service.format_wall` (`wall_time`) with no zone. Form time pickers are the browser's own.
+
+Ride moving time (feature 039): `ride_activity.moving_time_seconds` (NULL = unknown) is set from Strava `moving_time` on sync and re-import (never overwriting edited rides; a missing value never erases a stored one) and by the optional `h:mm` field on manual rides (`ride_service.parse_duration` / `format_duration`, Jinja filter `duration`); the Rides list shows a Moving time column. Schedules by Hours (feature 040) sum it.

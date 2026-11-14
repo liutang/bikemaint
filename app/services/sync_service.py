@@ -37,6 +37,12 @@ def _normalize_strava_timestamp(value: str) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
+def _moving_seconds(activity: dict) -> int | None:
+    """Strava's moving time in whole seconds, or None when it is absent or zero."""
+    value = activity.get("moving_time")
+    return int(value) if isinstance(value, (int, float)) and value > 0 else None
+
+
 def _upsert_activities(conn: sqlite3.Connection, activities: list[dict]) -> set[int]:
     """Upsert `activities`, resolving each to a bike via its Strava gear id.
 
@@ -54,6 +60,7 @@ def _upsert_activities(conn: sqlite3.Connection, activities: list[dict]) -> set[
             bike_id=bike.id if bike else None,
             distance_miles=_meters_to_miles(activity["distance"]),
             occurred_at=_normalize_strava_timestamp(activity["start_date"]),
+            moving_time_seconds=_moving_seconds(activity),
         )
         if bike is not None:
             touched_bike_ids.add(bike.id)

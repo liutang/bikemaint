@@ -286,8 +286,16 @@ class RideRequest(BaseModel):
     miles: float = Field(gt=0, le=5000)
     note: str | None = Field(default=None, max_length=200)
     bike_id: int | None = Field(default=None, ge=1)
+    moving_time: str | None = Field(default=None, pattern=r"^\d{1,2}:[0-5][0-9]$")  # h:mm, 0:01 to 99:59
 
-    @field_validator("ride_time", "note", "bike_id", mode="before")
+    @field_validator("moving_time")
+    @classmethod
+    def _not_zero(cls, value):
+        if value is not None and value.replace("0", "") in (":", ""):
+            raise ValueError("Moving time must be at least 0:01, or leave it blank.")
+        return value
+
+    @field_validator("ride_time", "note", "bike_id", "moving_time", mode="before")
     @classmethod
     def _blank_is_none(cls, value):
         return None if isinstance(value, str) and not value.strip() else value

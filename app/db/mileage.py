@@ -20,6 +20,7 @@ def upsert_ride_activity(
     bike_id: int | None,
     distance_miles: float,
     occurred_at: str,
+    moving_time_seconds: int | None = None,
 ) -> RideActivity:
     """Insert a synced ride, or update it in place if already synced (idempotent on
     `strava_activity_id`) — a re-sync can correct a previously-synced ride's distance."""
@@ -28,18 +29,19 @@ def upsert_ride_activity(
         """
         INSERT INTO ride_activity (
             strava_activity_id, strava_gear_id, bike_id, distance_miles, occurred_at,
-            is_deleted_upstream, synced_at
-        ) VALUES (?, ?, ?, ?, ?, 0, ?)
+            is_deleted_upstream, synced_at, moving_time_seconds
+        ) VALUES (?, ?, ?, ?, ?, 0, ?, ?)
         ON CONFLICT(strava_activity_id) DO UPDATE SET
             strava_gear_id = excluded.strava_gear_id,
             bike_id = excluded.bike_id,
             distance_miles = excluded.distance_miles,
             occurred_at = excluded.occurred_at,
             is_deleted_upstream = 0,
-            synced_at = excluded.synced_at
+            synced_at = excluded.synced_at,
+            moving_time_seconds = COALESCE(excluded.moving_time_seconds, ride_activity.moving_time_seconds)
         WHERE ride_activity.user_modified = 0 AND ride_activity.deleted_by_user = 0
         """,
-        (strava_activity_id, strava_gear_id, bike_id, distance_miles, occurred_at, now),
+        (strava_activity_id, strava_gear_id, bike_id, distance_miles, occurred_at, now, moving_time_seconds),
     )
     row = conn.execute(
         "SELECT * FROM ride_activity WHERE strava_activity_id = ?", (strava_activity_id,)
@@ -59,14 +61,16 @@ def create_manual_ride(
     distance_miles: float,
     occurred_at: str,
     note: str | None,
+    moving_time_seconds: int | None = None,
 ) -> RideActivity:
     """A ride the rider added by hand (not tracked on Strava)."""
     cursor = conn.execute(
         """
-        INSERT INTO ride_activity (source, bike_id, distance_miles, occurred_at, note, user_modified)
-        VALUES ('manual', ?, ?, ?, ?, 1)
+        INSERT INTO ride_activity (source, bike_id, distance_miles, occurred_at, note, user_modified,
+                                   moving_time_seconds)
+        VALUES ('manual', ?, ?, ?, ?, 1, ?)
         """,
-        (bike_id, distance_miles, occurred_at, note),
+        (bike_id, distance_miles, occurred_at, note, moving_time_seconds),
     )
     ride = get_ride(conn, cursor.lastrowid)
     assert ride is not None
@@ -81,15 +85,17 @@ def update_ride(
     distance_miles: float,
     occurred_at: str,
     note: str | None,
+    moving_time_seconds: int | None = None,
 ) -> RideActivity:
     """Edit a ride (miles, time, bike, note). Marks it so Strava sync never overwrites it."""
     conn.execute(
         """
         UPDATE ride_activity
-        SET bike_id = ?, distance_miles = ?, occurred_at = ?, note = ?, user_modified = 1
+        SET bike_id = ?, distance_miles = ?, occurred_at = ?, note = ?, moving_time_seconds = ?,
+            user_modified = 1
         WHERE id = ?
         """,
-        (bike_id, distance_miles, occurred_at, note, ride_id),
+        (bike_id, distance_miles, occurred_at, note, moving_time_seconds, ride_id),
     )
     ride = get_ride(conn, ride_id)
     assert ride is not None

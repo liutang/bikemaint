@@ -271,3 +271,24 @@ def test_a_backfill_records_the_time(db_path, monkeypatch):
     sync_service.backfill_bike(bike.id)
 
     assert _last_synced(account.id) is not None
+
+
+def test_sync_stores_moving_time_and_a_resync_fills_a_ride_that_had_none(db_path, monkeypatch):
+    # 039 FR-002: Strava's moving time lands on the ride; re-import fills older rides.
+    account = _connected_account()
+    bike = bike_service.create_bike(name="Gravel")
+    _pair_bike_to_gear(bike.id, "gear-1")
+    first = [{"id": 7, "gear_id": "gear-1", "distance": 16093.4, "start_date": "2026-09-01T08:00:00Z"}]
+    monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: first)
+    sync_service.sync_incremental(account.id)
+    with connection.get_connection() as conn:
+        ride = conn.execute("SELECT moving_time_seconds FROM ride_activity").fetchone()
+    assert ride["moving_time_seconds"] is None  # no moving_time reported
+
+    again = [{**first[0], "moving_time": 5400}]
+    monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: again)
+    sync_service.sync_incremental(account.id)
+
+    with connection.get_connection() as conn:
+        rows = conn.execute("SELECT moving_time_seconds FROM ride_activity").fetchall()
+    assert [r["moving_time_seconds"] for r in rows] == [5400]

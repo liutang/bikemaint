@@ -75,3 +75,9 @@ def set_clock_format(account_id: int, clock_format: str) -> None:
         accounts_db.update_clock_format(conn, account_id, clock_format)
     clock_service.remember_clock(clock_format)
 
+
+def set_notifications_muted(account_id: int, muted: bool) -> None:
+    """Mute or unmute all due-soon notifications and webhook posts (specs/045)."""
+    with get_connection() as conn:
+        accounts_db.update_notifications_muted(conn, account_id, muted)
+

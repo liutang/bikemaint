@@ -145,3 +145,10 @@ def update_clock_format(conn: sqlite3.Connection, account_id: int, clock_format:
         (clock_format, _now(), account_id),
     )
 
+
+def update_notifications_muted(conn: sqlite3.Connection, account_id: int, muted: bool) -> None:
+    conn.execute(
+        "UPDATE account SET notifications_muted = ?, updated_at = ? WHERE id = ?",
+        (1 if muted else 0, _now(), account_id),
+    )
+

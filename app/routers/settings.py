@@ -20,7 +20,7 @@ from app.models.requests import (
     TimezoneSettingsRequest,
     WebhookSettingsRequest,
 )
-from app.services import clock_service, settings_service
+from app.services import clock_service, notification_service, settings_service
 from app.services.auth_dependency import require_account
 
 router = APIRouter()
@@ -109,6 +109,31 @@ async def update_clock_setting(request: Request, account=Depends(require_account
         return _settings_page(request, account.id, error_context(form, exc), 422)
     settings_service.set_clock_format(account.id, payload.clock_format)
     return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/notifications/mute", name="update_notification_mute")
+async def update_notification_mute(request: Request, account=Depends(require_account)):
+    """Mute all due-soon notifications and webhook posts (specs/045); a ticked box is present in the post."""
+    form = await request.form()
+    settings_service.set_notifications_muted(account.id, form.get("notifications_muted") is not None)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/settings/notifications/test", name="test_notification")
+def test_notification(request: Request, account=Depends(require_account)):
+    """Send a test message to the saved webhook (specs/045). Always sent, even while muted."""
+    url = settings_service.get_account(account.id).notification_webhook_url
+    if not url:
+        return _settings_page(
+            request, account.id, {"test_result": {"ok": False, "message": "Save a webhook URL first, then send the test."}}, 422
+        )
+    delivered, error = notification_service.send_test(url)
+    if delivered:
+        return _settings_page(request, account.id, {"test_result": {"ok": True, "message": "Test notification delivered."}})
+    return _settings_page(
+        request, account.id,
+        {"test_result": {"ok": False, "message": f"The test notification could not be delivered ({error})."}}, 502,
+    )
 
 
 @router.post("/settings/webhook", name="update_webhook_settings")

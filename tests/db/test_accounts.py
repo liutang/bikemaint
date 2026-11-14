@@ -118,3 +118,14 @@ def test_the_clock_is_twelve_hour_until_changed(db_path):
         assert account.clock_format == "12"
         accounts.update_clock_format(conn, account.id, "24")
         assert accounts.get_singleton(conn).clock_format == "24"
+
+
+def test_notifications_are_not_muted_until_asked(db_path):
+    with connection.get_connection() as conn:
+        account = accounts.upsert_from_strava(
+            conn, strava_athlete_id=8, access_token="a", refresh_token="r",
+            expires_at="2099-01-01T00:00:00.000000Z",
+        )
+        assert account.notifications_muted is False
+        accounts.update_notifications_muted(conn, account.id, True)
+        assert accounts.get_singleton(conn).notifications_muted is True

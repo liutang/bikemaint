@@ -112,3 +112,5 @@ New schedules (feature 043, 040 FR-011): a typed schedule counts from the latest
 Notifications (feature 045): `account.notifications_muted` (Settings "Mute notifications") makes `notification_service.check_due_schedules` record and send nothing; "Send test notification" (`POST /settings/notifications/test`, `notification_service.send_test`) posts to the saved webhook, works even when muted, and records nothing.
 
 Schedules follow maintenance (feature 046): logging a maintenance entry (not a schedule's own completion) restarts the owner's active schedules of the same service type whose starting point is earlier (new cycle, `maintenance_service._rebase_matching_schedules`); editing an entry re-bases without a new cycle; usage-based projections are always computed on read.
+
+Component maintenance history (feature 048): a part's history lists its own entries plus those of every currently attached part (`maintenance_service.list_for_component_tree`), latest first, with a Part column ("This part" or a link to the attached part's history); attached parts' rows have no Edit or Delete. A bike's history is unchanged.

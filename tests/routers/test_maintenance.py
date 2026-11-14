@@ -337,3 +337,44 @@ def test_a_typed_entry_opens_for_edit_with_its_type_selected(signed_in_client):
     form = signed_in_client.get(f"/maintenance/{entry.id}/edit").text
 
     assert '<option value="Clean" selected>' in form and "before service types" not in form
+
+
+def _wheel_with_tire(signed_in_client):
+    wheel = component_service.create_component(name="Wheel", component_type="wheel")
+    tire = component_service.create_component(name="Road tire", component_type="tire", parent_component_id=wheel.id)
+    own = maintenance_service.log_maintenance(component_id=wheel.id, description="Check", performed_at="2026-03-01")
+    theirs = maintenance_service.log_maintenance(component_id=tire.id, description="Topup", performed_at="2026-05-01")
+    return wheel, tire, own, theirs
+
+
+def test_a_parts_history_has_a_part_column_with_this_part_and_links_to_attached_parts(signed_in_client):
+    wheel, tire, own, theirs = _wheel_with_tire(signed_in_client)
+
+    html = signed_in_client.get(f"/components/{wheel.id}/maintenance").text
+
+    heads = re.findall(r'<th scope="col">([^<]*)</th>', html)
+    assert heads == ["Date &amp; time", "Part", "Service type", "Mileage at service", "Actions"]
+    rows = re.findall(r"<tr>.*?</tr>", html.split("<tbody>")[1], re.S)
+    assert len(rows) == 2
+    attached, mine = rows  # latest first
+    assert f'<a href="/components/{tire.id}/maintenance">Road tire</a>' in attached and "Topup" in attached
+    assert "/edit" not in attached and "/delete" not in attached
+    assert "This part" in mine and f'href="/maintenance/{own.id}/edit"' in mine and f'action="/maintenance/{own.id}/delete"' in mine
+
+
+def test_a_bikes_history_is_unchanged_with_no_part_column(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    maintenance_service.log_maintenance(bike_id=bike.id, description="Clean", performed_at="2026-05-01")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
+
+    assert '<th scope="col">Part</th>' not in html and "This part" not in html and "/edit" in html
+
+
+def test_a_part_with_only_its_own_entries_marks_them_this_part(signed_in_client):
+    chain = component_service.create_component(name="Chain", component_type="chain")
+    maintenance_service.log_maintenance(component_id=chain.id, description="Lube/Wax", performed_at="2026-05-01")
+
+    html = signed_in_client.get(f"/components/{chain.id}/maintenance").text
+
+    assert "This part" in html

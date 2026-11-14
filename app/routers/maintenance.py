@@ -52,8 +52,8 @@ def _history_url(kind: str, item_id: int) -> str:
 
 def _history(kind: str, item_id: int):
     if kind == "bike":
-        return maintenance_service.list_for_bike(item_id)
-    return maintenance_service.list_for_component(item_id)
+        return maintenance_service.list_for_bike_rows(item_id)
+    return maintenance_service.list_for_component_tree(item_id)
 
 
 def _form_context(
@@ -81,7 +81,7 @@ def _list_view(request: Request, kind: str, item_id: int):
     return _render(
         request,
         "maintenance/history_list.html",
-        {"item": item, "item_kind": kind, "entries": _history(kind, item_id)},
+        {"item": item, "item_kind": kind, "rows": _history(kind, item_id)},
     )
 
 

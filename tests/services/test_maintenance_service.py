@@ -237,3 +237,31 @@ def test_a_part_counts_only_rides_while_it_was_installed(db_path):
     )
 
     assert entry.mileage_at_service == 60.0
+
+
+def test_a_parts_history_includes_attached_parts_at_any_depth_latest_first(db_path):
+    wheel = component_service.create_component(name="Wheel", component_type="wheel")
+    rim = component_service.create_component(name="Rim", component_type="rim", parent_component_id=wheel.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=rim.id)
+    elsewhere = component_service.create_component(name="Elsewhere", component_type="tire")
+    maintenance_service.log_maintenance(component_id=wheel.id, description="Check", performed_at="2026-03-01")
+    maintenance_service.log_maintenance(component_id=tire.id, description="Topup", performed_at="2026-05-01")
+    maintenance_service.log_maintenance(component_id=rim.id, description="Clean", performed_at="2026-04-01")
+    maintenance_service.log_maintenance(component_id=elsewhere.id, description="Replace", performed_at="2026-06-01")
+
+    rows = maintenance_service.list_for_component_tree(wheel.id)
+
+    assert [(r.entry.description, r.part_name, r.is_own) for r in rows] == [
+        ("Topup", "Tire", False), ("Clean", "Rim", False), ("Check", "Wheel", True)]
+    assert [r.part_id for r in rows] == [tire.id, rim.id, wheel.id]
+
+
+def test_a_part_moved_off_no_longer_contributes_and_a_bare_part_has_only_its_own(db_path):
+    wheel = component_service.create_component(name="Wheel", component_type="wheel")
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+    maintenance_service.log_maintenance(component_id=tire.id, description="Topup", performed_at="2026-05-01")
+    maintenance_service.log_maintenance(component_id=wheel.id, description="Check", performed_at="2026-03-01")
+    component_service.move_component(tire.id)  # to storage
+
+    assert [r.part_name for r in maintenance_service.list_for_component_tree(wheel.id)] == ["Wheel"]
+    assert [r.is_own for r in maintenance_service.list_for_component_tree(tire.id)] == [True]

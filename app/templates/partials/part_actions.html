@@ -37,7 +37,7 @@
   <form method="post" action="/builder/delete" hx-post="/builder/delete" hx-target="#builder" hx-swap="outerHTML">
     <input type="hidden" name="root" value="component:{{ component.id }}">
     <input type="hidden" name="component_id" value="{{ component.id }}">
-    <button class="btn btn-quiet" type="submit">{{ ui_icons.trash() }}Trash</button>
+    <button class="btn" type="submit">{{ ui_icons.trash() }}Trash</button>
   </form>
   {% endif %}
 </div>

@@ -170,3 +170,21 @@ def test_the_board_names_the_unit_left(signed_in_client):
     html = signed_in_client.get("/maintenance/due?all=1").text
 
     assert "Check" in html and "10.0 hours left" in html
+
+
+def test_adding_a_topup_schedule_to_a_part_with_an_old_topup_shows_overdue(signed_in_client):
+    # 040 FR-011, the rider's case: Topup logged 2023-09-01, then Topup every 4 months.
+    from app.services import component_service, maintenance_service
+
+    wheel = component_service.create_component(name="Front wheel", component_type="wheel")
+    maintenance_service.log_maintenance(component_id=wheel.id, description="Topup", performed_at="2023-09-01")
+
+    signed_in_client.post(
+        f"/components/{wheel.id}/schedules",
+        data=_data(service_type="Topup", interval_kind="period", interval_unit_period="months", interval_value="4"),
+    )
+
+    html = signed_in_client.get("/maintenance/due?all=1").text
+    row = re.search(r'<(?:article|li) class="(?:attention-card|other-row)[^"]*" id="schedule-row-1">.*?</(?:article|li)>', html, re.S).group(0)
+    assert "Overdue" in row or "overdue" in row
+    assert "2024-01-01" in row

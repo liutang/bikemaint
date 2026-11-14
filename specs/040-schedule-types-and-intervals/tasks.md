@@ -16,3 +16,7 @@
 
 ## Phase 4: Wrap-up
 - [x] T009 `CLAUDE.md` note; full suite; PR; merge; confirm publish.
+
+## Amendment 043
+- [x] T010 (043) New schedules count from the last matching logged service, else from when tracking began (FR-011): tests in `tests/services/test_schedule_intervals.py` and `tests/routers/test_schedule_form.py`; `schedule_service.create_schedule` works out the baseline; `maintenance_db.latest_for_owner_and_type`.
+

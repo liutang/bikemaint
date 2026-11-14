@@ -60,6 +60,7 @@ def test_a_period_schedule_is_due_the_interval_after_its_baseline(db_path):
 def test_a_rides_schedule_projects_from_the_rides_per_day(db_path):
     bike = bike_service.create_bike(name="Road")
     _rides(bike, days=10)
+    _log(bike, "Check", TODAY.isoformat())  # counting starts after the last service
     schedule = _typed(bike.id, interval_value=20, interval_unit="rides")  # nothing used yet
 
     projection = schedule_service.project_due_date(schedule, today=TODAY)
@@ -73,6 +74,7 @@ def test_a_rides_schedule_projects_from_the_rides_per_day(db_path):
 def test_an_hours_schedule_projects_from_moving_time(db_path):
     bike = bike_service.create_bike(name="Road")
     _rides(bike, days=10, seconds=3600)
+    _log(bike, "Check", TODAY.isoformat())  # counting starts after the last service
     schedule = _typed(bike.id, interval_value=5, interval_unit="hours")
 
     projection = schedule_service.project_due_date(schedule, today=TODAY)
@@ -97,6 +99,7 @@ def test_used_up_rides_or_hours_make_the_schedule_overdue(db_path):
 def test_rides_before_the_baseline_do_not_count(db_path):
     bike = bike_service.create_bike(name="Road")
     _rides(bike, days=5)
+    _log(bike, "Check", TODAY.isoformat())  # counting starts after the last service
     schedule = _typed(bike.id, interval_value=5, interval_unit="rides")  # baseline is now
 
     assert schedule_service.project_due_date(schedule, today=TODAY).remaining == 5
@@ -120,6 +123,7 @@ def test_a_part_counts_only_rides_while_it_was_installed(db_path):
 def test_the_miles_unit_still_reports_remaining_miles(db_path):
     bike = bike_service.create_bike(name="Road")
     _rides(bike, days=10, miles=9.0)
+    _log(bike, "Check", TODAY.isoformat())  # counting starts after the last service
     schedule = _typed(bike.id, interval_value=100, interval_unit="miles")
 
     projection = schedule_service.project_due_date(schedule, today=TODAY)
@@ -195,3 +199,114 @@ def test_next_due_text_names_the_unit(db_path):
     item = schedule_service.get_due_item(schedule.id, today=TODAY)
 
     assert schedule_service.next_due_text(item) == "Next due after 20 more rides"
+
+
+# ---- 040 FR-011: a new schedule counts from the last matching service, else from when tracking began
+
+
+def _log(owner, service, day, time=None, mileage=None):
+    from app.services import maintenance_service
+
+    key = "bike_id" if hasattr(owner, "bike_type") else "component_id"
+    return maintenance_service.log_maintenance(
+        **{key: owner.id}, description=service, performed_at=day, performed_time=time, mileage_at_service=mileage
+    )
+
+
+def test_a_period_schedule_counts_from_the_last_matching_service(db_path):
+    # The rider's case: a Topup logged in 2023, then "Topup every 4 months", is overdue at once.
+    wheel = component_service.create_component(name="Wheel", component_type="wheel")
+    _log(wheel, "Topup", "2023-09-01")
+
+    schedule = _typed(component_id=wheel.id, service_type="Topup", interval_kind="period", interval_value=4, interval_unit="months")
+
+    projection = schedule_service.project_due_date(schedule, today=TODAY)
+    assert projection.due_at == date(2024, 1, 1) and projection.is_overdue is True
+    item = schedule_service.get_due_item(schedule.id, today=TODAY)
+    assert item.status == "overdue"
+
+
+def test_only_the_same_service_type_on_the_same_owner_counts_and_the_latest_wins(db_path):
+    wheel = component_service.create_component(name="Wheel", component_type="wheel")
+    other = component_service.create_component(name="Other", component_type="wheel")
+    _log(wheel, "Check", "2023-01-01")        # another type: ignored
+    _log(other, "Topup", "2023-01-01")        # another part: ignored
+    _log(wheel, "Topup", "2024-01-10")
+    _log(wheel, "Topup", "2025-03-05")        # the latest
+
+    schedule = _typed(component_id=wheel.id, service_type="Topup", interval_kind="period", interval_value=2, interval_unit="months")
+
+    assert schedule.baseline_date == "2025-03-05"
+    assert schedule_service.project_due_date(schedule, today=TODAY).due_at == date(2025, 5, 5)
+
+
+def test_a_miles_schedule_counts_miles_since_the_last_matching_service(db_path):
+    bike = bike_service.create_bike(name="Road", manual_baseline_mileage=500.0)
+    with connection.get_connection() as conn:
+        for n, (when, miles) in enumerate([("2026-01-10T08:00:00.000000Z", 40), ("2026-03-10T08:00:00.000000Z", 70)]):
+            mileage_db.upsert_ride_activity(conn, strava_activity_id=900 + n, strava_gear_id="g", bike_id=bike.id,
+                                            distance_miles=miles, occurred_at=when)
+        mileage_db.recompute_bike_total_mileage(conn, bike.id)
+    _log(bike, "Lube/Wax", "2026-02-01")   # mileage then: 500 + 40 = 540
+
+    schedule = _typed(bike.id, service_type="Lube/Wax", interval_value=50, interval_unit="miles")
+
+    projection = schedule_service.project_due_date(schedule, today=TODAY)
+    assert projection.is_overdue is True  # 70 mi since the service, interval 50
+
+
+def test_rides_and_hours_count_only_after_the_last_matching_service(db_path):
+    bike = bike_service.create_bike(name="Road")
+    with connection.get_connection() as conn:
+        for n, (when, secs) in enumerate([("2026-01-10T08:00:00.000000Z", 3600), ("2026-03-10T08:00:00.000000Z", 7200),
+                                          ("2026-03-11T08:00:00.000000Z", 7200)]):
+            mileage_db.upsert_ride_activity(conn, strava_activity_id=950 + n, strava_gear_id="g", bike_id=bike.id,
+                                            distance_miles=5, occurred_at=when, moving_time_seconds=secs)
+    _log(bike, "Check", "2026-02-01")
+
+    rides = _typed(bike.id, service_type="Check", interval_value=10, interval_unit="rides")
+    hours = _typed(bike.id, service_type="Check", interval_value=10, interval_unit="hours")
+
+    assert schedule_service.project_due_date(rides, today=TODAY).remaining == 8     # 2 rides since
+    assert schedule_service.project_due_date(hours, today=TODAY).remaining == 6     # 4 h since
+
+
+def test_with_no_matching_service_usage_counts_all_rides_but_not_the_starting_mileage(db_path):
+    bike = bike_service.create_bike(name="Road", manual_baseline_mileage=1000.0)
+    with connection.get_connection() as conn:
+        mileage_db.upsert_ride_activity(conn, strava_activity_id=990, strava_gear_id="g", bike_id=bike.id,
+                                        distance_miles=30, occurred_at="2025-05-01T08:00:00.000000Z", moving_time_seconds=3600)
+        mileage_db.recompute_bike_total_mileage(conn, bike.id)
+
+    miles = _typed(bike.id, service_type="Clean", interval_value=20, interval_unit="miles")
+    rides = _typed(bike.id, service_type="Clean", interval_value=5, interval_unit="rides")
+
+    assert schedule_service.project_due_date(miles, today=TODAY).is_overdue is True        # 30 of 20 used
+    assert schedule_service.project_due_date(rides, today=TODAY).remaining == 4            # 1 ride used
+
+
+def test_with_no_matching_service_a_period_counts_from_the_earliest_install_else_when_it_was_added(db_path):
+    bike = bike_service.create_bike(name="Road")
+    old = component_service.create_component(name="Old chain", component_type="chain", parent_bike_id=bike.id)
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE component_installation_period SET installed_at = '2023-01-01T00:00:00.000000Z' WHERE component_id = ?", (old.id,))
+    fresh = component_service.create_component(name="New chain", component_type="chain")
+
+    stale = _typed(component_id=old.id, service_type="Clean", interval_kind="period", interval_value=4, interval_unit="months")
+    new = _typed(component_id=fresh.id, service_type="Clean", interval_kind="period", interval_value=4, interval_unit="months")
+
+    assert schedule_service.project_due_date(stale, today=TODAY).is_overdue is True
+    assert schedule_service.project_due_date(new, today=TODAY).is_overdue is False
+    assert new.baseline_date == TODAY.isoformat()
+
+
+def test_marking_done_still_restarts_from_now(db_path):
+    wheel = component_service.create_component(name="Wheel", component_type="wheel")
+    _log(wheel, "Topup", "2023-09-01")
+    schedule = _typed(component_id=wheel.id, service_type="Topup", interval_kind="period", interval_value=4, interval_unit="months")
+
+    done = schedule_service.complete_schedule(schedule.id, today=TODAY)
+
+    assert done.baseline_date == TODAY.isoformat()
+    assert schedule_service.project_due_date(done, today=TODAY).is_overdue is False
+

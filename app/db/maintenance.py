@@ -113,3 +113,20 @@ def latest_for_schedule(conn: sqlite3.Connection, schedule_id: int) -> Maintenan
         (schedule_id,),
     ).fetchone()
     return MaintenanceLogEntry.from_row(row) if row else None
+
+
+def latest_for_owner_and_type(
+    conn: sqlite3.Connection,
+    *,
+    bike_id: int | None,
+    component_id: int | None,
+    service_type: str,
+) -> MaintenanceLogEntry | None:
+    """The most recently performed entry of `service_type` on a bike or a part, if any (specs/040)."""
+    column, owner = ("bike_id", bike_id) if bike_id is not None else ("component_id", component_id)
+    row = conn.execute(
+        f"SELECT * FROM maintenance_log_entry WHERE {column} = ? AND description = ? "
+        "ORDER BY performed_at DESC, COALESCE(performed_time, '') DESC, id DESC LIMIT 1",
+        (owner, service_type),
+    ).fetchone()
+    return MaintenanceLogEntry.from_row(row) if row else None

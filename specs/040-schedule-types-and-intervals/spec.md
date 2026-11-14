@@ -22,7 +22,7 @@ On a new schedule form the rider picks a Service Type, chooses Usage or Period, 
 
 1. **Given** the new schedule form, **When** it opens, **Then** it has a Service Type drop-down listing exactly Charge, Check, Clean, Lube/Wax, Replace, Service, Topup (no free-text name), an "Interval by" choice of Usage or Period (Usage selected), a number field, a units drop-down, a Recurring switch (on) and a Receive notifications switch (on).
 2. **Given** Usage is selected, **When** the units are shown, **Then** they are Miles, Rides, Hours; **given** Period is selected, **Then** they are Years, Months, Weeks. Only the units for the chosen kind are offered and the server rejects any other pairing.
-3. **Given** a Service Type, a number above zero and a matching unit, **When** saved, **Then** the schedule is created with the service type as its name, one interval, and a baseline of now (current mileage, rides and hours counted from now).
+3. **Given** a Service Type, a number above zero and a matching unit, **When** saved, **Then** the schedule is created with the service type as its name and one interval, counting from the last time that service type was logged on that bike or part (see FR-011); only when it was never logged does it count from when tracking began.
 4. **Given** a missing Service Type, a number that is blank, zero or negative, or a unit that does not match the kind, **When** saved, **Then** the form re-opens with a message beside the field and nothing is saved.
 5. **Given** a schedule by Period, **When** the next due date is worked out, **Then** it is the baseline date plus that many years, months (calendar months; a day past the end of a short month becomes the last day) or weeks.
 6. **Given** a schedule by Usage in Miles, Rides or Hours, **When** the next due date is projected, **Then** the remaining usage is the interval minus the usage since the baseline, and the date follows the rider's trailing 90-day pace in that unit, exactly as miles did before; when the usage is already used up the schedule is overdue.
@@ -79,6 +79,8 @@ On a new schedule form the rider picks a Service Type, chooses Usage or Period, 
 - **FR-009**: The units drop-down MUST offer only the units of the selected kind without any script (constitution: no JS beyond the builder asset).
 - **FR-010**: Maintenance due, notifications and webhook text MUST describe remaining usage in the schedule's own unit (miles, rides or hours).
 
+- **FR-011**: A new schedule MUST count from the most recent maintenance entry of the same service type on the same bike or part: its date and time start a Period, and the mileage recorded on it, and the rides and hours after it, start Usage. If none was ever logged, it MUST count from when tracking began: Usage from all rides on the bike or part (excluding its starting mileage; adjustments count), a Period from the part's earliest install date, else when the bike or part was added. A schedule already past its interval on that basis is overdue when created. *(Added by feature 043 after user testing: a Topup logged on a wheel in 2023, then a 4-month Topup schedule, showed "on track" instead of overdue.)*
+
 ### Key Entities
 
 - **Schedule**: gains service type, interval kind/value/unit, recurring flag, notify flag, and a baseline moment (used to count rides and hours since the last completion).
@@ -97,3 +99,6 @@ On a new schedule form the rider picks a Service Type, chooses Usage or Period, 
 - Webhook payload keeps its shape; the projected remaining value is also sent as `projected_remaining` with `projected_remaining_unit`, and `projected_remaining_miles` is kept for miles.
 - A baseline moment is recorded at creation and at each completion.
 - Ride times are compared as stored (typed times are not zone-converted), as for installation periods.
+
+## Amendments
+- **2026-11-14 (branch `043-schedule-backdated-baseline`)**: User Story 1 scenario 3 said a new schedule counts from now. Replaced by FR-011: it counts from the last matching logged service, else from when tracking began. Chosen by the rider.

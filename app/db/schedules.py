@@ -184,6 +184,20 @@ def complete(
     return schedule
 
 
+def rebase(
+    conn: sqlite3.Connection, schedule_id: int, *, baseline_mileage: float, baseline_date: str, baseline_at: str
+) -> MaintenanceSchedule:
+    """Re-start counting from a logged service without starting a new cycle (specs/046)."""
+    conn.execute(
+        "UPDATE maintenance_schedule SET baseline_mileage = ?, baseline_date = ?, baseline_at = ?, "
+        "updated_at = ? WHERE id = ?",
+        (baseline_mileage, baseline_date, baseline_at, _now(), schedule_id),
+    )
+    schedule = get_by_id(conn, schedule_id)
+    assert schedule is not None
+    return schedule
+
+
 def deactivate(conn: sqlite3.Connection, schedule_id: int) -> None:
     """'Delete' a schedule: stop projecting/notifying but keep its history (data-model.md)."""
     conn.execute(

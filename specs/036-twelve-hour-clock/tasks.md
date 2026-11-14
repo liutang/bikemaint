@@ -6,3 +6,4 @@
 - [x] T004 `settings_service.set_clock_format`, request model, `POST /settings/clock`, Settings panel.
 - [x] T005 Templates use `wall_time`; update older tests that assert 24-hour text (default is now 12h).
 - [x] T006 Docs updated; suite green; PR and merge follow.
+- [x] T-052 Maintenance history shows typed times with the clock setting (FR-006): `maintenance/history_list.html` uses `wall_time`; test in `tests/routers/test_maintenance.py`.

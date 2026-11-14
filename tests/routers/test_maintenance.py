@@ -145,7 +145,7 @@ def test_a_typed_time_is_saved_and_shown_with_the_date(signed_in_client):
     (entry,) = maintenance_service.list_for_bike(bike.id)
     assert entry.performed_time == "14:30"
     html = signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
-    assert "Date &amp; time" in html and "2026-05-01 14:30" in html
+    assert "Date &amp; time" in html and "2026-05-01 2:30PM" in html
 
 
 def test_without_a_time_a_manual_entry_shows_just_the_date(signed_in_client):
@@ -403,3 +403,26 @@ def test_a_part_with_only_its_own_entries_marks_them_this_part(signed_in_client)
     html = signed_in_client.get(f"/components/{chain.id}/maintenance").text
 
     assert "This part" in html
+
+
+def test_a_typed_service_time_follows_the_clock_setting_for_bikes_and_parts(signed_in_client):
+    from app.db import accounts, connection
+    from app.services import settings_service
+
+    bike = bike_service.create_bike(name="Road Bike")
+    chain = component_service.create_component(name="Chain", component_type="chain")
+    for owner in ({"bike_id": bike.id}, {"component_id": chain.id}):
+        maintenance_service.log_maintenance(**owner, description="Clean", performed_at="2026-05-01", performed_time="14:30")
+        maintenance_service.log_maintenance(**owner, description="Check", performed_at="2026-04-30")
+    pages = (f"/bikes/{bike.id}/maintenance", f"/components/{chain.id}/maintenance")
+
+    for page in pages:
+        html = signed_in_client.get(page).text
+        assert "2026-05-01 2:30PM" in html and "14:30" not in html
+        assert "2026-04-30" in html  # a date-only entry stays a date
+
+    with connection.get_connection() as conn:
+        account = accounts.get_singleton(conn)
+    settings_service.set_clock_format(account.id, "24")
+    for page in pages:
+        assert "2026-05-01 14:30" in signed_in_client.get(page).text

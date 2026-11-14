@@ -7,7 +7,7 @@
   <input type="hidden" name="component_id" value="{{ component.id }}">
   <input type="hidden" name="target" value="{{ target }}">
   <input type="hidden" name="before_component_id" value="{{ before }}">
-  <button class="btn btn-quiet btn-icon" type="submit" aria-label="{{ aria }}" title="{{ aria }}">{{ icon|safe }}{{ label }}</button>
+  <button class="btn btn-icon" type="submit" aria-label="{{ aria }}" title="{{ aria }}">{{ icon|safe }}{{ label }}</button>
 </form>
 {%- endmacro %}
 
@@ -16,7 +16,7 @@
       hx-post="/builder/delete" hx-target="#builder" hx-swap="outerHTML">
   <input type="hidden" name="root" value="{{ root }}">
   <input type="hidden" name="component_id" value="{{ component.id }}">
-  <button class="btn btn-quiet btn-icon" type="submit" aria-label="Trash {{ component.name }}" title="Trash {{ component.name }}">{{ ui_icons.trash() }}</button>
+  <button class="btn btn-icon" type="submit" aria-label="Trash {{ component.name }}" title="Trash {{ component.name }}">{{ ui_icons.trash() }}</button>
 </form>
 {%- endmacro %}
 
@@ -90,7 +90,7 @@
             <span class="side-name">{{ item.label }}</span>
             {% if item.targets %}
             <details class="side-more">
-              <summary class="btn btn-quiet">Add to…</summary>
+              <summary class="btn">Add to…</summary>
               <form class="side-form" method="post" action="/builder/add"
                     hx-post="/builder/add" hx-target="#builder" hx-swap="outerHTML">
                 <input type="hidden" name="root" value="{{ root }}">
@@ -123,7 +123,7 @@
               <span class="side-name"><a class="node-name" href="/components/{{ item.component.id }}">{{ item.component.name }}</a> <span class="chip">{{ item.component.component_type|kind_name }}</span></span>
               {% if item.targets %}
               <details class="side-more">
-                <summary class="btn btn-quiet">Add to…</summary>
+                <summary class="btn">Add to…</summary>
                 <form class="side-form" method="post" action="/builder/move"
                       hx-post="/builder/move" hx-target="#builder" hx-swap="outerHTML">
                   <input type="hidden" name="root" value="{{ root }}">

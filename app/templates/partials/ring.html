@@ -27,7 +27,8 @@
     <circle class="ring-progress" stroke-width="10" fill="none" stroke-linecap="round" cx="48" cy="48" r="40" stroke-dasharray="251.3" stroke-dashoffset="{{ '%.1f'|format(251.3 * (1 - item.ring)) }}" transform="rotate(-90 48 48)"/>
   </svg>
   <div class="ring-text" aria-hidden="true">
-    <span class="ring-value">{{ value }}</span>{% if caption %}<span class="ring-caption">{{ caption }}</span>{% endif %}
+    {%- set size_class = (" n" ~ ([value|length, 8]|min)) if value|length > 4 else "" -%}
+    <span class="ring-value{{ size_class }}">{{ value }}</span>{% if caption %}<span class="ring-caption">{{ caption }}</span>{% endif %}
   </div>
 </div>
 {%- endmacro %}

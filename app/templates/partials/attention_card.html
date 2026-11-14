@@ -12,11 +12,16 @@
       </p>
     </div>
   </div>
-  <form class="attention-actions" method="post" action="/schedules/{{ item.schedule.id }}/complete"
-        hx-post="/schedules/{{ item.schedule.id }}/complete" hx-target="#attention" hx-swap="outerHTML"
-        hx-disabled-elt="find button">
-    {% if show_all %}<input type="hidden" name="all" value="1">{% endif %}
-    <button class="btn {{ 'btn-primary' if item.status == 'overdue' else '' }}" type="submit">Mark done</button>
+  <div class="attention-actions">
+    <form class="attention-done" method="post" action="/schedules/{{ item.schedule.id }}/complete"
+          hx-post="/schedules/{{ item.schedule.id }}/complete" hx-target="#attention" hx-swap="outerHTML"
+          hx-disabled-elt="find button">
+      {% if show_all %}<input type="hidden" name="all" value="1">{% endif %}
+      <button class="btn {{ 'btn-primary' if item.status == 'overdue' else '' }}" type="submit">Mark done</button>
+    </form>
     <a class="btn" href="/schedules/{{ item.schedule.id }}/edit">Edit</a>
-  </form>
+    <form method="post" action="/schedules/{{ item.schedule.id }}/delete">
+      <button class="btn" type="submit">Delete</button>
+    </form>
+  </div>
 </article>

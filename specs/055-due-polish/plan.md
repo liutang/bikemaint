@@ -1,0 +1,2 @@
+# Plan: Maintenance Due Polish
+Templates and CSS only. `attention_card.html`: `.attention-actions` becomes a div holding the Mark done form, Edit, and a Delete form. All `btn-quiet` usages become `btn`; the class is removed from `styles.css`. `ring.html` adds `n5`..`n8` to `.ring-value` by value length; `styles.css` sizes them from a `--ring-size` custom property set on `.ring-wrap` (6rem, 4.5rem in 3-column grids, 6rem on phones). Constitution: no JS, no new route (the delete route exists).

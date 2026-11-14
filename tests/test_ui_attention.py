@@ -98,7 +98,7 @@ def test_overdue_by_mileage_shows_how_many_miles_over(signed_in_client):
     card = _usage_overdue_card(signed_in_client, interval_miles=186)  # 500 ridden, due at 186
 
     assert 'aria-label="Overdue by 314 miles"' in card
-    assert 'class="ring-value">314mi<' in card and 'class="ring-caption">late<' in card
+    assert 'class="ring-value n5">314mi<' in card and 'class="ring-caption">late<' in card
 
 
 def test_one_mile_over_is_singular(signed_in_client):
@@ -386,3 +386,47 @@ def test_the_notice_region_is_always_present_for_screen_readers(signed_in_client
     html = signed_in_client.get("/maintenance/due").text
 
     assert re.search(r'<p id="board-notice" class="board-notice"[^>]*role="status"[^>]*aria-live="polite"', html)
+
+
+def test_urgent_cards_offer_delete_and_deleting_removes_the_task(signed_in_client):
+    bike = _bike()
+    _overdue(bike, "Chain", 5)
+
+    card = _card(signed_in_client.get("/maintenance/due").text, 1)
+
+    assert 'action="/schedules/1/delete"' in card and ">Delete</button>" in card
+    assert signed_in_client.post("/schedules/1/delete", follow_redirects=False).status_code == 303
+    assert _cards(signed_in_client.get("/maintenance/due").text) == []
+
+
+def test_no_template_uses_the_borderless_quiet_button():
+    from pathlib import Path
+
+    for path in Path("app/templates").rglob("*.html"):
+        assert "btn-quiet" not in path.read_text(), path
+    assert ".btn-quiet" not in Path("app/static/styles.css").read_text()
+
+
+def test_long_ring_values_get_a_length_class_and_short_ones_do_not(signed_in_client):
+    card = _usage_overdue_card(signed_in_client, interval_miles=186)  # 314mi: 5 characters
+
+    assert 'class="ring-value n5">314mi<' in card
+
+
+def test_a_date_ring_is_unchanged(signed_in_client):
+    bike = _bike()
+    _overdue(bike, "Chain", 5)
+
+    card = _card(signed_in_client.get("/maintenance/due").text, 1)
+
+    assert 'class="ring-value">5d<' in card
+
+
+def test_the_ring_text_scales_with_the_ring_size_for_every_length_class():
+    from pathlib import Path
+
+    css = Path("app/static/styles.css").read_text()
+
+    assert "--ring-size" in css
+    for cls in ("n5", "n6", "n7", "n8"):
+        assert re.search(rf"\.ring-value\.{cls}\s*\{{[^}}]*var\(--ring-size\)", css), cls

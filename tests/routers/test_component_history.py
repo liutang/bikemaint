@@ -537,3 +537,49 @@ def test_a_deleted_parent_is_plain_text(signed_in_client):
     body = signed_in_client.get(f"/bikes/{bike.id}/install-history").text.split("<tbody>")[1]
 
     assert '<td data-label="Placed in">a deleted part</td>' in body
+
+
+def test_the_part_log_form_lets_the_removal_be_left_blank(signed_in_client):
+    # 022 FR-012: a period for a part that is on the bike now has no removal date.
+    saddle = component_service.create_component(name="Saddle", component_type="saddle")
+
+    html = signed_in_client.get(f"/components/{saddle.id}/install-history/new").text
+
+    removed = re.search(r'<input[^>]*name="removed_date"[^>]*>', html).group(0)
+    assert "required" not in removed and "Removed on (optional)" in html
+
+
+def test_the_bike_log_form_lets_the_removal_be_left_blank(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/install-history/new").text
+
+    removed = re.search(r'<input[^>]*name="removed_date"[^>]*>', html).group(0)
+    assert "required" not in removed and "Removed on (optional)" in html
+
+
+def test_logging_a_period_with_no_removal_puts_the_part_on_the_bike(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Chain", component_type="chain")
+
+    response = signed_in_client.post(
+        f"/components/{chain.id}/install-history",
+        data=_form(bike, removed_date=""), follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert component_service.get_component(chain.id).parent_bike_id == bike.id
+    assert "Still installed" in signed_in_client.get(f"/components/{chain.id}/install-history").text
+
+
+def test_a_blank_removal_from_the_bike_form_also_installs(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Chain", component_type="chain")
+
+    response = signed_in_client.post(
+        f"/bikes/{bike.id}/install-history",
+        data=_period_form(component_id=str(chain.id), removed_date=""), follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert component_service.get_component(chain.id).parent_bike_id == bike.id

@@ -191,19 +191,42 @@ def log_period(
     removed_at: str | None,
     parent_component_id: int | None = None,
 ) -> ComponentInstallationPeriod:
-    """Add a past period (installed on a bike, optionally under a part there, then removed)."""
+    """Add a period: installed on a bike (optionally under a part there), then removed or not.
+
+    With no removal moment the part is installed now: it moves onto the bike (or into the part)
+    as of `installed_at` and gets a current period (specs/022 FR-012). The part must be in storage
+    and the moment must not overlap another of its periods.
+    """
+    still_installed = removed_at is None
     with get_connection() as conn:
         _validate(
             conn, component_id, bike_id=bike_id, parent_component_id=parent_component_id,
             installed_at=installed_at, removed_at=removed_at, exclude_period_id=None,
-            open_period=False,
+            open_period=still_installed,
         )
-        period = components_db.insert_period(
-            conn, component_id, parent_bike_id=bike_id, parent_component_id=parent_component_id,
-            installed_at=installed_at, removed_at=removed_at,
-        )
+        if not still_installed:
+            period = components_db.insert_period(
+                conn, component_id, parent_bike_id=bike_id, parent_component_id=parent_component_id,
+                installed_at=installed_at, removed_at=removed_at,
+            )
+            mileage_db.recompute_component_total_mileage(conn, component_id)
+            return period
+    # The move opens its own connection, so it runs after validation's connection is closed.
+    from app.services import component_service  # imported here: component_service imports this module
+
+    component_service.move_component(
+        component_id,
+        parent_bike_id=None if parent_component_id is not None else bike_id,
+        parent_component_id=parent_component_id,
+        moved_at=installed_at,
+    )
+    with get_connection() as conn:
         mileage_db.recompute_component_total_mileage(conn, component_id)
-        return period
+        for descendant in components_db.get_descendants(conn, component_id):
+            mileage_db.recompute_component_total_mileage(conn, descendant.id)
+        period = components_db.list_periods(conn, component_id)[-1]
+    logger.info("part installed by log component_id=%s installed_at=%s", component_id, installed_at)
+    return period
 
 
 def update_period(

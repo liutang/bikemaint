@@ -13,7 +13,7 @@
   {{ select_field("parent_component_id", "Placed in", inside_options, "", values, field_errors, hint="Where on the bike it was mounted, for example a wheel.") }}
   {{ field("installed_date", "Installed on", "", values, field_errors, type="date", required=true) }}
   {{ field("installed_time", "Time (optional)", "", values, field_errors, type="time", hint="Blank counts as midnight.") }}
-  {{ field("removed_date", "Removed on", "", values, field_errors, type="date", required=true) }}
+  {{ field("removed_date", "Removed on (optional)", "", values, field_errors, type="date", hint="Leave blank if the part is on the bike now: saving installs it as of the installed moment.") }}
   {{ field("removed_time", "Time (optional)", "", values, field_errors, type="time", hint="Blank counts as midnight.") }}
   <div class="actions">
     {{ submit("Save") }}

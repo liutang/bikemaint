@@ -32,23 +32,6 @@
       <a class="node-name" href="/components/{{ c.id }}">{{ c.name }}</a>
       <span class="chip">{{ c.component_type|kind_name }}</span>
       <span class="node-actions">
-        {% if node.can_up %}{{ move_form(root, c, node.parent_ref, node.up_before, aria="Move " ~ c.name ~ " up", icon=ui_icons.arrow_up()) }}{% endif %}
-        {% if node.can_down %}{{ move_form(root, c, node.parent_ref, node.down_before if node.down_before else "", aria="Move " ~ c.name ~ " down", icon=ui_icons.arrow_down()) }}{% endif %}
-        {% if node.targets %}
-        <details class="node-more">
-          <summary class="btn btn-quiet" aria-label="Move {{ c.name }} to…" title="Move to…">{{ ui_icons.arrow_right() }}</summary>
-          <form class="node-moveto" method="post" action="/builder/move"
-                hx-post="/builder/move" hx-target="#builder" hx-swap="outerHTML">
-            <input type="hidden" name="root" value="{{ root }}">
-            <input type="hidden" name="component_id" value="{{ c.id }}">
-            <label class="visually-hidden" for="moveto-{{ c.id }}">Move {{ c.name }} to</label>
-            <select id="moveto-{{ c.id }}" name="target">
-              {% for t in node.targets %}<option value="{{ t.value }}">{{ t.label }}</option>{% endfor %}
-            </select>
-            <button class="btn" type="submit">Move</button>
-          </form>
-        </details>
-        {% endif %}
         {{ move_form(root, c, "storage", aria="Garage " ~ c.name ~ " (move to storage)", icon=ui_icons.garage()) }}
         {{ trash_form(root, c) }}
       </span>

@@ -250,3 +250,13 @@ def test_logged_maintenance_stays_editable_and_deletable_after_the_install_histo
     assert f'href="/maintenance/{entry.id}/edit">Edit</a>' in row
     assert f'action="/maintenance/{entry.id}/delete"' in row
     assert signed_in_client.get(f"/maintenance/{entry.id}/edit").status_code == 200
+
+
+def test_the_new_form_explains_that_a_blank_mileage_is_worked_out_from_the_rides(signed_in_client):
+    # 038 FR-004
+    bike = bike_service.create_bike(name="Road")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/maintenance/new").text
+
+    assert "calculated from the rides up to the date and time performed" in html
+    assert "Leave blank to use the current total" not in html

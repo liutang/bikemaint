@@ -161,23 +161,23 @@ def test_scenario_4_schedules_notifications_and_completion(signed_in, monkeypatc
     client.post("/settings/notifications", data={"notification_lead_time_days": "30"})
 
     # Brand-new setup with only a mileage interval: no misleading date, flagged low confidence.
-    client.post("/components/1/schedules", data={"name": "Replace chain", "interval_miles": "1500"})
+    client.post("/components/1/schedules", data={"service_type": "Replace", "interval_kind": "usage", "interval_unit_usage": "miles", "interval_value": "1500"})
     dashboard = client.get("/maintenance/due").text
-    assert "Replace chain" in dashboard
+    assert "Replace" in dashboard
     assert "low confidence" in dashboard.lower()
 
     # A time-interval schedule inside the lead-time window notifies exactly once per cycle.
-    client.post("/bikes/1/schedules", data={"name": "Annual service", "interval_days": "10"})
+    client.post("/bikes/1/schedules", data={"service_type": "Service", "interval_kind": "period", "interval_unit_period": "weeks", "interval_value": "1", "is_recurring": "on", "notify": "on"})
     notification_service.check_due_schedules()
     notification_service.check_due_schedules()
     assert webhook.call_count == 1
     payload = json.loads(webhook.calls[0].request.content)
-    assert payload["schedule"]["name"] == "Annual service"
-    assert "Annual service" in client.get("/maintenance/due").text
+    assert payload["schedule"]["name"] == "Service"
+    assert "Service" in client.get("/maintenance/due").text
 
     # Completing logs maintenance and starts the next cycle.
     client.post("/schedules/2/complete", follow_redirects=False)
-    assert "Annual service" in client.get("/bikes/1/maintenance").text
+    assert "Service" in client.get("/bikes/1/maintenance").text
     assert schedule_service.get_schedule(2).cycle_number == 2
     assert schedule_service.get_schedule(2).baseline_date == date.today().isoformat()
 
@@ -199,7 +199,7 @@ def test_cross_cutting_unauthenticated_and_delete_confirmation(client, monkeypat
     )
     client.get("/auth/strava/callback?code=code", follow_redirects=False)
     _add_bike(client, "Gravel Bike")
-    client.post("/bikes/1/schedules", data={"name": "Service", "interval_days": "30"})
+    client.post("/bikes/1/schedules", data={"service_type": "Service", "interval_kind": "period", "interval_unit_period": "weeks", "interval_value": "4"})
 
     # specs/029: deleting a bike needs its full name typed; a wrong or missing name deletes nothing.
     first = client.post("/bikes/1/delete", data={"confirm_name": "Gravel"}, follow_redirects=False)

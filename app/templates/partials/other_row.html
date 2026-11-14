@@ -10,7 +10,7 @@
   </div>
   <div class="other-when">
     {% if item.projection.due_at %}Due {{ item.projection.due_at.isoformat() }}{% else %}No date yet{% endif %}
-    {% if item.projection.remaining_miles is not none %}<small>{{ "%.0f"|format(item.projection.remaining_miles) }} mi left</small>{% endif %}
+    {% if item.projection.remaining is not none %}<small>{{ ("%.1f" if item.projection.remaining_unit == "hours" else "%.0f")|format(item.projection.remaining) }} {{ "mi" if item.projection.remaining_unit == "miles" else item.projection.remaining_unit }} left</small>{% endif %}
   </div>
   <form class="other-actions" method="post" action="/schedules/{{ item.schedule.id }}/complete"
         hx-post="/schedules/{{ item.schedule.id }}/complete" hx-target="#attention" hx-swap="outerHTML"

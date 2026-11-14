@@ -7,6 +7,7 @@ reflect current pace, installed status, and parent bike (FR-017).
 
 from __future__ import annotations
 
+import calendar
 import logging
 import math
 from dataclasses import dataclass
@@ -18,6 +19,7 @@ from app.db import mileage as mileage_db
 from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models.rows import MaintenanceSchedule
+from app.models.schedule_kinds import PERIOD_UNITS, SERVICE_TYPES, USAGE_UNITS, WHOLE_UNITS
 from app.db import maintenance as maintenance_db
 from app.services import maintenance_service
 
@@ -36,6 +38,8 @@ class Projection:
     remaining_miles: float | None
     is_low_confidence: bool
     is_overdue: bool
+    remaining: float | None = None  # usage left, in `remaining_unit` (specs/040)
+    remaining_unit: str | None = None  # "miles" | "rides" | "hours"
 
 
 @dataclass(frozen=True)
@@ -128,6 +132,44 @@ def _validate(
         raise ValueError("A schedule needs a mileage interval, a time interval, or both.")
 
 
+def add_period(start: date, value: int, unit: str) -> date:
+    """`start` plus `value` calendar years, months or weeks (a day past a short month's end clamps)."""
+    if unit == "weeks":
+        return start + timedelta(weeks=value)
+    months = value * 12 if unit == "years" else value
+    index = start.year * 12 + start.month - 1 + months
+    year, month = divmod(index, 12)
+    month += 1
+    return date(year, month, min(start.day, calendar.monthrange(year, month)[1]))
+
+
+def _now_stored() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def _typed_fields(service_type, interval_kind, interval_value, interval_unit) -> dict:
+    """Check a feature-040 schedule definition; returns the values to store (incl. old columns)."""
+    if service_type not in SERVICE_TYPES:
+        raise ValueError("Choose a service type: " + ", ".join(SERVICE_TYPES) + ".")
+    allowed = USAGE_UNITS if interval_kind == "usage" else PERIOD_UNITS if interval_kind == "period" else ()
+    if interval_unit not in allowed:
+        raise ValueError("That unit does not fit the interval kind.")
+    if interval_value is None or interval_value <= 0:
+        raise ValueError("The interval must be more than zero.")
+    if interval_unit in WHOLE_UNITS and interval_value != int(interval_value):
+        raise ValueError(f"Use a whole number of {interval_unit}.")
+    return {
+        "name": service_type,
+        "service_type": service_type,
+        "interval_kind": interval_kind,
+        "interval_value": float(interval_value),
+        "interval_unit": interval_unit,
+        # miles and weeks also fill the older columns, which the due-date maths already reads
+        "interval_miles": float(interval_value) if interval_unit == "miles" else None,
+        "interval_days": int(interval_value) * 7 if interval_unit == "weeks" else None,
+    }
+
+
 def _owner(conn, schedule: MaintenanceSchedule):
     """The bike/component a schedule belongs to, or None if it has been deleted."""
     if schedule.bike_id is not None:
@@ -153,17 +195,29 @@ def create_schedule(
     *,
     bike_id: int | None = None,
     component_id: int | None = None,
-    name: str,
+    name: str | None = None,
     interval_miles: float | None = None,
     interval_days: int | None = None,
+    service_type: str | None = None,
+    interval_kind: str | None = None,
+    interval_value: float | None = None,
+    interval_unit: str | None = None,
+    is_recurring: bool = True,
+    notify: bool = True,
     today: date | None = None,
 ) -> MaintenanceSchedule:
-    _validate(
-        bike_id=bike_id,
-        component_id=component_id,
-        interval_miles=interval_miles,
-        interval_days=interval_days,
-    )
+    """Create a schedule: typed (service type + one interval, feature 040) or the older free-text form."""
+    typed = service_type is not None
+    if typed:
+        if (bike_id is None) == (component_id is None):
+            raise ValueError("A schedule must belong to exactly one of a bike or a component.")
+        fields = _typed_fields(service_type, interval_kind, interval_value, interval_unit)
+    else:
+        _validate(
+            bike_id=bike_id, component_id=component_id,
+            interval_miles=interval_miles, interval_days=interval_days,
+        )
+        fields = {"name": name, "interval_miles": interval_miles, "interval_days": interval_days}
     with get_connection() as conn:
         owner = (
             bikes_db.get_by_id(conn, bike_id)
@@ -176,12 +230,35 @@ def create_schedule(
             conn,
             bike_id=bike_id,
             component_id=component_id,
-            name=name,
-            interval_miles=interval_miles,
-            interval_days=interval_days,
             baseline_mileage=owner.total_mileage,
             baseline_date=_today(today).isoformat(),
+            baseline_at=_now_stored(),
+            is_recurring=is_recurring,
+            notify=notify,
+            **fields,
         )
+
+
+def form_defaults(schedule: MaintenanceSchedule | None) -> dict:
+    """What the schedule form shows for a new schedule, a typed one, or one made before feature 040.
+
+    An older schedule has no service type (the rider must choose one) and its interval is prefilled
+    to review: miles as Usage/Miles, otherwise days as Period/Weeks (days / 7, at least 1).
+    """
+    if schedule is None:
+        return {"service_type": "", "interval_kind": "usage", "interval_value": "", "interval_unit": "miles",
+                "is_recurring": True, "notify": True, "older": False}
+    common = {"is_recurring": schedule.is_recurring, "notify": schedule.notify}
+    if schedule.service_type is not None:
+        value = schedule.interval_value
+        return {**common, "service_type": schedule.service_type, "interval_kind": schedule.interval_kind,
+                "interval_value": f"{value:g}", "interval_unit": schedule.interval_unit, "older": False}
+    if schedule.interval_miles is not None:
+        return {**common, "service_type": "", "interval_kind": "usage",
+                "interval_value": f"{schedule.interval_miles:g}", "interval_unit": "miles", "older": True}
+    weeks = max(1, round((schedule.interval_days or 7) / 7))
+    return {**common, "service_type": "", "interval_kind": "period", "interval_value": str(weeks),
+            "interval_unit": "weeks", "older": True}
 
 
 def get_schedule(schedule_id: int) -> MaintenanceSchedule | None:
@@ -202,16 +279,30 @@ def list_for_component(component_id: int) -> list[MaintenanceSchedule]:
 def update_schedule(
     schedule_id: int,
     *,
-    name: str,
-    interval_miles: float | None,
-    interval_days: int | None,
+    name: str | None = None,
+    interval_miles: float | None = None,
+    interval_days: int | None = None,
     is_active: bool = True,
+    service_type: str | None = None,
+    interval_kind: str | None = None,
+    interval_value: float | None = None,
+    interval_unit: str | None = None,
+    is_recurring: bool = True,
+    notify: bool = True,
 ) -> MaintenanceSchedule:
-    if interval_miles is None and interval_days is None:
+    """Save a schedule. With `service_type` it is saved in the typed shape (this also converts an
+    older schedule, keeping its cycle and baseline); otherwise as the older free-text form."""
+    if service_type is not None:
+        fields = _typed_fields(service_type, interval_kind, interval_value, interval_unit)
+    elif interval_miles is None and interval_days is None:
         raise ValueError("A schedule needs a mileage interval, a time interval, or both.")
     with get_connection() as conn:
         if schedules_db.get_by_id(conn, schedule_id) is None:
             raise LookupError(f"No schedule with id {schedule_id}")
+        if service_type is not None:
+            return schedules_db.update_typed(
+                conn, schedule_id, is_recurring=is_recurring, notify=notify, is_active=is_active, **fields
+            )
         return schedules_db.update(
             conn,
             schedule_id,
@@ -241,47 +332,92 @@ def _trailing_pace(conn, bike_id: int | None, today: date) -> tuple[float, int]:
     return miles / PACE_WINDOW_DAYS, ride_days
 
 
+def _usage(schedule: MaintenanceSchedule) -> tuple[str, float] | None:
+    """(unit, interval) of the usage side of a schedule, older or typed; None for period-only."""
+    if schedule.interval_kind == "usage":
+        return schedule.interval_unit, schedule.interval_value
+    if schedule.interval_kind is None and schedule.interval_miles is not None:
+        return "miles", schedule.interval_miles
+    return None
+
+
+def _time_due(schedule: MaintenanceSchedule) -> date | None:
+    """The date the period side of a schedule falls due, or None for usage-only."""
+    baseline = date.fromisoformat(schedule.baseline_date)
+    if schedule.interval_kind == "period":
+        return add_period(baseline, int(schedule.interval_value), schedule.interval_unit)
+    if schedule.interval_kind is None and schedule.interval_days is not None:
+        return baseline + timedelta(days=schedule.interval_days)
+    return None
+
+
+def _used_since_baseline(conn, schedule: MaintenanceSchedule, unit: str) -> float:
+    """Rides or hours since the schedule's last baseline (parts count only rides while installed)."""
+    since = schedule.baseline_at or f"{schedule.baseline_date}T00:00:00.000000Z"
+    rides, seconds = mileage_db.usage_since(
+        conn, bike_id=schedule.bike_id, component_id=schedule.component_id, since=since
+    )
+    return float(rides) if unit == "rides" else seconds / 3600
+
+
+def _trailing_usage_pace(conn, bike_id: int | None, today: date, unit: str) -> tuple[float, int]:
+    """(rides or hours per day, distinct ride days) for a bike over the trailing window."""
+    if bike_id is None:
+        return 0.0, 0
+    since = datetime.combine(
+        today - timedelta(days=PACE_WINDOW_DAYS), datetime.min.time(), tzinfo=timezone.utc
+    ).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    rides, seconds, ride_days = mileage_db.recent_usage_for_bike(conn, bike_id, since=since)
+    amount = float(rides) if unit == "rides" else seconds / 3600
+    return amount / PACE_WINDOW_DAYS, ride_days
+
+
 def _project(conn, schedule: MaintenanceSchedule, today: date) -> Projection:
     owner = _owner(conn, schedule)
     current_mileage = owner.total_mileage if owner is not None else schedule.baseline_mileage
 
-    time_due: date | None = None
-    if schedule.interval_days is not None:
-        time_due = date.fromisoformat(schedule.baseline_date) + timedelta(
-            days=schedule.interval_days
-        )
+    time_due = _time_due(schedule)
 
-    mileage_due: date | None = None
-    mileage_trusted = False
+    usage_due: date | None = None
+    usage_trusted = False
     remaining: float | None = None
-    mileage_exceeded = False
-    if schedule.interval_miles is not None:
-        remaining = schedule.baseline_mileage + schedule.interval_miles - current_mileage
-        pace, ride_days = _trailing_pace(conn, _top_bike_id(conn, schedule), today)
+    unit: str | None = None
+    usage_exceeded = False
+    usage = _usage(schedule)
+    if usage is not None:
+        unit, interval = usage
+        if unit == "miles":
+            remaining = schedule.baseline_mileage + interval - current_mileage
+            pace, ride_days = _trailing_pace(conn, _top_bike_id(conn, schedule), today)
+        else:
+            remaining = interval - _used_since_baseline(conn, schedule, unit)
+            pace, ride_days = _trailing_usage_pace(conn, _top_bike_id(conn, schedule), today, unit)
         if remaining <= 0:
-            mileage_exceeded = True
-            mileage_due = today
-            mileage_trusted = True  # already past the interval: no pace needed to know that
+            usage_exceeded = True
+            usage_due = today
+            usage_trusted = True  # already past the interval: no pace needed to know that
         elif pace > 0:
-            mileage_due = today + timedelta(days=math.ceil(remaining / pace - 1e-9))
-            mileage_trusted = ride_days >= MIN_RIDE_DAYS_FOR_CONFIDENCE
+            usage_due = today + timedelta(days=math.ceil(remaining / pace - 1e-9))
+            usage_trusted = ride_days >= MIN_RIDE_DAYS_FOR_CONFIDENCE
         remaining = max(remaining, 0.0)
 
-    if mileage_trusted:
-        candidates = [d for d in (mileage_due, time_due) if d is not None]
+    if usage_trusted:
+        candidates = [d for d in (usage_due, time_due) if d is not None]
         due_at, low_confidence = min(candidates), False
     elif time_due is not None:
-        # Not enough riding history to trust the mileage side: time-only fallback (FR-018).
+        # Not enough riding history to trust the usage side: time-only fallback (FR-018).
         due_at, low_confidence = time_due, False
     else:
-        due_at, low_confidence = mileage_due, True
+        due_at, low_confidence = usage_due, True
 
-    is_overdue = mileage_exceeded or (time_due is not None and time_due < today)
+    is_overdue = usage_exceeded or (time_due is not None and time_due < today)
     return Projection(
         due_at=due_at,
-        remaining_miles=remaining,
+        remaining_miles=remaining if unit == "miles" else None,
         is_low_confidence=low_confidence,
         is_overdue=is_overdue,
+        remaining=remaining,
+        remaining_unit=unit,
     )
 
 
@@ -352,12 +488,13 @@ REPEAT_COMPLETION_SECONDS = 5  # a second "Mark done" this soon is a double clic
 
 
 def next_due_text(item: DueItem) -> str:
-    """"Next due 2026-11-25" or, with only a mileage interval, what it is waiting for."""
+    """"Next due 2026-11-25" or, with only a usage interval, what it is waiting for."""
     if item.projection.due_at is not None:
         return f"Next due {item.projection.due_at.isoformat()}"
-    miles = item.schedule.interval_miles
-    if miles:
-        return f"Next due after {miles:.0f} more miles"
+    usage = _usage(item.schedule)
+    if usage:
+        unit, interval = usage
+        return f"Next due after {interval:.0f} more {unit}"
     return "Next due date not available yet"
 
 
@@ -388,11 +525,19 @@ def complete_schedule(schedule_id: int, *, today: date | None = None) -> Mainten
         schedule_id=schedule.id,
     )
     with get_connection() as conn:
+        if not schedule.is_recurring:
+            # One-time item: the maintenance is logged above; the schedule ends (specs/040 FR-006).
+            schedules_db.deactivate(conn, schedule_id)
+            ended = schedules_db.get_by_id(conn, schedule_id)
+            assert ended is not None
+            logger.info("completed one-time maintenance schedule schedule_id=%s name=%r", schedule_id, schedule.name)
+            return ended
         completed = schedules_db.complete(
             conn,
             schedule_id,
             baseline_mileage=entry.mileage_at_service,
             baseline_date=day.isoformat(),
+            baseline_at=_now_stored(),
         )
     logger.info(
         "completed maintenance schedule schedule_id=%s name=%r new_cycle=%s",

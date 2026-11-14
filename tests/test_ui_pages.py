@@ -278,8 +278,9 @@ BAD_SUBMISSIONS = [
      "description", "2026-05-01", "performed_at"),
     ("maintenance-date", "/bikes/1/maintenance",
      {"description": "Lube", "performed_at": "not-a-date"}, "performed_at", "Lube", "description"),
-    ("schedule", "/bikes/1/schedules", {"name": "", "interval_days": "30"},
-     "name", "30", "interval_days"),
+    ("schedule", "/bikes/1/schedules",
+     {"service_type": "", "interval_kind": "period", "interval_unit_period": "weeks", "interval_value": "30"},
+     "service_type", "30", "interval_value"),
     ("mileage", "/bikes/1/mileage/adjust", {"delta_miles": "abc", "reason": "typo"},
      "delta_miles", "typo", "reason"),
     ("webhook", "/settings/webhook", {"notification_webhook_url": "ftp://nope"},
@@ -316,10 +317,12 @@ def test_invalid_form_shows_error_beside_the_field_and_keeps_entries(
 def test_model_level_errors_appear_only_in_the_summary(signed_in_client):
     _add_bike(signed_in_client)
 
-    html = signed_in_client.post("/bikes/1/schedules", data={"name": "No interval"}).text
+    html = signed_in_client.post(
+        "/settings/strava/sync", data={"sync_enabled": "on", "interval_hours": "0", "interval_minutes": "1"}
+    ).text
 
-    # Unchanged message from feature 001, shown in the summary, not tied to one field.
-    assert "Set a mileage interval, a time interval, or both." in html
+    # A rule spanning several fields is shown in the summary, not tied to one field.
+    assert "The interval must be at least 5 minutes." in html
     assert 'class="error-summary"' in html
 
 
@@ -382,7 +385,7 @@ SEEDED_PAGES = [
 def _seed_everything(client):
     _add_bike(client)
     _add_component(client, "Chain", "chain", parent_bike_id="1")
-    client.post("/bikes/1/schedules", data={"name": "Service", "interval_days": "30"})
+    client.post("/bikes/1/schedules", data={"service_type": "Service", "interval_kind": "period", "interval_unit_period": "weeks", "interval_value": "4"})
     client.post(
         "/bikes/1/maintenance", data={"description": "Lube", "performed_at": "2026-05-01"}
     )

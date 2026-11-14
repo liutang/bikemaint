@@ -1,15 +1,50 @@
 {% extends "layout.html" %}
-{% from "partials/forms.html" import field, error_summary, submit %}
+{% from "partials/forms.html" import field, select_field, error_summary, submit %}
 
 {% block title %}{{ "Edit" if schedule else "New" }} schedule — {{ owner.name }}{% endblock %}
 
 {% block content %}
+{# What each control shows: the rider's entries after a refusal, else the schedule's own values. #}
+{% set kind = values.interval_kind if values and values.interval_kind else defaults.interval_kind %}
+{% set recurring = ("is_recurring" in values) if values else defaults.is_recurring %}
+{% set notify = ("notify" in values) if values else defaults.notify %}
 <h1>{{ "Edit schedule" if schedule else "New maintenance schedule" }} for "{{ owner.name }}"</h1>
 {{ error_summary(errors) }}
+{% if defaults.older and not values %}
+<p class="notice">This schedule was created before service types. Choose a service type and check the interval, then save.</p>
+{% endif %}
 <form class="panel form" method="post" action="{{ action }}">
-  {{ field("name", "Name", schedule.name if schedule else "", values, field_errors, required=true, hint='For example "Replace chain".') }}
-  {{ field("interval_miles", "Every ___ miles", schedule.interval_miles if schedule else "", values, field_errors, type="number", step="any", min=0) }}
-  {{ field("interval_days", "Every ___ days", schedule.interval_days if schedule else "", values, field_errors, type="number", step="1", min=0, hint="Set a mileage interval, a time interval, or both — whichever comes first is due.") }}
+  {{ select_field("service_type", "Service type", [{"value": "", "label": "Choose a service type"}] + service_types, defaults.service_type, values, field_errors) }}
+  <div class="interval">
+    <fieldset class="interval-kind">
+      <legend>Interval by</legend>
+      <span class="field-check">
+        <input id="interval-usage" type="radio" name="interval_kind" value="usage"{% if kind == "usage" %} checked{% endif %}>
+        <label for="interval-usage">Usage</label>
+      </span>
+      <span class="field-check">
+        <input id="interval-period" type="radio" name="interval_kind" value="period"{% if kind == "period" %} checked{% endif %}>
+        <label for="interval-period">Period</label>
+      </span>
+    </fieldset>
+    {{ field("interval_value", "Every", defaults.interval_value, values, field_errors, type="number", step="any", min=0, required=true, hint="A number, for example 2000 miles, 20 rides, 3 months.") }}
+    <div class="unit-usage">
+      {{ select_field("interval_unit_usage", "Unit", usage_options, defaults.interval_unit, values, field_errors) }}
+    </div>
+    <div class="unit-period">
+      {{ select_field("interval_unit_period", "Unit", period_options, defaults.interval_unit, values, field_errors) }}
+    </div>
+  </div>
+  <div class="field field-check">
+    <input id="is_recurring" type="checkbox" name="is_recurring"{% if recurring %} checked{% endif %}>
+    <label for="is_recurring">Recurring</label>
+  </div>
+  <small class="field-hint">On: marking it done starts the next one at the same interval. Off: marking it done ends the schedule.</small>
+  <div class="field field-check">
+    <input id="notify" type="checkbox" name="notify"{% if notify %} checked{% endif %}>
+    <label for="notify">Receive notifications</label>
+  </div>
+  <small class="field-hint">Sends the due-soon alert, and the webhook if one is set up in Settings.</small>
   {% if schedule %}
   <div class="field field-check">
     <input id="is_active" type="checkbox" name="is_active"{% if schedule.is_active %} checked{% endif %}>

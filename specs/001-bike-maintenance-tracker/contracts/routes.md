@@ -68,7 +68,7 @@ Route handlers live only in `app/routers/`; they call into `app/services/` for a
 |---|---|
 | `GET /maintenance/due` | Single dashboard of all upcoming/overdue items across the garage (FR-019, SC-005), each row showing projected due date/mileage and a confidence flag (FR-018). |
 | `GET /bikes/{bike_id}/schedules/new` / `GET /components/{component_id}/schedules/new` | New-schedule form fragment. |
-| `POST /bikes/{bike_id}/schedules` / `POST /components/{component_id}/schedules` | Create a schedule (`name`, `interval_miles` and/or `interval_days`). |
+| `POST /bikes/{bike_id}/schedules` / `POST /components/{component_id}/schedules` | Create a schedule. *Superseded by feature 040: `service_type`, `interval_kind`, `interval_value`, unit, `is_recurring`, `notify`; see `specs/040-schedule-types-and-intervals/contracts/routes.md`.* |
 | `GET /schedules/{schedule_id}/edit` | Edit-schedule form fragment. |
 | `POST /schedules/{schedule_id}` | Update a schedule's intervals or active flag. |
 | `POST /schedules/{schedule_id}/complete` | Check off a schedule: creates a `maintenance_log_entry` (FR-016), bumps `cycle_number`, resets `baseline_mileage`/`baseline_date`, returns the updated due-soon row fragment. |

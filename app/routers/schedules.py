@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from app.models.form_errors import error_context
 from app.models.requests import ScheduleRequest
+from app.models.schedule_kinds import PERIOD_UNITS, SERVICE_TYPES, UNIT_LABELS, USAGE_UNITS
 from app.services import (
     bike_service,
     component_service,
@@ -29,15 +30,16 @@ def _render(request: Request, template: str, context: dict, status_code: int = 2
     return templates.TemplateResponse(request, template, context, status_code=status_code)
 
 
-def _blank_to_none(value: str | None) -> str | None:
-    return None if value is None or value.strip() == "" else value
-
-
 def _parse(form, *, is_active: bool) -> ScheduleRequest:
+    """Checkboxes are present in the post only when ticked."""
     return ScheduleRequest(
-        name=form.get("name", ""),
-        interval_miles=_blank_to_none(form.get("interval_miles")),
-        interval_days=_blank_to_none(form.get("interval_days")),
+        service_type=form.get("service_type", ""),
+        interval_kind=form.get("interval_kind", ""),
+        interval_unit_usage=form.get("interval_unit_usage", ""),
+        interval_unit_period=form.get("interval_unit_period", ""),
+        interval_value=form.get("interval_value", ""),
+        is_recurring=form.get("is_recurring") is not None,
+        notify=form.get("notify") is not None,
         is_active=is_active,
     )
 
@@ -56,6 +58,10 @@ def _form_context(
         "errors": list(errors),
         "field_errors": field_errors or {},
         "values": values or {},
+        "defaults": schedule_service.form_defaults(schedule),
+        "service_types": [{"value": t, "label": t} for t in SERVICE_TYPES],
+        "usage_options": [{"value": u, "label": UNIT_LABELS[u]} for u in USAGE_UNITS],
+        "period_options": [{"value": u, "label": UNIT_LABELS[u]} for u in PERIOD_UNITS],
         "action": f"/schedules/{schedule.id}" if schedule else f"/{kind}s/{owner.id}/schedules",
         # a new schedule is added from the part or bike, so Cancel goes back there; an existing
         # schedule is edited from the Maintenance due page (specs/031-screen-polish)
@@ -130,9 +136,12 @@ async def _create(request: Request, kind: str, item_id: int):
         )
     schedule_service.create_schedule(
         **{f"{kind}_id": item_id},
-        name=payload.name,
-        interval_miles=payload.interval_miles,
-        interval_days=payload.interval_days,
+        service_type=payload.service_type,
+        interval_kind=payload.interval_kind,
+        interval_value=payload.interval_value,
+        interval_unit=payload.interval_unit,
+        is_recurring=payload.is_recurring,
+        notify=payload.notify,
     )
     return RedirectResponse(url="/maintenance/due", status_code=303)
 
@@ -186,7 +195,16 @@ async def update_schedule(request: Request, schedule_id: int, account=Depends(re
             _form_context(kind, owner, schedule, **error_context(form, exc)),
             status_code=422,
         )
-    schedule_service.update_schedule(schedule_id, **payload.model_dump())
+    schedule_service.update_schedule(
+        schedule_id,
+        service_type=payload.service_type,
+        interval_kind=payload.interval_kind,
+        interval_value=payload.interval_value,
+        interval_unit=payload.interval_unit,
+        is_recurring=payload.is_recurring,
+        notify=payload.notify,
+        is_active=payload.is_active,
+    )
     return RedirectResponse(url="/maintenance/due", status_code=303)
 
 

@@ -239,6 +239,13 @@ class MaintenanceSchedule:
     is_active: bool
     created_at: str
     updated_at: str
+    service_type: str | None = None  # None for schedules made before feature 040
+    interval_kind: str | None = None  # "usage" | "period"
+    interval_value: float | None = None
+    interval_unit: str | None = None  # miles|rides|hours|years|months|weeks
+    is_recurring: bool = True
+    notify: bool = True
+    baseline_at: str | None = None  # moment of creation or last completion
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> MaintenanceSchedule:
@@ -255,6 +262,13 @@ class MaintenanceSchedule:
             is_active=bool(row["is_active"]),
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            service_type=row["service_type"],
+            interval_kind=row["interval_kind"],
+            interval_value=row["interval_value"],
+            interval_unit=row["interval_unit"],
+            is_recurring=bool(row["is_recurring"]),
+            notify=bool(row["notify"]),
+            baseline_at=row["baseline_at"],
         )
 
 

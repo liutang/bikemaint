@@ -8,6 +8,7 @@ from zoneinfo import available_timezones
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.models.schedule_kinds import PERIOD_UNITS, USAGE_UNITS, WHOLE_UNITS  # noqa: E402
 from app.models.component_kinds import (  # noqa: E402
     ALL_COMPONENT_TYPES,
     COMPONENT_TYPES,
@@ -204,16 +205,45 @@ class MaintenanceLogRequest(BaseModel):
 
 
 class ScheduleRequest(BaseModel):
-    name: str = Field(min_length=1)
-    interval_miles: float | None = Field(default=None, gt=0)
-    interval_days: int | None = Field(default=None, gt=0)
+    """A maintenance schedule (specs/040): a service type and exactly one interval.
+
+    The form posts both unit drop-downs (only the one matching the chosen kind is visible); the
+    one matching `interval_kind` is the unit, the other is ignored.
+    """
+
+    service_type: Literal["Charge", "Check", "Clean", "Lube/Wax", "Replace", "Service", "Topup"]
+    interval_kind: Literal["usage", "period"]
+    interval_unit_usage: str = ""
+    interval_unit_period: str = ""
+    interval_value: float = Field(gt=0, le=100000)  # after the units: its check needs them
+    is_recurring: bool = True
+    notify: bool = True
     is_active: bool = True
 
-    @model_validator(mode="after")
-    def _require_an_interval(self) -> "ScheduleRequest":
-        if self.interval_miles is None and self.interval_days is None:
-            raise ValueError("Set a mileage interval, a time interval, or both.")
-        return self
+    @property
+    def interval_unit(self) -> str:
+        return self.interval_unit_usage if self.interval_kind == "usage" else self.interval_unit_period
+
+    @field_validator("interval_unit_usage", "interval_unit_period")
+    @classmethod
+    def _unit_fits_the_kind(cls, value: str, info):
+        """Only the unit list shown for the chosen kind counts; the other field is ignored."""
+        kind = info.data.get("interval_kind")
+        if kind is None:
+            return value
+        mine = "usage" if info.field_name == "interval_unit_usage" else "period"
+        if kind == mine and value not in (USAGE_UNITS if mine == "usage" else PERIOD_UNITS):
+            raise ValueError("Choose a unit: " + ", ".join(USAGE_UNITS if mine == "usage" else PERIOD_UNITS) + ".")
+        return value
+
+    @field_validator("interval_value")
+    @classmethod
+    def _whole_numbers_where_counted(cls, value: float, info):
+        kind = info.data.get("interval_kind")
+        unit = info.data.get("interval_unit_usage" if kind == "usage" else "interval_unit_period")
+        if unit in WHOLE_UNITS and value != int(value):
+            raise ValueError(f"Use a whole number of {unit}.")
+        return value
 
 
 class WebhookSettingsRequest(BaseModel):

@@ -96,3 +96,51 @@ def test_acknowledge_and_webhook_result_are_recorded(conn):
 
     notifications_db.mark_acknowledged(conn, notification.id)
     assert notifications_db.list_unacknowledged(conn) == []
+
+
+def test_a_typed_schedule_round_trips_its_new_fields(conn):
+    bike = bikes_db.create(conn, name="Road Bike")
+
+    schedule = schedules_db.create(
+        conn, bike_id=bike.id, component_id=None, name="Check", interval_miles=None, interval_days=None,
+        baseline_mileage=0.0, baseline_date="2026-01-01", service_type="Check", interval_kind="usage",
+        interval_value=50.0, interval_unit="rides", is_recurring=False, notify=False,
+        baseline_at="2026-01-01T09:00:00.000000Z",
+    )
+
+    got = schedules_db.get_by_id(conn, schedule.id)
+    assert (got.service_type, got.interval_kind, got.interval_value, got.interval_unit) == ("Check", "usage", 50.0, "rides")
+    assert (got.is_recurring, got.notify, got.baseline_at) == (False, False, "2026-01-01T09:00:00.000000Z")
+
+
+def test_old_style_schedules_default_to_recurring_with_notifications(conn):
+    bike = bikes_db.create(conn, name="Road Bike")
+
+    schedule = _schedule(conn, bike.id)
+
+    assert (schedule.is_recurring, schedule.notify, schedule.service_type, schedule.interval_kind) == (True, True, None, None)
+
+
+def test_update_typed_converts_an_old_schedule_and_keeps_its_cycle(conn):
+    bike = bikes_db.create(conn, name="Road Bike")
+    schedule = _schedule(conn, bike.id)
+
+    converted = schedules_db.update_typed(
+        conn, schedule.id, name="Replace", service_type="Replace", interval_miles=None, interval_days=14,
+        interval_kind="period", interval_value=2.0, interval_unit="weeks", is_recurring=True, notify=False,
+        is_active=True,
+    )
+
+    assert (converted.name, converted.service_type, converted.interval_days, converted.interval_miles) == ("Replace", "Replace", 14, None)
+    assert (converted.interval_unit, converted.notify, converted.cycle_number, converted.baseline_mileage) == ("weeks", False, 1, 10.0)
+
+
+def test_complete_can_record_the_baseline_moment(conn):
+    bike = bikes_db.create(conn, name="Road Bike")
+    schedule = _schedule(conn, bike.id)
+
+    completed = schedules_db.complete(
+        conn, schedule.id, baseline_mileage=1.0, baseline_date="2026-06-01", baseline_at="2026-06-01T10:00:00.000000Z"
+    )
+
+    assert completed.baseline_at == "2026-06-01T10:00:00.000000Z"

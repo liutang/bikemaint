@@ -46,14 +46,14 @@ def test_due_dashboard_lists_schedules_across_bikes_and_components(client, monke
     bike_service.create_bike(name="Road Bike", manual_baseline_mileage=0)
     client.post("/components", data={"name": "Wax Chain", "component_type": "chain"})
 
-    client.post("/bikes/1/schedules", data={"name": "Annual service", "interval_days": "365"})
-    client.post("/components/1/schedules", data={"name": "Wax chain", "interval_days": "30"})
+    client.post("/bikes/1/schedules", data={"service_type": "Service", "interval_kind": "period", "interval_unit_period": "weeks", "interval_unit_usage": "miles", "interval_value": "52"})
+    client.post("/components/1/schedules", data={"service_type": "Service", "interval_kind": "period", "interval_unit_period": "weeks", "interval_unit_usage": "miles", "service_type": "Lube/Wax", "interval_value": "4"})
     response = client.get("/maintenance/due")
 
     assert response.status_code == 200
-    assert "Annual service" in response.text
+    assert "Service" in response.text
     assert "Road Bike" in response.text
-    assert "Wax chain" in response.text
+    assert "Lube/Wax" in response.text
     assert "Wax Chain" in response.text
 
 
@@ -61,7 +61,7 @@ def test_schedule_without_any_interval_is_rejected(client, monkeypatch):
     _login(client, monkeypatch)
     bike_service.create_bike(name="Road Bike", manual_baseline_mileage=0)
 
-    response = client.post("/bikes/1/schedules", data={"name": "No interval"})
+    response = client.post("/bikes/1/schedules", data={"service_type": "Service"})
 
     assert response.status_code == 422
 
@@ -69,7 +69,7 @@ def test_schedule_without_any_interval_is_rejected(client, monkeypatch):
 def test_schedule_for_unknown_bike_returns_404(client, monkeypatch):
     _login(client, monkeypatch)
 
-    response = client.post("/bikes/999/schedules", data={"name": "X", "interval_days": "30"})
+    response = client.post("/bikes/999/schedules", data={"service_type": "Service", "interval_kind": "period", "interval_unit_period": "weeks", "interval_unit_usage": "miles", "interval_value": "4"})
 
     assert response.status_code == 404
 
@@ -77,29 +77,29 @@ def test_schedule_for_unknown_bike_returns_404(client, monkeypatch):
 def test_complete_schedule_logs_maintenance_and_returns_to_dashboard(client, monkeypatch):
     _login(client, monkeypatch)
     bike_service.create_bike(name="Road Bike", manual_baseline_mileage=0)
-    client.post("/bikes/1/schedules", data={"name": "Annual service", "interval_days": "365"})
+    client.post("/bikes/1/schedules", data={"service_type": "Service", "interval_kind": "period", "interval_unit_period": "weeks", "interval_unit_usage": "miles", "interval_value": "52"})
 
     response = client.post("/schedules/1/complete", follow_redirects=False)
 
     assert response.status_code == 303
     history = client.get("/bikes/1/maintenance")
-    assert "Annual service" in history.text
+    assert "Service" in history.text
 
 
 def test_edit_and_delete_schedule(client, monkeypatch):
     _login(client, monkeypatch)
     bike_service.create_bike(name="Road Bike", manual_baseline_mileage=0)
-    client.post("/bikes/1/schedules", data={"name": "Old name", "interval_days": "30"})
+    client.post("/bikes/1/schedules", data={"service_type": "Service", "interval_kind": "period", "interval_unit_period": "weeks", "interval_unit_usage": "miles", "service_type": "Clean", "interval_value": "4"})
 
     form = client.get("/schedules/1/edit")
     assert form.status_code == 200
-    assert "Old name" in form.text
+    assert '<option value="Clean" selected>' in form.text
 
-    client.post("/schedules/1", data={"name": "New name", "interval_days": "60", "is_active": "on"})
-    assert "New name" in client.get("/maintenance/due").text
+    client.post("/schedules/1", data={"service_type": "Service", "interval_kind": "period", "interval_unit_period": "weeks", "interval_unit_usage": "miles", "service_type": "Check", "interval_value": "8", "is_active": "on"})
+    assert "Check" in client.get("/maintenance/due").text
 
     client.post("/schedules/1/delete")
-    assert "New name" not in client.get("/maintenance/due").text
+    assert "Check" not in client.get("/maintenance/due").text
 
 
 # ------------------------------------------------ specs/031: Cancel returns where the rider came from

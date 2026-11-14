@@ -356,3 +356,58 @@ def component_mileage_at(conn: sqlite3.Connection, component_id: int, at: str) -
     ).fetchone()["total"]
     return baseline["manual_baseline_mileage"] + rides + adjustments
 
+
+_LIVE_RIDE = "ride_activity.is_deleted_upstream = 0 AND ride_activity.deleted_by_user = 0"
+
+
+def usage_since(
+    conn: sqlite3.Connection,
+    *,
+    bike_id: int | None = None,
+    component_id: int | None = None,
+    since: str,
+) -> tuple[int, int]:
+    """(rides, moving seconds) after `since` for a bike, or for a part while it was installed.
+
+    Rides with no recorded moving time count as zero seconds (specs/040).
+    """
+    if bike_id is not None:
+        row = conn.execute(
+            f"""
+            SELECT COUNT(*) AS rides, COALESCE(SUM(moving_time_seconds), 0) AS seconds
+            FROM ride_activity
+            WHERE bike_id = ? AND occurred_at > ? AND {_LIVE_RIDE}
+            """,
+            (bike_id, since),
+        ).fetchone()
+    else:
+        row = conn.execute(
+            f"""
+            SELECT COUNT(*) AS rides, COALESCE(SUM(moving_time_seconds), 0) AS seconds FROM (
+                SELECT DISTINCT ride_activity.id, ride_activity.moving_time_seconds
+                FROM component_installation_period AS period
+                JOIN ride_activity
+                  ON ride_activity.bike_id = period.parent_bike_id
+                 AND ride_activity.occurred_at >= period.installed_at
+                 AND (period.removed_at IS NULL OR ride_activity.occurred_at < period.removed_at)
+                WHERE period.component_id = ? AND ride_activity.occurred_at > ? AND {_LIVE_RIDE}
+            )
+            """,
+            (component_id, since),
+        ).fetchone()
+    return row["rides"], row["seconds"]
+
+
+def recent_usage_for_bike(conn: sqlite3.Connection, bike_id: int, *, since: str) -> tuple[int, int, int]:
+    """(rides, moving seconds, distinct ride days) for a bike since `since`: the pace inputs."""
+    row = conn.execute(
+        f"""
+        SELECT COUNT(*) AS rides, COALESCE(SUM(moving_time_seconds), 0) AS seconds,
+               COUNT(DISTINCT substr(occurred_at, 1, 10)) AS ride_days
+        FROM ride_activity
+        WHERE bike_id = ? AND occurred_at >= ? AND {_LIVE_RIDE}
+        """,
+        (bike_id, since),
+    ).fetchone()
+    return row["rides"], row["seconds"], row["ride_days"]
+

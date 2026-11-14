@@ -22,18 +22,29 @@ def create(
     interval_days: int | None,
     baseline_mileage: float,
     baseline_date: str,
+    service_type: str | None = None,
+    interval_kind: str | None = None,
+    interval_value: float | None = None,
+    interval_unit: str | None = None,
+    is_recurring: bool = True,
+    notify: bool = True,
+    baseline_at: str | None = None,
 ) -> MaintenanceSchedule:
     now = _now()
     cursor = conn.execute(
         """
         INSERT INTO maintenance_schedule (
             bike_id, component_id, name, interval_miles, interval_days,
-            baseline_mileage, baseline_date, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            baseline_mileage, baseline_date, created_at, updated_at,
+            service_type, interval_kind, interval_value, interval_unit,
+            is_recurring, notify, baseline_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             bike_id, component_id, name, interval_miles, interval_days,
             baseline_mileage, baseline_date, now, now,
+            service_type, interval_kind, interval_value, interval_unit,
+            1 if is_recurring else 0, 1 if notify else 0, baseline_at,
         ),
     )
     schedule = get_by_id(conn, cursor.lastrowid)
@@ -115,17 +126,58 @@ def update(
     return schedule
 
 
+def update_typed(
+    conn: sqlite3.Connection,
+    schedule_id: int,
+    *,
+    name: str,
+    service_type: str,
+    interval_miles: float | None,
+    interval_days: int | None,
+    interval_kind: str,
+    interval_value: float,
+    interval_unit: str,
+    is_recurring: bool,
+    notify: bool,
+    is_active: bool,
+) -> MaintenanceSchedule:
+    """Save a schedule in the feature-040 shape (also converts an older one)."""
+    conn.execute(
+        """
+        UPDATE maintenance_schedule
+        SET name = ?, service_type = ?, interval_miles = ?, interval_days = ?, interval_kind = ?,
+            interval_value = ?, interval_unit = ?, is_recurring = ?, notify = ?, is_active = ?,
+            updated_at = ?
+        WHERE id = ?
+        """,
+        (
+            name, service_type, interval_miles, interval_days, interval_kind, interval_value,
+            interval_unit, 1 if is_recurring else 0, 1 if notify else 0, 1 if is_active else 0,
+            _now(), schedule_id,
+        ),
+    )
+    schedule = get_by_id(conn, schedule_id)
+    assert schedule is not None
+    return schedule
+
+
 def complete(
-    conn: sqlite3.Connection, schedule_id: int, *, baseline_mileage: float, baseline_date: str
+    conn: sqlite3.Connection,
+    schedule_id: int,
+    *,
+    baseline_mileage: float,
+    baseline_date: str,
+    baseline_at: str | None = None,
 ) -> MaintenanceSchedule:
     """Start the next cycle: bump `cycle_number` and reset the baseline (FR-016)."""
     conn.execute(
         """
         UPDATE maintenance_schedule
-        SET cycle_number = cycle_number + 1, baseline_mileage = ?, baseline_date = ?, updated_at = ?
+        SET cycle_number = cycle_number + 1, baseline_mileage = ?, baseline_date = ?,
+            baseline_at = COALESCE(?, baseline_at), updated_at = ?
         WHERE id = ?
         """,
-        (baseline_mileage, baseline_date, _now(), schedule_id),
+        (baseline_mileage, baseline_date, baseline_at, _now(), schedule_id),
     )
     schedule = get_by_id(conn, schedule_id)
     assert schedule is not None

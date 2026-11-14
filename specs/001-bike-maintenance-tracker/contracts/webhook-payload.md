@@ -29,6 +29,7 @@ Content-Type: application/json
 - `content`: a single human-readable summary line (Constitution Principle V — readable without cross-referencing source), safe to post as-is to a Discord channel webhook.
 - `schedule.owner_type`: `"bike"` or `"component"`.
 - `schedule.projected_remaining_miles`: omitted (`null`) when the schedule has no mileage interval.
+- `schedule.projected_remaining` and `schedule.projected_remaining_unit` (`miles`, `rides` or `hours`): the usage left in the schedule's own unit, `null` for period-only schedules (feature 040). A schedule with Receive notifications off sends nothing.
 - `schedule.is_low_confidence`: mirrors FR-018 — true when the projection fell back to time-only or has insufficient ride history.
 
 ## Delivery semantics

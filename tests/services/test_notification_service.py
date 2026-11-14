@@ -190,3 +190,51 @@ def test_acknowledge_removes_notification_from_the_unacknowledged_list(db_path):
     notification_service.acknowledge(created[0].id)
 
     assert notification_service.list_unacknowledged() == []
+
+
+@respx.mock
+def test_a_schedule_with_notifications_off_sends_nothing_but_stays_on_the_board(db_path):
+    # 040 FR-007
+    _account(webhook_url=WEBHOOK_URL)
+    bike = bike_service.create_bike(name="Gravel Bike")
+    quiet = schedule_service.create_schedule(
+        bike_id=bike.id, service_type="Check", interval_kind="period", interval_value=1,
+        interval_unit="weeks", notify=False, today=TODAY - __import__("datetime").timedelta(days=5),
+    )
+    route = respx.post(WEBHOOK_URL).mock(return_value=httpx.Response(204))
+
+    created = notification_service.check_due_schedules(today=TODAY)
+
+    assert created == [] and route.call_count == 0 and _notification_count() == 0
+    assert [i.schedule.id for i in schedule_service.list_due_overview(today=TODAY)] == [quiet.id]
+
+
+def test_the_webhook_text_and_payload_name_the_unit_left(db_path):
+    bike = bike_service.create_bike(name="Gravel Bike")
+    schedule = schedule_service.create_schedule(
+        bike_id=bike.id, service_type="Check", interval_kind="usage", interval_value=3,
+        interval_unit="rides", today=TODAY,
+    )
+    item = schedule_service.get_due_item(schedule.id, today=TODAY)
+    # pretend the usage is almost up: 2 rides left, due soon
+    from dataclasses import replace
+    item = replace(item, projection=replace(item.projection, remaining=2.0, remaining_unit="rides", remaining_miles=None))
+
+    payload = notification_service.build_webhook_payload(item)
+
+    assert "2 rides remaining" in payload["content"] and "mi remaining" not in payload["content"]
+    assert payload["schedule"]["projected_remaining"] == 2.0
+    assert payload["schedule"]["projected_remaining_unit"] == "rides"
+    assert payload["schedule"]["projected_remaining_miles"] is None
+
+
+def test_a_miles_schedule_keeps_the_miles_wording_and_field(db_path):
+    bike = bike_service.create_bike(name="Gravel Bike")
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Chain", interval_miles=100, today=TODAY)
+    item = schedule_service.get_due_item(schedule.id, today=TODAY)
+
+    payload = notification_service.build_webhook_payload(item)
+
+    assert "100 mi remaining" in payload["content"]
+    assert payload["schedule"]["projected_remaining_miles"] == 100.0
+    assert payload["schedule"]["projected_remaining_unit"] == "miles"

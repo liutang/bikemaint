@@ -152,6 +152,7 @@ class RideActivity:
     deleted_by_user: bool
     user_modified: bool
     synced_at: str | None
+    moving_time_seconds: int | None = None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> RideActivity:
@@ -168,6 +169,7 @@ class RideActivity:
             deleted_by_user=bool(row["deleted_by_user"]),
             user_modified=bool(row["user_modified"]),
             synced_at=row["synced_at"],
+            moving_time_seconds=row["moving_time_seconds"],
         )
 
 

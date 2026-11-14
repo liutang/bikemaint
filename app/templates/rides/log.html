@@ -24,6 +24,7 @@
       <tr>
         <th scope="col">Date &amp; time</th>
         <th scope="col">Miles</th>
+        <th scope="col">Moving time</th>
         <th scope="col">Source</th>
         <th scope="col">Note</th>
         <th scope="col">Total</th>
@@ -36,6 +37,7 @@
         {% if row.kind == "start" %}
         <td data-label="Date &amp; time">Starting mileage</td>
         <td data-label="Miles">{{ "%.1f"|format(row.miles) }}</td>
+        <td data-label="Moving time"></td>
         <td data-label="Source">Baseline</td>
         <td data-label="Note"></td>
         <td data-label="Total">{{ "%.1f"|format(row.running_total) }}</td>
@@ -51,6 +53,7 @@
           {%- endif -%}
         </td>
         <td data-label="Miles">{{ "%.1f"|format(row.miles) }}</td>
+        <td data-label="Moving time">{{ row.moving_seconds|duration }}</td>
         <td data-label="Source">
           {%- if row.kind == "adjustment" %}Adjustment{% elif row.source == "strava" %}Strava{% else %}Manual{% endif %}
           {%- if row.bike_name %} · {{ row.bike_name }}{% endif -%}

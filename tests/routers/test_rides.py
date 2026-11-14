@@ -335,3 +335,27 @@ def test_the_baseline_is_still_edited_on_the_edit_screens(signed_in_client):
 
     assert 'name="manual_baseline_mileage"' in signed_in_client.get(f"/bikes/{bike.id}/edit").text
     assert 'name="manual_baseline_mileage"' in signed_in_client.get(f"/components/{chain.id}/edit").text
+
+
+def test_the_ride_form_offers_a_moving_time_and_the_log_shows_it(signed_in_client):
+    # 039 FR-003, FR-004
+    bike = _bike()
+    assert 'name="moving_time"' in signed_in_client.get(f"/bikes/{bike.id}/rides/new").text
+
+    response = signed_in_client.post(f"/bikes/{bike.id}/rides", data=_form(moving_time="1:30"), follow_redirects=False)
+
+    assert response.status_code == 303
+    html = signed_in_client.get(f"/bikes/{bike.id}/rides").text
+    assert "Moving time" in html and "1:30" in _rows(html)[0]
+    edit = signed_in_client.get(re.search(r'href="(/rides/\d+/edit)"', html).group(1)).text
+    assert 'value="1:30"' in edit
+
+
+@pytest.mark.parametrize("bad", ["abc", "1:75", "0:00"])
+def test_a_bad_moving_time_is_refused_beside_the_field(signed_in_client, bad):
+    bike = _bike()
+
+    response = signed_in_client.post(f"/bikes/{bike.id}/rides", data=_form(moving_time=bad))
+
+    assert response.status_code == 422 and 'id="moving_time-error"' in response.text
+    assert len(ride_service.get_log_for_bike(bike.id).rows) == 1  # only the start row

@@ -36,6 +36,7 @@ class RideRow:
     note: str | None = None
     editable: bool = False
     bike_name: str | None = None  # which bike a part's ride was on
+    moving_seconds: int | None = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,21 @@ class RideLog:
     owner_name: str
     rows: list[RideRow]  # newest first, then the start row last
     total: float
+
+
+def parse_duration(text: str | None) -> int | None:
+    """`h:mm` to seconds; blank is None (the request model has already validated the shape)."""
+    if not text or not text.strip():
+        return None
+    hours, minutes = text.strip().split(":")
+    return int(hours) * 3600 + int(minutes) * 60
+
+
+def format_duration(seconds: int | None) -> str:
+    """Seconds as `h:mm` (whole minutes); blank when unknown."""
+    if not seconds:
+        return ""
+    return f"{seconds // 3600}:{seconds % 3600 // 60:02d}"
 
 
 def _occurred_at(day: date, time: str | None) -> str:
@@ -89,7 +105,8 @@ def _build_rows(
             total += entry.distance_miles
             built.append(
                 RideRow("ride", entry_id, when, entry.distance_miles, total, source=entry.source,
-                        note=entry.note, editable=editable, bike_name=bike_name)
+                        note=entry.note, editable=editable, bike_name=bike_name,
+                        moving_seconds=entry.moving_time_seconds)
             )
         else:
             total += entry.delta_miles
@@ -132,14 +149,16 @@ def get_ride(ride_id: int) -> RideActivity | None:
 
 
 def create_ride(
-    bike_id: int, *, day: date, time: str | None, miles: float, note: str | None
+    bike_id: int, *, day: date, time: str | None, miles: float, note: str | None,
+    moving_seconds: int | None = None,
 ) -> RideActivity:
     """Add a ride that is not tracked on Strava."""
     _check_miles(miles)
     with get_connection() as conn:
         _require_bike(conn, bike_id)
         ride = mileage_db.create_manual_ride(
-            conn, bike_id=bike_id, distance_miles=miles, occurred_at=_occurred_at(day, time), note=note
+            conn, bike_id=bike_id, distance_miles=miles, occurred_at=_occurred_at(day, time), note=note,
+            moving_time_seconds=moving_seconds,
         )
         _recompute(conn, {bike_id})
     logger.info("ride added ride_id=%s bike_id=%s miles=%s source=manual", ride.id, bike_id, miles)
@@ -147,7 +166,8 @@ def create_ride(
 
 
 def update_ride(
-    ride_id: int, *, bike_id: int, day: date, time: str | None, miles: float, note: str | None
+    ride_id: int, *, bike_id: int, day: date, time: str | None, miles: float, note: str | None,
+    moving_seconds: int | None = None,
 ) -> RideActivity:
     """Edit a ride's miles, time, note, or re-assign it to another bike."""
     _check_miles(miles)
@@ -158,7 +178,7 @@ def update_ride(
         _require_bike(conn, bike_id)
         ride = mileage_db.update_ride(
             conn, ride_id, bike_id=bike_id, distance_miles=miles,
-            occurred_at=_occurred_at(day, time), note=note,
+            occurred_at=_occurred_at(day, time), note=note, moving_time_seconds=moving_seconds,
         )
         affected = {bike_id} | ({existing.bike_id} if existing.bike_id is not None else set())
         _recompute(conn, affected)

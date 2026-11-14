@@ -80,3 +80,18 @@ def test_maintenance_time_is_optional_and_blank_means_none():
 def test_maintenance_time_rejects_anything_else(value):
     with pytest.raises(ValidationError):
         MaintenanceLogRequest(description="x", performed_at="2026-05-01", performed_time=value)
+
+
+@pytest.mark.parametrize("value,ok", [("1:30", True), ("0:45", True), ("99:59", True), ("", True),
+                                      ("0:00", False), ("1:75", False), ("abc", False), ("100:00", False)])
+def test_a_ride_moving_time_is_h_mm_or_blank(value, ok):
+    from app.models.requests import RideRequest
+
+    def build():
+        return RideRequest(ride_date="2026-09-02", miles=5, moving_time=value)
+
+    if ok:
+        assert build().moving_time == (value or None)
+    else:
+        with pytest.raises(ValidationError):
+            build()

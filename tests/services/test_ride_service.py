@@ -223,3 +223,26 @@ def test_a_part_never_ridden_has_just_its_starting_mileage(db_path):
     log = ride_service.get_log_for_component(spare.id)
 
     assert [(r.kind, r.miles) for r in log.rows] == [("start", 7)] and log.total == 7
+
+
+def test_durations_parse_and_format_as_h_mm():
+    assert ride_service.parse_duration("1:30") == 5400
+    assert ride_service.parse_duration("0:45") == 2700
+    assert ride_service.parse_duration("") is None and ride_service.parse_duration(None) is None
+    assert ride_service.format_duration(5400) == "1:30"
+    assert ride_service.format_duration(59 * 60 + 40) == "0:59"  # whole minutes, rounded down
+    assert ride_service.format_duration(None) == ""
+
+
+def test_a_manual_ride_keeps_its_moving_time_and_the_log_shows_it(db_path):
+    bike = _bike()
+
+    ride = ride_service.create_ride(
+        bike.id, day=date(2026, 9, 2), time=None, miles=5, note=None, moving_seconds=5400
+    )
+    ride_service.update_ride(
+        ride.id, bike_id=bike.id, day=date(2026, 9, 2), time=None, miles=5, note=None, moving_seconds=3600
+    )
+
+    (row, _start) = ride_service.get_log_for_bike(bike.id).rows
+    assert row.moving_seconds == 3600

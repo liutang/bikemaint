@@ -1,0 +1,3 @@
+# Implementation Plan: 042 Maintenance Service Type
+
+No schema change: the `description` column holds the service type. `app/models/requests.py` `MaintenanceLogRequest`: `description` becomes `service_type` (Literal of `SERVICE_TYPES`); `app/routers/maintenance.py` `_parse` reads `service_type`, create/update pass it as `description=`; `maintenance/form.html` replaces the text field with `select_field` (placeholder "Choose a service type"; selected from the entry when its text is a listed type, else empty plus a note); `history_list.html` header "Service type". Service layer unchanged. Tests first: `tests/models/test_requests.py`, `tests/routers/test_maintenance.py`, `tests/test_ui_pages.py`; update existing posts of `description`. Constitution v1.3.0: pass.

@@ -18,7 +18,7 @@
     <thead>
       <tr>
         <th scope="col">Date &amp; time</th>
-        <th scope="col">Description</th>
+        <th scope="col">Service type</th>
         <th scope="col">Mileage at service</th>
         <th scope="col">Actions</th>
       </tr>
@@ -35,7 +35,7 @@
             {{ entry.performed_at }}
           {%- endif -%}
         </td>
-        <td data-label="Description">{{ entry.description }}</td>
+        <td data-label="Service type">{{ entry.description }}</td>
         <td data-label="Mileage at service">{{ "%.1f"|format(entry.mileage_at_service) }} mi</td>
         <td data-label="Actions">
           <div class="actions">

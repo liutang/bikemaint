@@ -274,10 +274,10 @@ BAD_SUBMISSIONS = [
     ("component", "/components", {"name": "", "component_type": "chain", "manual_baseline_mileage": "9"},
      "name", "9", "manual_baseline_mileage"),
     ("maintenance", "/bikes/1/maintenance",
-     {"description": "", "performed_at": "2026-05-01", "mileage_at_service": "7"},
-     "description", "2026-05-01", "performed_at"),
+     {"service_type": "", "performed_at": "2026-05-01", "mileage_at_service": "7"},
+     "service_type", "2026-05-01", "performed_at"),
     ("maintenance-date", "/bikes/1/maintenance",
-     {"description": "Lube", "performed_at": "not-a-date"}, "performed_at", "Lube", "description"),
+     {"service_type": "Lube/Wax", "performed_at": "not-a-date"}, "performed_at", "not-a-date", "performed_at"),
     ("schedule", "/bikes/1/schedules",
      {"service_type": "", "interval_kind": "period", "interval_unit_period": "weeks", "interval_value": "30"},
      "service_type", "30", "interval_value"),
@@ -387,10 +387,10 @@ def _seed_everything(client):
     _add_component(client, "Chain", "chain", parent_bike_id="1")
     client.post("/bikes/1/schedules", data={"service_type": "Service", "interval_kind": "period", "interval_unit_period": "weeks", "interval_value": "4"})
     client.post(
-        "/bikes/1/maintenance", data={"description": "Lube", "performed_at": "2026-05-01"}
+        "/bikes/1/maintenance", data={"service_type": "Lube/Wax", "performed_at": "2026-05-01"}
     )
     client.post(
-        "/components/1/maintenance", data={"description": "Wax", "performed_at": "2026-05-02"}
+        "/components/1/maintenance", data={"service_type": "Lube/Wax", "performed_at": "2026-05-02"}
     )
 
 
@@ -419,8 +419,8 @@ def test_maintenance_history_shows_a_table_and_an_empty_state(signed_in_client):
     assert 'class="empty-state"' in empty
 
     signed_in_client.post(
-        "/bikes/1/maintenance", data={"description": "Lube chain", "performed_at": "2026-05-01"}
+        "/bikes/1/maintenance", data={"service_type": "Lube/Wax", "performed_at": "2026-05-01"}
     )
     populated = signed_in_client.get("/bikes/1/maintenance").text
-    assert '<th scope="col"' in populated and "Lube chain" in populated
+    assert '<th scope="col"' in populated and "Lube/Wax" in populated
     assert 'class="table-responsive"' in populated

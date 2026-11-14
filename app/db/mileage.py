@@ -295,3 +295,58 @@ def recent_ride_stats_for_bike(conn: sqlite3.Connection, bike_id: int, *, since:
         (bike_id, since),
     ).fetchone()
     return row["miles"], row["ride_days"]
+
+
+def bike_mileage_at(conn: sqlite3.Connection, bike_id: int, at: str) -> float:
+    """A bike's mileage as of `at` (stored format): baseline, live rides up to then, adjustments.
+
+    Adjustments carry no effective date, so all of them count (specs/038).
+    """
+    baseline = conn.execute(
+        "SELECT manual_baseline_mileage FROM bike WHERE id = ?", (bike_id,)
+    ).fetchone()
+    if baseline is None:
+        raise LookupError(f"No bike with id {bike_id}")
+    rides = conn.execute(
+        """
+        SELECT COALESCE(SUM(distance_miles), 0) AS total FROM ride_activity
+        WHERE bike_id = ? AND occurred_at <= ? AND is_deleted_upstream = 0 AND deleted_by_user = 0
+        """,
+        (bike_id, at),
+    ).fetchone()["total"]
+    adjustments = conn.execute(
+        "SELECT COALESCE(SUM(delta_miles), 0) AS total FROM mileage_adjustment WHERE bike_id = ?",
+        (bike_id,),
+    ).fetchone()["total"]
+    return baseline["manual_baseline_mileage"] + rides + adjustments
+
+
+def component_mileage_at(conn: sqlite3.Connection, component_id: int, at: str) -> float:
+    """A part's mileage as of `at`: baseline, rides during its installation periods up to then, adjustments."""
+    baseline = conn.execute(
+        "SELECT manual_baseline_mileage FROM component WHERE id = ?", (component_id,)
+    ).fetchone()
+    if baseline is None:
+        raise LookupError(f"No component with id {component_id}")
+    rides = conn.execute(
+        """
+        SELECT COALESCE(SUM(ride_activity.distance_miles), 0) AS total
+        FROM component_installation_period
+        JOIN ride_activity
+          ON ride_activity.bike_id = component_installation_period.parent_bike_id
+         AND ride_activity.occurred_at >= component_installation_period.installed_at
+         AND (component_installation_period.removed_at IS NULL
+              OR ride_activity.occurred_at < component_installation_period.removed_at)
+        WHERE component_installation_period.component_id = ?
+          AND ride_activity.occurred_at <= ?
+          AND ride_activity.is_deleted_upstream = 0
+          AND ride_activity.deleted_by_user = 0
+        """,
+        (component_id, at),
+    ).fetchone()["total"]
+    adjustments = conn.execute(
+        "SELECT COALESCE(SUM(delta_miles), 0) AS total FROM mileage_adjustment WHERE component_id = ?",
+        (component_id,),
+    ).fetchone()["total"]
+    return baseline["manual_baseline_mileage"] + rides + adjustments
+

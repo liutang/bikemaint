@@ -153,3 +153,87 @@ def test_deleting_component_with_maintenance_history_requires_confirmation(db_pa
 
     component_service.delete_component(component.id, confirmed=True)
     assert component_service.get_component(component.id) is None
+
+
+def _ride(bike, activity_id, miles, when):
+    from app.db import mileage as mileage_db
+
+    with connection.get_connection() as conn:
+        mileage_db.upsert_ride_activity(
+            conn, strava_activity_id=activity_id, strava_gear_id="g", bike_id=bike.id,
+            distance_miles=miles, occurred_at=when,
+        )
+        mileage_db.recompute_bike_total_mileage(conn, bike.id)
+
+
+def test_a_blank_mileage_counts_only_rides_up_to_the_date_performed(db_path):
+    # 038 FR-001: baseline 100 + rides 10 (Mar), 20 (Apr), 30 (May); service on Apr 15 => 130.
+    bike = bike_service.create_bike(name="Road", manual_baseline_mileage=100.0)
+    _ride(bike, 1, 10, "2026-03-10T08:00:00.000000Z")
+    _ride(bike, 2, 20, "2026-04-10T08:00:00.000000Z")
+    _ride(bike, 3, 30, "2026-05-10T08:00:00.000000Z")
+
+    entry = maintenance_service.log_maintenance(
+        bike_id=bike.id, description="Lube", performed_at="2026-04-15"
+    )
+
+    assert entry.mileage_at_service == 130.0
+
+
+def test_a_blank_time_counts_the_whole_day_and_a_time_stops_there(db_path):
+    bike = bike_service.create_bike(name="Road", manual_baseline_mileage=0.0)
+    _ride(bike, 1, 10, "2026-04-15T18:00:00.000000Z")
+
+    whole_day = maintenance_service.log_maintenance(
+        bike_id=bike.id, description="a", performed_at="2026-04-15"
+    )
+    morning = maintenance_service.log_maintenance(
+        bike_id=bike.id, description="b", performed_at="2026-04-15", performed_time="09:00"
+    )
+
+    assert (whole_day.mileage_at_service, morning.mileage_at_service) == (10.0, 0.0)
+
+
+def test_a_typed_mileage_is_kept_and_today_matches_the_current_total(db_path):
+    bike = bike_service.create_bike(name="Road", manual_baseline_mileage=5.0)
+    _ride(bike, 1, 10, "2026-04-10T08:00:00.000000Z")
+
+    typed = maintenance_service.log_maintenance(
+        bike_id=bike.id, description="a", performed_at="2026-03-01", mileage_at_service=2.0
+    )
+    today = maintenance_service.log_maintenance(
+        bike_id=bike.id, description="b", performed_at="2026-11-13"
+    )
+
+    assert typed.mileage_at_service == 2.0
+    assert today.mileage_at_service == bike_service.get_bike(bike.id).total_mileage == 15.0
+
+
+def test_deleted_rides_are_not_counted_at_a_past_date(db_path):
+    from app.services import ride_service
+
+    bike = bike_service.create_bike(name="Road", manual_baseline_mileage=0.0)
+    ride = ride_service.create_ride(bike.id, day=__import__("datetime").date(2026, 4, 1), time=None, miles=9, note=None)
+    ride_service.delete_ride(ride.id)
+
+    entry = maintenance_service.log_maintenance(bike_id=bike.id, description="a", performed_at="2026-04-15")
+
+    assert entry.mileage_at_service == 0.0
+
+
+def test_a_part_counts_only_rides_while_it_was_installed(db_path):
+    from app.services import component_history_service as history
+
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Chain", component_type="chain", manual_baseline_mileage=40.0)
+    _ride(bike, 1, 10, "2026-03-10T08:00:00.000000Z")   # before it was installed
+    history.log_period(chain.id, bike_id=bike.id, installed_at="2026-04-01T00:00:00.000000Z",
+                       removed_at="2026-06-01T00:00:00.000000Z")
+    _ride(bike, 2, 20, "2026-04-10T08:00:00.000000Z")   # while installed, before service
+    _ride(bike, 3, 30, "2026-05-10T08:00:00.000000Z")   # while installed, after service
+
+    entry = maintenance_service.log_maintenance(
+        component_id=chain.id, description="Wax", performed_at="2026-04-15"
+    )
+
+    assert entry.mileage_at_service == 60.0

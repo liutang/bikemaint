@@ -11,6 +11,7 @@ from __future__ import annotations
 from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db import maintenance as maintenance_db
+from app.db import mileage as mileage_db
 from app.db.connection import get_connection
 from app.models.rows import MaintenanceLogEntry
 
@@ -40,27 +41,32 @@ def log_maintenance(
     schedule_id: int | None = None,
     performed_time: str | None = None,
 ) -> MaintenanceLogEntry:
-    """Record completed maintenance; `mileage_at_service` defaults to the item's current total."""
+    """Record completed maintenance.
+
+    A blank `mileage_at_service` is the item's mileage as of the date and time performed (a blank
+    time counts the whole day), worked out from its ride history (specs/038).
+    """
     if (bike_id is None) == (component_id is None):
         raise ValueError("Maintenance must be logged against exactly one of a bike or a component.")
+    at = f"{performed_at}T{performed_time or '23:59:59'}.999999Z"
     with get_connection() as conn:
         if bike_id is not None:
             bike = bikes_db.get_by_id(conn, bike_id)
             if bike is None:
                 raise LookupError(f"No bike with id {bike_id}")
-            current_mileage = bike.total_mileage
+            mileage_then = lambda conn: mileage_db.bike_mileage_at(conn, bike_id, at)  # noqa: E731
         else:
             component = components_db.get_by_id(conn, component_id)
             if component is None:
                 raise LookupError(f"No component with id {component_id}")
-            current_mileage = component.total_mileage
+            mileage_then = lambda conn: mileage_db.component_mileage_at(conn, component_id, at)  # noqa: E731
         return maintenance_db.create(
             conn,
             bike_id=bike_id,
             component_id=component_id,
             description=description,
             performed_at=performed_at,
-            mileage_at_service=current_mileage if mileage_at_service is None else mileage_at_service,
+            mileage_at_service=mileage_then(conn) if mileage_at_service is None else mileage_at_service,
             schedule_id=schedule_id,
             performed_time=performed_time,
         )

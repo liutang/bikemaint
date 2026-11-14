@@ -57,6 +57,22 @@
     {{ field("notification_webhook_url", "Webhook URL", account.notification_webhook_url or "", values, field_errors, type="url", hint="Leave blank to remove.") }}
     {{ submit("Save webhook") }}
   </form>
+  <form class="form" method="post" action="/settings/notifications/test">
+    <button class="btn" type="submit">Send test notification</button>
+  </form>
+  {% if test_result %}<p class="{{ 'board-notice is-success' if test_result.ok else 'field-error' }}" role="status">{{ test_result.message }}</p>{% endif %}
+</section>
+
+<section class="panel" aria-labelledby="mute-heading">
+  <h2 id="mute-heading">Mute notifications</h2>
+  <p class="text-muted">{{ "Muted: no alerts or webhook posts are sent." if account.notifications_muted else "Alerts and webhook posts are on." }} Schedules still appear on Maintenance due.</p>
+  <form class="form" method="post" action="/settings/notifications/mute">
+    <div class="field field-check">
+      <input id="notifications_muted" type="checkbox" name="notifications_muted"{% if account.notifications_muted %} checked{% endif %}>
+      <label for="notifications_muted">Mute notifications</label>
+    </div>
+    {{ submit("Save") }}
+  </form>
 </section>
 
 <section class="panel" aria-labelledby="lead-heading">

@@ -242,3 +242,45 @@ def test_an_invalid_clock_is_refused(client, monkeypatch, value):
     assert 'id="clock_format-error"' in response.text
     assert _account_now().clock_format == "12"
 
+
+
+@pytest.mark.parametrize("path", ["/settings/notifications/mute", "/settings/notifications/test"])
+def test_mute_and_test_routes_redirect_unauthenticated_requests(client, path):
+    response = client.post(path, follow_redirects=False)
+
+    assert (response.status_code, response.headers["location"]) == (303, "/login")
+
+
+def test_the_mute_switch_is_saved_and_shown(client, monkeypatch):
+    _login(client, monkeypatch)
+    assert "Mute notifications" in client.get("/settings").text
+    assert not re.search(r'<input[^>]*name="notifications_muted"[^>]*checked', client.get("/settings").text)
+
+    response = client.post("/settings/notifications/mute", data={"notifications_muted": "on"}, follow_redirects=False)
+
+    assert (response.status_code, response.headers["location"]) == (303, "/settings")
+    assert _account_now().notifications_muted is True
+    assert re.search(r'<input[^>]*name="notifications_muted"[^>]*checked', client.get("/settings").text)
+    client.post("/settings/notifications/mute", data={})
+    assert _account_now().notifications_muted is False
+
+
+def test_the_test_button_reports_delivered_failed_and_no_url(client, monkeypatch):
+    import httpx
+    import respx
+
+    _login(client, monkeypatch)
+    no_url = client.post("/settings/notifications/test")
+    assert no_url.status_code == 422 and "Save a webhook URL first" in no_url.text
+
+    url = "https://discord.example/api/webhooks/1/secrettoken"
+    client.post("/settings/webhook", data={"notification_webhook_url": url})
+    with respx.mock:
+        respx.post(url).mock(return_value=httpx.Response(204))
+        ok = client.post("/settings/notifications/test")
+    assert ok.status_code == 200 and "Test notification delivered" in ok.text
+    with respx.mock:
+        respx.post(url).mock(return_value=httpx.Response(500))
+        bad = client.post("/settings/notifications/test")
+    assert bad.status_code == 502 and "could not be delivered" in bad.text
+    assert "secrettoken" not in ok.text.replace(url, "") and "secrettoken" not in bad.text.replace(url, "")

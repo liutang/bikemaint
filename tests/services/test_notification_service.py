@@ -238,3 +238,40 @@ def test_a_miles_schedule_keeps_the_miles_wording_and_field(db_path):
     assert "100 mi remaining" in payload["content"]
     assert payload["schedule"]["projected_remaining_miles"] == 100.0
     assert payload["schedule"]["projected_remaining_unit"] == "miles"
+
+
+@respx.mock
+def test_muted_notifications_record_and_send_nothing_and_resume_when_unmuted(db_path):
+    account = _account(webhook_url=WEBHOOK_URL)
+    _due_soon_schedule()
+    route = respx.post(WEBHOOK_URL).mock(return_value=httpx.Response(204))
+    with connection.get_connection() as conn:
+        accounts.update_notifications_muted(conn, account.id, True)
+
+    assert notification_service.check_due_schedules(today=TODAY) == []
+    assert route.call_count == 0 and _notification_count() == 0
+
+    with connection.get_connection() as conn:
+        accounts.update_notifications_muted(conn, account.id, False)
+    assert len(notification_service.check_due_schedules(today=TODAY)) == 1 and route.call_count == 1
+
+
+@respx.mock
+def test_a_test_notification_posts_a_message_and_records_nothing(db_path):
+    _account(webhook_url=WEBHOOK_URL)
+    route = respx.post(WEBHOOK_URL).mock(return_value=httpx.Response(204))
+
+    delivered, error = notification_service.send_test(WEBHOOK_URL)
+
+    assert (delivered, error) == (True, None)
+    assert route.call_count == 1 and "test" in route.calls[0].request.content.decode().lower()
+    assert _notification_count() == 0
+
+
+@respx.mock
+def test_a_failing_test_notification_reports_why(db_path):
+    respx.post(WEBHOOK_URL).mock(return_value=httpx.Response(500))
+
+    delivered, error = notification_service.send_test(WEBHOOK_URL)
+
+    assert delivered is False and "500" in error

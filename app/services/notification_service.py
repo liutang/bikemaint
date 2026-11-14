@@ -91,6 +91,12 @@ def deliver_webhook(url: str, payload: dict) -> tuple[bool, str | None]:
     return False, error
 
 
+def send_test(url: str) -> tuple[bool, str | None]:
+    """Post a test message to the webhook; records nothing and never raises (specs/045)."""
+    payload = {"content": "🔧 Test notification from Bike Maintenance Tracker: your webhook works."}
+    return deliver_webhook(url, payload)
+
+
 def check_due_schedules(*, today: date | None = None) -> list[Notification]:
     """Notify for every active schedule newly inside the lead-time window (FR-015).
 
@@ -99,8 +105,8 @@ def check_due_schedules(*, today: date | None = None) -> list[Notification]:
     day = today or date.today()
     with get_connection() as conn:
         account = accounts_db.get_singleton(conn)
-    if account is None:
-        return []
+    if account is None or account.notifications_muted:
+        return []  # nothing is recorded while muted, so unmuting notifies whatever is still due
 
     created: list[Notification] = []
     for item in schedule_service.list_due_overview(today=day):

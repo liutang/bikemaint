@@ -7,6 +7,8 @@ Extends `specs/001-bike-maintenance-tracker/contracts/routes.md` (Settings). All
 | `POST /settings/strava/sync` | `sync_enabled` (checkbox, present = on), `interval_hours` (0–168), `interval_minutes` (0–59) | 303 to `/settings` | 422 settings page with a message beside the field: total under 5 minutes, over 7 days, not a whole number, minutes over 59 |
 | `POST /settings/timezone` | `timezone` (IANA name) | 303 to `/settings` | 422 settings page with a message beside `timezone` when unknown or empty |
 | `POST /settings/clock` | `clock_format` (`12` or `24`) | 303 to `/settings` | 422 settings page with a message beside `clock_format` (feature 036) |
+| `POST /settings/notifications/mute` | `notifications_muted` (checkbox) | 303 to `/settings` | none (feature 045) |
+| `POST /settings/notifications/test` | none | 200 settings page: "Test notification delivered." | 422 no webhook URL saved; 502 delivery failed (reason shown, URL never shown) (feature 045) |
 
 ## Settings page
 

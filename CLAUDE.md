@@ -108,3 +108,5 @@ Schedules (feature 040): a schedule has a service type (`app/models/schedule_kin
 Maintenance log (feature 042): Log and Edit maintenance take a Service type from the same list as schedules (`MaintenanceLogRequest.service_type`, stored in the existing `description` column); older free-text entries display unchanged and need a type chosen when edited.
 
 New schedules (feature 043, 040 FR-011): a typed schedule counts from the latest maintenance entry of the same service type on that bike or part (its date/time, recorded mileage, rides and hours after it); with none, from when tracking began (all rides, not the starting mileage; a period from the earliest install date, else when it was added). `schedule_service._baseline_for`.
+
+Notifications (feature 045): `account.notifications_muted` (Settings "Mute notifications") makes `notification_service.check_due_schedules` record and send nothing; "Send test notification" (`POST /settings/notifications/test`, `notification_service.send_test`) posts to the saved webhook, works even when muted, and records nothing.

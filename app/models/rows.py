@@ -27,6 +27,7 @@ class Account:
     strava_sync_interval_minutes: int | None = None
     timezone: str = "UTC"
     clock_format: str = "12"
+    notifications_muted: bool = False
     strava_last_synced_at: str | None = None
 
     @classmethod
@@ -47,6 +48,7 @@ class Account:
             strava_sync_interval_minutes=row["strava_sync_interval_minutes"],
             timezone=row["timezone"],
             clock_format=row["clock_format"],
+            notifications_muted=bool(row["notifications_muted"]),
             strava_last_synced_at=row["strava_last_synced_at"],
         )
 

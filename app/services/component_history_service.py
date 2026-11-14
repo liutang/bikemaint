@@ -93,10 +93,11 @@ def place_name(conn: sqlite3.Connection, period: ComponentInstallationPeriod) ->
 
 
 def describe_history(component_id: int) -> list[dict]:
-    """Periods with a place label and the miles ridden in each (for the history screen)."""
+    """Periods, latest installed first, with a place label and the miles ridden in each."""
     with get_connection() as conn:
         rows = []
-        for period in components_db.list_periods(conn, component_id):
+        # Latest installed first (specs/035); ties: newest entry first.
+        for period in reversed(components_db.list_periods(conn, component_id)):
             miles = conn.execute(
                 """
                 SELECT COALESCE(SUM(distance_miles), 0) AS total FROM ride_activity

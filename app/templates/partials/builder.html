@@ -36,7 +36,7 @@
         {% if node.can_down %}{{ move_form(root, c, node.parent_ref, node.down_before if node.down_before else "", aria="Move " ~ c.name ~ " down", icon=ui_icons.arrow_down()) }}{% endif %}
         {% if node.targets %}
         <details class="node-more">
-          <summary class="btn btn-quiet">Move to…</summary>
+          <summary class="btn btn-quiet" aria-label="Move {{ c.name }} to…" title="Move to…">{{ ui_icons.arrow_right() }}</summary>
           <form class="node-moveto" method="post" action="/builder/move"
                 hx-post="/builder/move" hx-target="#builder" hx-swap="outerHTML">
             <input type="hidden" name="root" value="{{ root }}">

@@ -40,9 +40,9 @@ def test_the_log_starts_with_the_base_mileage_then_adds_rides(db_path):
 
     log = ride_service.get_log_for_bike(bike.id)
 
-    assert [r.kind for r in log.rows] == ["start", "ride", "ride"]
-    assert (log.rows[0].miles, log.rows[0].running_total) == (100, 100)
-    assert [(r.miles, r.running_total, r.source) for r in log.rows[1:]] == [(5.5, 115.5, "manual"), (10, 110, "strava")]
+    assert [r.kind for r in log.rows] == ["ride", "ride", "start"]  # newest first, starting row last
+    assert (log.rows[-1].miles, log.rows[-1].running_total) == (100, 100)
+    assert [(r.miles, r.running_total, r.source) for r in log.rows[:-1]] == [(5.5, 115.5, "manual"), (10, 110, "strava")]
     assert log.total == 115.5 == _total(bike)
 
 
@@ -211,9 +211,9 @@ def test_a_parts_log_lists_the_rides_while_it_was_installed_read_only(db_path):
 
     log = ride_service.get_log_for_component(chain.id)
 
-    assert (log.rows[0].kind, log.rows[0].miles, log.rows[0].running_total) == ("start", 40, 40)
-    assert [(r.miles, r.running_total) for r in log.rows[1:]] == [(5, 55), (10, 50)]
-    assert all(not r.editable for r in log.rows) and log.rows[1].bike_name == "Road"
+    assert (log.rows[-1].kind, log.rows[-1].miles, log.rows[-1].running_total) == ("start", 40, 40)
+    assert [(r.miles, r.running_total) for r in log.rows[:-1]] == [(5, 55), (10, 50)]
+    assert all(not r.editable for r in log.rows) and log.rows[0].bike_name == "Road"
     assert log.total == 55 == component_service.get_component(chain.id).total_mileage
 
 

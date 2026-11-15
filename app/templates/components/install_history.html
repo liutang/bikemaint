@@ -8,7 +8,7 @@
 <div class="page-head">
   <div>
     <h1>Install history</h1>
-    <p class="text-muted"><a href="/components/{{ component.id }}">{{ component.name }}</a> — {{ "%.1f"|format(component.total_mileage) }} mi in total</p>
+    <p class="text-muted"><a href="/components/{{ component.id }}">{{ component.name }}</a> — {{ component.total_mileage|num1 }} mi in total</p>
   </div>
   <a class="btn btn-primary" href="/components/{{ component.id }}/install-history/new">{{ ui_icons.plus() }}Log a period</a>
 </div>
@@ -32,7 +32,7 @@
         <td data-label="Installed on">{% if row.place_url %}<a href="{{ row.place_url }}">{{ row.place }}</a>{% else %}{{ row.place }}{% endif %}</td>
         <td data-label="Installed">{{ row.period.installed_at|wall_time }}</td>
         <td data-label="Removed">{% if row.period.removed_at %}{{ row.period.removed_at|wall_time }}{% else %}Still installed{% endif %}</td>
-        <td data-label="Miles">{{ "%.1f"|format(row.miles) }} mi</td>
+        <td data-label="Miles">{{ row.miles|num1 }} mi</td>
         <td data-label="Actions">
           <div class="actions">
             <a class="btn" href="/install-periods/{{ row.period.id }}/rides">Rides</a>

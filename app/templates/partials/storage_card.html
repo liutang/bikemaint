@@ -7,5 +7,5 @@
       <span class="chip">{{ component.component_type|kind_name }}</span>
     </div>
   </header>
-  <p class="bike-card-figure"><span class="bike-card-stat"><strong>{{ "%.1f"|format(component.total_mileage) }} mi</strong><small>total mileage</small></span></p>
+  <p class="bike-card-figure"><span class="bike-card-stat"><strong>{{ component.total_mileage|num1 }} mi</strong><small>total mileage</small></span></p>
 </article>

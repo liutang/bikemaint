@@ -126,3 +126,5 @@ Schedules page (feature 056): a bike's or part's actions row has a Schedules but
 Strava actions in Edit (feature 057): Re-import Strava history and Unpair from Strava are on a paired bike's Edit screen (`bikes/form.html`), no longer on its main screen; Pair with Strava stays on the main screen.
 
 Period default bike (feature 058): a part's Log a period form preselects the bike it is installed on (through parent parts), else the bike of its most recent period (`component_history_service.default_bike_id`).
+
+Comma separators (feature 059): displayed mileage uses `format_service` (Jinja filters `num1` one decimal, `num0` whole; `count` for interval counts), never `"%.1f"|format`. Inputs and stored values are unchanged.

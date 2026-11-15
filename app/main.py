@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.models import component_kinds
-from app.services import asset_service, clock_service, confirmation_service, ride_service
+from app.services import asset_service, clock_service, confirmation_service, format_service, ride_service
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import mileage as mileage_db
@@ -77,6 +77,8 @@ def create_app() -> FastAPI:
     app.state.templates.env.filters["wall_time"] = clock_service.format_wall
     app.state.templates.env.filters["to_wall"] = clock_service.to_wall
     app.state.templates.env.filters["duration"] = ride_service.format_duration
+    app.state.templates.env.filters["num1"] = format_service.num1
+    app.state.templates.env.filters["num0"] = format_service.num0
     app.state.templates.env.filters["html_pattern"] = confirmation_service.html_pattern
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 

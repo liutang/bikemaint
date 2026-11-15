@@ -41,7 +41,7 @@ def build_webhook_payload(item: DueItem) -> dict:
     if projection.remaining is not None:
         left = projection.remaining
         if projection.remaining_unit == "miles":
-            summary += f" (approx. {left:.0f} mi remaining)"
+            summary += f" (approx. {left:,.0f} mi remaining)"
         elif projection.remaining_unit == "hours":
             summary += f" (approx. {left:.1f} hours remaining)"
         else:

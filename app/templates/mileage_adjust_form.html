@@ -5,7 +5,7 @@
 
 {% block content %}
 <h1>Adjust mileage for "{{ item.name }}"</h1>
-<p>Current total: <strong>{{ "%.1f"|format(item.total_mileage) }} mi</strong></p>
+<p>Current total: <strong>{{ item.total_mileage|num1 }} mi</strong></p>
 {{ error_summary(errors) }}
 <form class="panel form" method="post" action="{{ ('/bikes/' if item_kind == 'bike' else '/components/') ~ item.id ~ '/mileage/adjust' }}">
   {{ field("delta_miles", "Delta miles", "", values, field_errors, type="number", step="0.1", required=true, hint="Use a negative number to subtract.") }}

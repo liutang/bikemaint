@@ -35,3 +35,4 @@ Each part has an "Install history" screen (`/components/{id}/install-history`) l
 
 ## Amendments
 - Feature 063: "Inside part (optional)" on Log/Edit a period is a list of parts by name instead of a part-number field (`component_history_service.parent_options`); stored the same way.
+- Feature 064: a period inside another part stores no bike; its rides are those on the bikes the parent was on during the overlap (`mileage._WINDOWS`), so a tire in a wheelset earns the wheelset's miles. Parent period changes recompute all parts.

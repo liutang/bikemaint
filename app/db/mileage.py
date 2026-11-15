@@ -179,6 +179,34 @@ def insert_mileage_adjustment(
     return MileageAdjustment.from_row(row)
 
 
+# Where each period of a part really was, as (bike, start, end) in the saved zone's wall clock
+# (specs/064): a period on a bike counts directly; a period inside another part counts where that
+# part was on a bike, limited to the overlap. '9999' stands for "still installed".
+_WINDOWS = """
+WITH RECURSIVE win(period_id, component_id, bike_id, s, e, depth) AS (
+    SELECT id, component_id, parent_bike_id, period_wall(installed_at), COALESCE(period_wall(removed_at), '9999'), 0
+    FROM component_installation_period WHERE parent_bike_id IS NOT NULL
+    UNION ALL
+    SELECT p.id, p.component_id, w.bike_id,
+           MAX(period_wall(p.installed_at), w.s),
+           MIN(COALESCE(period_wall(p.removed_at), '9999'), w.e), w.depth + 1
+    FROM component_installation_period AS p
+    JOIN win AS w ON w.component_id = p.parent_component_id
+    WHERE p.parent_bike_id IS NULL AND w.depth < 8
+      AND MAX(period_wall(p.installed_at), w.s) < MIN(COALESCE(period_wall(p.removed_at), '9999'), w.e)
+)
+"""
+_RIDE_IN_WINDOW = (
+    "ride_activity.bike_id = win.bike_id "
+    "AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= win.s "
+    "AND ride_wall(ride_activity.occurred_at, ride_activity.source) < win.e"
+)
+_PART_RIDE_OK = (
+    "part_ride_ok(win.component_id, ride_activity.user_modified, ride_activity.sport_type, "
+    "ride_activity.ride_type, ride_activity.activity_name)"
+)
+
+
 def recompute_bike_total_mileage(conn: sqlite3.Connection, bike_id: int) -> float:
     """Recompute and persist `bike.total_mileage` = baseline + attributed rides + adjustments."""
     baseline_row = conn.execute(
@@ -214,18 +242,12 @@ def recompute_component_total_mileage(conn: sqlite3.Connection, component_id: in
     if baseline_row is None:
         raise LookupError(f"No component with id {component_id}")
     rides = conn.execute(
-        """
-        SELECT COALESCE(SUM(ride_activity.distance_miles), 0) AS total
-        FROM component_installation_period
-        JOIN ride_activity
-          ON ride_activity.bike_id = component_installation_period.parent_bike_id
-         AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= period_wall(component_installation_period.installed_at)
-         AND (component_installation_period.removed_at IS NULL
-              OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(component_installation_period.removed_at))
-        WHERE component_installation_period.component_id = ?
-          AND ride_activity.is_deleted_upstream = 0
-          AND ride_activity.deleted_by_user = 0 AND ride_activity.filtered_out = 0
-          AND part_ride_ok(component_installation_period.component_id, ride_activity.user_modified, ride_activity.sport_type, ride_activity.ride_type, ride_activity.activity_name)
+        _WINDOWS + f"""
+        SELECT COALESCE(SUM(distance_miles), 0) AS total FROM (
+            SELECT DISTINCT ride_activity.id, ride_activity.distance_miles
+            FROM win JOIN ride_activity ON {_RIDE_IN_WINDOW}
+            WHERE win.component_id = ? AND {_LIVE_RIDE} AND {_PART_RIDE_OK}
+        )
         """,
         (component_id,),
     ).fetchone()["total"]
@@ -244,17 +266,10 @@ def recompute_component_total_mileage(conn: sqlite3.Connection, component_id: in
 def list_rides_for_component(conn: sqlite3.Connection, component_id: int) -> list[RideActivity]:
     """Live rides that happened while `component_id` was installed on a bike (oldest first)."""
     rows = conn.execute(
-        """
+        _WINDOWS + f"""
         SELECT DISTINCT ride_activity.*
-        FROM component_installation_period AS period
-        JOIN ride_activity
-          ON ride_activity.bike_id = period.parent_bike_id
-         AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= period_wall(period.installed_at)
-         AND (period.removed_at IS NULL OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(period.removed_at))
-        WHERE period.component_id = ?
-          AND ride_activity.is_deleted_upstream = 0
-          AND ride_activity.deleted_by_user = 0 AND ride_activity.filtered_out = 0
-          AND part_ride_ok(period.component_id, ride_activity.user_modified, ride_activity.sport_type, ride_activity.ride_type, ride_activity.activity_name)
+        FROM win JOIN ride_activity ON {_RIDE_IN_WINDOW}
+        WHERE win.component_id = ? AND {_LIVE_RIDE} AND {_PART_RIDE_OK}
         ORDER BY ride_activity.occurred_at, ride_activity.id
         """,
         (component_id,),
@@ -263,18 +278,15 @@ def list_rides_for_component(conn: sqlite3.Connection, component_id: int) -> lis
 
 
 def list_rides_for_period(conn: sqlite3.Connection, period) -> list[RideActivity]:
-    """Live rides on the period's bike that count toward it, oldest first (specs/053, 015 FR-013)."""
+    """Live rides that count toward the period, oldest first (specs/053, 015 FR-013, 064)."""
     rows = conn.execute(
-        """
-        SELECT * FROM ride_activity
-        WHERE bike_id = ?
-          AND ride_wall(occurred_at, source) >= period_wall(?)
-          AND (? IS NULL OR ride_wall(occurred_at, source) < period_wall(?))
-          AND is_deleted_upstream = 0 AND deleted_by_user = 0 AND filtered_out = 0
-          AND part_ride_ok(?, user_modified, sport_type, ride_type, activity_name)
-        ORDER BY occurred_at, id
+        _WINDOWS + f"""
+        SELECT DISTINCT ride_activity.*
+        FROM win JOIN ride_activity ON {_RIDE_IN_WINDOW}
+        WHERE win.period_id = ? AND {_LIVE_RIDE} AND {_PART_RIDE_OK}
+        ORDER BY ride_activity.occurred_at, ride_activity.id
         """,
-        (period.parent_bike_id, period.installed_at, period.removed_at, period.removed_at, period.component_id),
+        (period.id,),
     ).fetchall()
     return [RideActivity.from_row(row) for row in rows]
 
@@ -301,11 +313,10 @@ def component_ids_with_history_on(conn: sqlite3.Connection, bike_ids: set[int]) 
         return []
     marks = ",".join("?" for _ in bike_ids)
     rows = conn.execute(
-        f"""
-        SELECT DISTINCT period.component_id AS id
-        FROM component_installation_period AS period
-        JOIN component ON component.id = period.component_id AND component.is_deleted = 0
-        WHERE period.parent_bike_id IN ({marks})
+        _WINDOWS + f"""
+        SELECT DISTINCT win.component_id AS id FROM win
+        JOIN component ON component.id = win.component_id AND component.is_deleted = 0
+        WHERE win.bike_id IN ({marks})
         """,
         tuple(sorted(bike_ids)),
     ).fetchall()
@@ -361,19 +372,12 @@ def component_mileage_at(conn: sqlite3.Connection, component_id: int, at: str) -
     if baseline is None:
         raise LookupError(f"No component with id {component_id}")
     rides = conn.execute(
-        """
-        SELECT COALESCE(SUM(ride_activity.distance_miles), 0) AS total
-        FROM component_installation_period
-        JOIN ride_activity
-          ON ride_activity.bike_id = component_installation_period.parent_bike_id
-         AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= period_wall(component_installation_period.installed_at)
-         AND (component_installation_period.removed_at IS NULL
-              OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(component_installation_period.removed_at))
-        WHERE component_installation_period.component_id = ?
-          AND ride_activity.occurred_at <= ?
-          AND ride_activity.is_deleted_upstream = 0
-          AND ride_activity.deleted_by_user = 0 AND ride_activity.filtered_out = 0
-          AND part_ride_ok(component_installation_period.component_id, ride_activity.user_modified, ride_activity.sport_type, ride_activity.ride_type, ride_activity.activity_name)
+        _WINDOWS + f"""
+        SELECT COALESCE(SUM(distance_miles), 0) AS total FROM (
+            SELECT DISTINCT ride_activity.id, ride_activity.distance_miles
+            FROM win JOIN ride_activity ON {_RIDE_IN_WINDOW}
+            WHERE win.component_id = ? AND ride_activity.occurred_at <= ? AND {_LIVE_RIDE} AND {_PART_RIDE_OK}
+        )
         """,
         (component_id, at),
     ).fetchone()["total"]
@@ -409,16 +413,11 @@ def usage_since(
         ).fetchone()
     else:
         row = conn.execute(
-            f"""
+            _WINDOWS + f"""
             SELECT COUNT(*) AS rides, COALESCE(SUM(moving_time_seconds), 0) AS seconds FROM (
                 SELECT DISTINCT ride_activity.id, ride_activity.moving_time_seconds
-                FROM component_installation_period AS period
-                JOIN ride_activity
-                  ON ride_activity.bike_id = period.parent_bike_id
-                 AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= period_wall(period.installed_at)
-                 AND (period.removed_at IS NULL OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(period.removed_at))
-                WHERE period.component_id = ? AND ride_activity.occurred_at > ? AND {_LIVE_RIDE}
-                  AND part_ride_ok(period.component_id, ride_activity.user_modified, ride_activity.sport_type, ride_activity.ride_type, ride_activity.activity_name)
+                FROM win JOIN ride_activity ON {_RIDE_IN_WINDOW}
+                WHERE win.component_id = ? AND ride_activity.occurred_at > ? AND {_LIVE_RIDE} AND {_PART_RIDE_OK}
             )
             """,
             (component_id, since),

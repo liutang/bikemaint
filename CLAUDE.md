@@ -134,3 +134,5 @@ Sync rules (feature 060): a bike's or part's Edit screen has a Sync rules sectio
 Overdue notifications (feature 061): an overdue webhook message ends with `(106d late)` / `(27mi late)` (`notification_service._late`, same rule as `partials/ring.html`); due-soon keeps the remaining text; the payload gains `overdue_amount` and `overdue_unit`.
 
 Sync rules on Add forms (feature 062): `/bikes/new` and `/components/new` include the rule fields (`partials/sync_rules.html` macro `sync_rules_fields`); the create routes validate first (`sync_rule_service.validate_rule`, refusal = 422, nothing created) and save a non-empty rule after creating. Palette-added parts start with no rule.
+
+Inside part picker (feature 063): a part's Log/Edit period form chooses "Inside part" from a list (`component_history_service.parent_options`; a deleted current parent stays listed as "(deleted)"), never a part number.

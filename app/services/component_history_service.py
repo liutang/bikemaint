@@ -108,6 +108,26 @@ def default_bike_id(component_id: int) -> int | None:
         return bike_id if bike_id is not None and bikes_db.get_by_id(conn, bike_id) is not None else None
 
 
+def parent_options(component_id: int, current_parent_id: int | None = None) -> list[dict]:
+    """The "Inside part" choices for a period of `component_id` (specs/063).
+
+    None first, then every live part except itself as "Name (Kind)" (a " #id" suffix only where
+    two entries would read the same), then the period's current parent when it has been deleted.
+    """
+    from app.models.component_kinds import kind_name
+
+    with get_connection() as conn:
+        parts = [p for p in components_db.list_active(conn) if p.id != component_id]
+        current = components_db.get_including_deleted(conn, current_parent_id) if current_parent_id else None
+    labels = [f"{p.name} ({kind_name(p.component_type)})" for p in parts]
+    options = [{"value": "", "label": "None (on the bike or frame)"}]
+    for part, label in zip(parts, labels):
+        options.append({"value": str(part.id), "label": f"{label} #{part.id}" if labels.count(label) > 1 else label})
+    if current is not None and current.is_deleted:
+        options.append({"value": str(current.id), "label": f"{current.name} ({kind_name(current.component_type)}) (deleted)"})
+    return options
+
+
 def describe_history(component_id: int) -> list[dict]:
     """Periods, latest installed first, with a place label and the miles ridden in each."""
     with get_connection() as conn:

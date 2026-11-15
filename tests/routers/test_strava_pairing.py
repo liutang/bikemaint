@@ -85,12 +85,13 @@ def _paired_bike(monkeypatch):
 
 def test_paired_bike_offers_reimport_and_unpaired_does_not(signed_in_client, monkeypatch):
     unpaired = _bike()
-    assert "Re-import Strava history" not in signed_in_client.get(f"/bikes/{unpaired.id}").text
+    assert "Re-import Strava history" not in signed_in_client.get(f"/bikes/{unpaired.id}/edit").text
 
     paired = _paired_bike(monkeypatch)
-    html = signed_in_client.get(f"/bikes/{paired.id}").text
+    html = signed_in_client.get(f"/bikes/{paired.id}/edit").text
 
     assert "Re-import Strava history" in html
+    assert "Re-import Strava history" not in signed_in_client.get(f"/bikes/{paired.id}").text  # specs/057
     assert re.search(rf'<form[^>]*method="post"[^>]*action="/bikes/{paired.id}/strava-reimport"', html)
 
 
@@ -114,10 +115,11 @@ def test_reimport_on_an_unpaired_bike_is_rejected(signed_in_client):
     assert response.status_code == 409
 
 
-def test_paired_bike_offers_unpair(signed_in_client, monkeypatch):
+def test_paired_bike_offers_unpair_on_its_edit_screen_only(signed_in_client, monkeypatch):
     paired = _paired_bike(monkeypatch)
-    html = signed_in_client.get(f"/bikes/{paired.id}").text
+    html = signed_in_client.get(f"/bikes/{paired.id}/edit").text
     assert re.search(rf'<form[^>]*method="post"[^>]*action="/bikes/{paired.id}/strava-unpair"', html)
+    assert "strava-unpair" not in signed_in_client.get(f"/bikes/{paired.id}").text  # specs/057
 
 
 def test_unpair_clears_the_gear_but_keeps_the_rides(signed_in_client, monkeypatch):
@@ -185,7 +187,7 @@ def test_pairing_actions_require_sign_in(client, action):
 def test_unpair_button_is_bordered_like_its_neighbours(signed_in_client, monkeypatch):
     paired = _paired_bike(monkeypatch)
 
-    html = signed_in_client.get(f"/bikes/{paired.id}").text
+    html = signed_in_client.get(f"/bikes/{paired.id}/edit").text
 
     unpair = re.search(
         rf'<form[^>]*action="/bikes/{paired.id}/strava-unpair"[^>]*>\s*<button class="([^"]*)"', html

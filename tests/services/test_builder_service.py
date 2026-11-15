@@ -100,7 +100,7 @@ def test_palette_lists_the_offered_parts_with_every_place_as_a_target(db_path):
     palette = {i.type: i for c in _view(bike).palette for i in c.items}
 
     assert "rim" not in palette and "spoke" not in palette  # older finer kinds are never offered
-    assert "drivetrain" not in palette and "other" not in palette
+    assert "other" not in palette and palette["drivetrain"].label == "Drivetrain"  # 065 offers Drivetrain
     everywhere = {f"bike:{bike.id}", f"component:{wheel.id}"}
     for kind in ("rotor", "tire", "pedal", "frame"):
         assert {t.value for t in palette[kind].targets} == everywhere
@@ -261,7 +261,7 @@ def test_a_wheel_screen_palette_lists_the_whole_catalog(db_path):
     view = builder_service.build_view(f"component:{wheel.id}")
 
     types = [i.type for c in view.palette for i in c.items]
-    assert len(types) == 34 and "handlebar" in types
+    assert len(types) == 35 and "handlebar" in types
 
 
 def test_the_palette_never_hides_a_kind_because_one_is_already_there(db_path):

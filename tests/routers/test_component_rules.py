@@ -217,5 +217,5 @@ def test_adding_a_part_with_the_form_puts_it_in_storage(signed_in_client):
 def test_the_add_part_form_offers_every_kind_and_cancels_back_to_storage(signed_in_client):
     html = signed_in_client.get("/components/new").text
 
-    assert len(_options(html, "component_type")) == 34
+    assert len(_options(html, "component_type")) == 35
     assert 'href="/components">Cancel</a>' in html

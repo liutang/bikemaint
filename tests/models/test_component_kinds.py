@@ -6,12 +6,12 @@ CATEGORIES = {
     "Accessories": ["Accessories", "Apparel", "Computer", "Lights"],
     "Brakes": ["Brake", "Brake Cable", "Brake Lever", "Brake Pads", "Rotor"],
     "Drivetrain": ["Bottom Bracket", "Cassette", "Chain", "Chainrings", "Crankset", "Derailleur",
-                   "Pedals", "Shift levers", "Shifter Cable"],
+                   "Drivetrain", "Pedals", "Shift levers", "Shifter Cable"],
     "Frame": ["Fork", "Frame", "Handlebar", "Handlebar Tape", "Headset", "Saddle", "Seatpost",
               "Shock", "Stem"],
     "Wheels": ["Axle", "Hub", "Trainer", "Tube", "Tire", "Wheel", "Wheel Set"],
 }
-LEGACY = {"drivetrain", "other", "rim", "spoke", "bolt"}
+LEGACY = {"other", "rim", "spoke", "bolt"}
 NEW_IDS = {"accessories", "apparel", "computer", "lights", "brake_cable", "brake_lever",
            "bottom_bracket", "chainrings", "shifter_cable", "handlebar_tape", "headset", "shock",
            "axle", "trainer", "tube", "wheelset"}
@@ -24,14 +24,14 @@ def test_categories_are_in_the_supplied_order():
 def test_each_category_offers_exactly_the_supplied_parts_in_order():
     grouped = {name: [k.name for k in items] for name, items in kinds.offered_by_category()}
     assert grouped == CATEGORIES
-    assert sum(len(v) for v in grouped.values()) == 34
+    assert sum(len(v) for v in grouped.values()) == 35
 
 
 def test_offered_types_are_exactly_the_catalog_parts():
     offered = [k.type for _, items in kinds.offered_by_category() for k in items]
     assert list(kinds.COMPONENT_TYPES) == offered
     assert NEW_IDS <= set(offered)
-    assert len(set(offered)) == 34
+    assert len(set(offered)) == 35
 
 
 def test_older_kinds_not_in_the_list_stay_valid_but_are_never_offered():

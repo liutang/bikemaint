@@ -43,7 +43,7 @@ _OFFERED: tuple[ComponentKind, ...] = (
         "Drivetrain",
         ("bottom_bracket", "Bottom Bracket"), ("cassette", "Cassette"), ("chain", "Chain"),
         ("chainrings", "Chainrings"), ("crankset", "Crankset"), ("derailleur", "Derailleur"),
-        ("pedal", "Pedals"), ("shifter", "Shift levers"), ("shifter_cable", "Shifter Cable"),
+        ("drivetrain", "Drivetrain"), ("pedal", "Pedals"), ("shifter", "Shift levers"), ("shifter_cable", "Shifter Cable"),
     ),
     *_group(
         "Frame",
@@ -60,7 +60,6 @@ _OFFERED: tuple[ComponentKind, ...] = (
 
 # Older kinds that are not in the palette: kept so existing parts keep working, never offered.
 _LEGACY: tuple[ComponentKind, ...] = (
-    ComponentKind("drivetrain", "Drivetrain", offered=False),
     ComponentKind("other", "Other part", offered=False),
     ComponentKind("rim", "Rim", offered=False),
     ComponentKind("spoke", "Spoke", offered=False),

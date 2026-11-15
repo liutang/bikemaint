@@ -32,3 +32,6 @@ Each part has an "Install history" screen (`/components/{id}/install-history`) l
 ## Amendments
 - **2026-11-14 (branch `037-log-open-period`)**: see 022 FR-012; Log a period accepts a blank removal.
 - **2026-11-14 (branch `051-period-boundary-frames`)**: FR-013. The old comparison matched Strava UTC times against typed local times, so a ride up to the zone offset before an install (or after a removal) could be counted.
+
+## Amendments
+- Feature 063: "Inside part (optional)" on Log/Edit a period is a list of parts by name instead of a part-number field (`component_history_service.parent_options`); stored the same way.

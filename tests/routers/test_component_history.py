@@ -659,3 +659,54 @@ def test_a_deleted_bike_is_not_preselected_and_an_edit_keeps_its_own_bike(signed
 
     assert _selected_bike(edit) == str(gone.id)
     assert _selected_bike(html) is None  # nothing preselected: the browser shows the first bike
+
+
+# --- specs/063: Inside part is a list, not a part number ---
+
+def test_inside_part_is_a_list_of_parts_by_name_without_the_part_itself(signed_in_client):
+    wheel = component_service.create_component(name="Wheelset", component_type="wheel")
+    tire = component_service.create_component(name="Tire", component_type="tire")
+
+    html = signed_in_client.get(f"/components/{tire.id}/install-history/new").text
+
+    select = html.split('name="parent_component_id"')[1].split("</select>")[0]
+    assert "None (on the bike or frame)" in select and f'<option value="{wheel.id}"' in select
+    assert "Wheelset" in select and f'<option value="{tire.id}"' not in select
+    assert not re.search(r'<input[^>]*name="parent_component_id"', html)
+
+
+def test_a_chosen_inside_part_is_saved_and_preselected_on_edit(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Wheelset", component_type="wheel")
+    tire = component_service.create_component(name="Tire", component_type="tire")
+
+    signed_in_client.post(f"/components/{tire.id}/install-history", data={
+        **_period_form(), "bike_id": str(bike.id), "parent_component_id": str(wheel.id)})
+
+    period = _periods(tire)[0]
+    assert period.parent_component_id == wheel.id
+    html = signed_in_client.get(f"/install-periods/{period.id}/edit").text
+    assert f'<option value="{wheel.id}" selected>' in html
+
+
+def test_a_deleted_inside_part_stays_listed_so_saving_keeps_it(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    wheel = component_service.create_component(name="Wheelset", component_type="wheel")
+    tire = component_service.create_component(name="Tire", component_type="tire")
+    signed_in_client.post(f"/components/{tire.id}/install-history", data={
+        **_period_form(), "bike_id": str(bike.id), "parent_component_id": str(wheel.id)})
+    component_service.delete_component(wheel.id)
+
+    html = signed_in_client.get(f"/install-periods/{_periods(tire)[0].id}/edit").text
+
+    assert f'<option value="{wheel.id}" selected>' in html and "(deleted)" in html
+
+
+def test_parts_with_the_same_name_and_kind_are_told_apart(signed_in_client):
+    a = component_service.create_component(name="Wheel", component_type="wheel")
+    b = component_service.create_component(name="Wheel", component_type="wheel")
+    tire = component_service.create_component(name="Tire", component_type="tire")
+
+    html = signed_in_client.get(f"/components/{tire.id}/install-history/new").text
+
+    assert f"Wheel (Wheel) #{a.id}" in html and f"Wheel (Wheel) #{b.id}" in html

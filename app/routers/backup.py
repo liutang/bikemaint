@@ -6,8 +6,6 @@ Thin: reading, validating and restoring the file is `app/services/backup_service
 from __future__ import annotations
 
 import json
-from datetime import date
-
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 
@@ -21,7 +19,7 @@ router = APIRouter()
 @router.get("/settings/backup", name="download_backup")
 def download_backup(account=Depends(require_account)):
     body = json.dumps(backup_service.export_backup(), indent=1)
-    name = f"bikemaint-backup-{date.today().isoformat()}.json"
+    name = backup_service.backup_filename()
     return Response(body, media_type="application/json", headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
@@ -50,3 +48,17 @@ async def restore_backup(request: Request, account=Depends(require_account)):
         f"{_plural(counts['ride_activity'], 'ride')}."
     )
     return _settings_page(request, account.id, {"restored": done})
+
+
+@router.post("/settings/backup/run", name="run_rolling_backup")
+def run_rolling_backup(request: Request, account=Depends(require_account)):
+    if backup_service.rolling_config() is None:
+        problem = "Automatic backups are off: set BACKUP_DIR on the container."
+    else:
+        try:
+            target = backup_service.write_rolling_backup()
+        except OSError as exc:
+            problem = f"The backup could not be written to the backup folder ({exc.strerror or exc})."
+        else:
+            return _settings_page(request, account.id, {"restored": f"Backed up to {target.name}."})
+    return _settings_page(request, account.id, {"errors": [problem]}, status_code=422)

@@ -20,7 +20,7 @@ from app.models.requests import (
     TimezoneSettingsRequest,
     WebhookSettingsRequest,
 )
-from app.services import clock_service, notification_service, settings_service
+from app.services import backup_service, clock_service, notification_service, settings_service
 from app.services.auth_dependency import require_account
 
 router = APIRouter()
@@ -29,6 +29,15 @@ router = APIRouter()
 def _render(request: Request, template: str, context: dict, status_code: int = 200):
     templates = request.app.state.templates
     return templates.TemplateResponse(request, template, context, status_code=status_code)
+
+
+def _backup_context() -> dict:
+    config = backup_service.rolling_config()
+    if config is None:
+        return {"enabled": False}
+    folder, keep, hours = config
+    return {"enabled": True, "dir": str(folder), "keep": keep, "hours": hours,
+            "files": [p.name for p in backup_service.list_rolling_backups()]}
 
 
 def _settings_page(
@@ -50,6 +59,7 @@ def _settings_page(
         {
             "account": account,
             "sync": sync,
+            "backup": _backup_context(),
             "timezone_choices": choices,
             "timezone_label": timezone_label.removeprefix("Current: "),
             **page,

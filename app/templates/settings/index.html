@@ -106,6 +106,14 @@
   <h2 id="backup-heading">Backup and restore</h2>
   <p class="text-muted">Download everything (bikes, parts, rides, install history, maintenance, schedules and these settings) as one JSON file. Strava tokens and the webhook address are not included.</p>
   <div class="actions"><a class="btn" href="/settings/backup">Download backup</a></div>
+  {% if backup.enabled %}
+  <h3>Automatic backups</h3>
+  <p class="text-muted">A backup is written to <code>{{ backup.dir }}</code> every {{ backup.hours }} hour{{ "" if backup.hours == 1 else "s" }}; the folder keeps the newest {{ backup.keep }}.</p>
+  <form class="form" method="post" action="/settings/backup/run">{{ submit("Back up now") }}</form>
+  {% if backup.files %}<ul>{% for name in backup.files %}<li>{{ name }}</li>{% endfor %}</ul>{% else %}<p class="text-muted">No backups in the folder yet.</p>{% endif %}
+  {% else %}
+  <p class="text-muted">Automatic backups are off. To keep rolling backups on a mounted folder (for example a NAS), set <code>BACKUP_DIR</code> on the container; see the README.</p>
+  {% endif %}
   <form class="form" method="post" action="/settings/restore" enctype="multipart/form-data">
     <div class="field{% if field_errors and 'backup' in field_errors %} has-error{% endif %}">
       <label for="backup">Backup file</label>

@@ -32,6 +32,9 @@ Authorization Callback Domain to the host you will run this on (e.g. `localhost`
 | `DATABASE_PATH` | yes | Path to the SQLite database file (created and migrated on startup) |
 | `STRAVA_SYNC_INTERVAL_MINUTES` | no | First-run default for how often to poll Strava (default `30`); once you save an interval or turn sync off in Settings → Strava connection, the saved setting wins |
 | `NOTIFICATION_CHECK_INTERVAL_MINUTES` | no | How often to check for due-soon maintenance (default `60`) |
+| `BACKUP_DIR` | no | Folder for automatic rolling backups (for example a mounted NAS volume); unset = off |
+| `BACKUP_KEEP` | no | How many backup files to keep in `BACKUP_DIR` (default `7`, minimum `1`); older ones are deleted |
+| `BACKUP_INTERVAL_HOURS` | no | Hours between automatic backups (default `24`) |
 | `LOG_LEVEL` | no | Python log level (default `INFO`) |
 
 The outbound webhook URL and the notification lead time are configured in the app, under
@@ -140,3 +143,27 @@ docker run -d --name bikemaint -p 8000:8000 -v bikemaint-data:/data \
 ```
 
 The SQLite database lives in the `bikemaint-data` volume (`/data/bikemaint.sqlite3`).
+
+### Rolling backups to a volume (for example a NAS)
+
+Mount a folder and point `BACKUP_DIR` at it. In a compose file:
+
+```yaml
+services:
+  bikemaint:
+    image: ghcr.io/<owner>/bikemaint:latest
+    volumes:
+      - bikemaint-data:/data
+      - /mnt/nas/bikemaint-backups:/backups   # or an NFS/SMB-backed named volume
+    environment:
+      BACKUP_DIR: /backups
+      BACKUP_KEEP: "14"            # keep the newest 14 files
+      BACKUP_INTERVAL_HOURS: "24"
+volumes:
+  bikemaint-data:
+```
+
+Each backup is a `bikemaint-backup-YYYY-MM-DD-HHMMSS.json` file (time in your Settings time zone), the
+same file Settings → Download backup gives you; restore it from Settings → Restore. Only files with that
+name pattern are ever deleted. The folder must be writable by the container; **Settings → Back up now**
+writes one immediately and shows any error. Strava tokens and the webhook address are not in the file.

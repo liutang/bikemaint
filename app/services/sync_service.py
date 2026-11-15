@@ -14,7 +14,9 @@ from app.db import accounts as accounts_db
 from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db import mileage as mileage_db
+from app.db import sync_rules as sync_rules_db
 from app.db.connection import get_connection
+from app.models import sync_rules
 from app.models.rows import Bike, Component
 from app.services import strava_client
 
@@ -61,9 +63,14 @@ def _upsert_activities(conn: sqlite3.Connection, activities: list[dict]) -> set[
             distance_miles=_meters_to_miles(activity["distance"]),
             occurred_at=_normalize_strava_timestamp(activity["start_date"]),
             moving_time_seconds=_moving_seconds(activity),
+            sport_type=activity.get("sport_type") or activity.get("type"),
+            ride_type=sync_rules.ride_type_of(activity.get("workout_type")),
+            activity_name=activity.get("name"),
         )
         if bike is not None:
             touched_bike_ids.add(bike.id)
+    for bike_id in touched_bike_ids:  # leave out what the bike's sync rule excludes (specs/060)
+        mileage_db.apply_bike_rule(conn, bike_id, sync_rules_db.get(conn, bike_id=bike_id))
     return touched_bike_ids
 
 

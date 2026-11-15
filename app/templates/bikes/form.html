@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% from "partials/forms.html" import field, select_field, error_summary, submit %}
 {% import "partials/icons.html" as ui_icons %}
+{% from "partials/sync_rules.html" import sync_rules_panel %}
 
 {% block title %}{{ "Edit" if bike else "New" }} Bike — Bike Maintenance Tracker{% endblock %}
 
@@ -22,6 +23,8 @@
     <a class="btn" href="{{ ('/bikes/' ~ bike.id) if bike else '/' }}">Cancel</a>
   </div>
 </form>
+
+{% if bike and sync %}{{ sync_rules_panel("bike", bike, sync) }}{% endif %}
 
 {% if bike and bike.strava_gear_id %}
 <section class="panel" aria-labelledby="strava-heading">

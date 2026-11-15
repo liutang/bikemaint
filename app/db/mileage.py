@@ -21,6 +21,9 @@ def upsert_ride_activity(
     distance_miles: float,
     occurred_at: str,
     moving_time_seconds: int | None = None,
+    sport_type: str | None = None,
+    ride_type: str | None = None,
+    activity_name: str | None = None,
 ) -> RideActivity:
     """Insert a synced ride, or update it in place if already synced (idempotent on
     `strava_activity_id`) — a re-sync can correct a previously-synced ride's distance."""
@@ -29,8 +32,8 @@ def upsert_ride_activity(
         """
         INSERT INTO ride_activity (
             strava_activity_id, strava_gear_id, bike_id, distance_miles, occurred_at,
-            is_deleted_upstream, synced_at, moving_time_seconds
-        ) VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+            is_deleted_upstream, synced_at, moving_time_seconds, sport_type, ride_type, activity_name
+        ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
         ON CONFLICT(strava_activity_id) DO UPDATE SET
             strava_gear_id = excluded.strava_gear_id,
             bike_id = excluded.bike_id,
@@ -38,10 +41,14 @@ def upsert_ride_activity(
             occurred_at = excluded.occurred_at,
             is_deleted_upstream = 0,
             synced_at = excluded.synced_at,
-            moving_time_seconds = COALESCE(excluded.moving_time_seconds, ride_activity.moving_time_seconds)
+            moving_time_seconds = COALESCE(excluded.moving_time_seconds, ride_activity.moving_time_seconds),
+            sport_type = COALESCE(excluded.sport_type, ride_activity.sport_type),
+            ride_type = COALESCE(excluded.ride_type, ride_activity.ride_type),
+            activity_name = COALESCE(excluded.activity_name, ride_activity.activity_name)
         WHERE ride_activity.user_modified = 0 AND ride_activity.deleted_by_user = 0
         """,
-        (strava_activity_id, strava_gear_id, bike_id, distance_miles, occurred_at, now, moving_time_seconds),
+        (strava_activity_id, strava_gear_id, bike_id, distance_miles, occurred_at, now, moving_time_seconds,
+         sport_type, ride_type, activity_name),
     )
     row = conn.execute(
         "SELECT * FROM ride_activity WHERE strava_activity_id = ?", (strava_activity_id,)
@@ -121,7 +128,7 @@ def list_rides_for_bike(conn: sqlite3.Connection, bike_id: int) -> list[RideActi
     rows = conn.execute(
         """
         SELECT * FROM ride_activity
-        WHERE bike_id = ? AND is_deleted_upstream = 0 AND deleted_by_user = 0
+        WHERE bike_id = ? AND is_deleted_upstream = 0 AND deleted_by_user = 0 AND filtered_out = 0
         ORDER BY occurred_at, id
         """,
         (bike_id,),
@@ -182,7 +189,7 @@ def recompute_bike_total_mileage(conn: sqlite3.Connection, bike_id: int) -> floa
     rides = conn.execute(
         """
         SELECT COALESCE(SUM(distance_miles), 0) AS total FROM ride_activity
-        WHERE bike_id = ? AND is_deleted_upstream = 0 AND deleted_by_user = 0
+        WHERE bike_id = ? AND is_deleted_upstream = 0 AND deleted_by_user = 0 AND filtered_out = 0
         """,
         (bike_id,),
     ).fetchone()["total"]
@@ -217,7 +224,8 @@ def recompute_component_total_mileage(conn: sqlite3.Connection, component_id: in
               OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(component_installation_period.removed_at))
         WHERE component_installation_period.component_id = ?
           AND ride_activity.is_deleted_upstream = 0
-          AND ride_activity.deleted_by_user = 0
+          AND ride_activity.deleted_by_user = 0 AND ride_activity.filtered_out = 0
+          AND part_ride_ok(component_installation_period.component_id, ride_activity.user_modified, ride_activity.sport_type, ride_activity.ride_type, ride_activity.activity_name)
         """,
         (component_id,),
     ).fetchone()["total"]
@@ -245,7 +253,8 @@ def list_rides_for_component(conn: sqlite3.Connection, component_id: int) -> lis
          AND (period.removed_at IS NULL OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(period.removed_at))
         WHERE period.component_id = ?
           AND ride_activity.is_deleted_upstream = 0
-          AND ride_activity.deleted_by_user = 0
+          AND ride_activity.deleted_by_user = 0 AND ride_activity.filtered_out = 0
+          AND part_ride_ok(period.component_id, ride_activity.user_modified, ride_activity.sport_type, ride_activity.ride_type, ride_activity.activity_name)
         ORDER BY ride_activity.occurred_at, ride_activity.id
         """,
         (component_id,),
@@ -261,10 +270,11 @@ def list_rides_for_period(conn: sqlite3.Connection, period) -> list[RideActivity
         WHERE bike_id = ?
           AND ride_wall(occurred_at, source) >= period_wall(?)
           AND (? IS NULL OR ride_wall(occurred_at, source) < period_wall(?))
-          AND is_deleted_upstream = 0 AND deleted_by_user = 0
+          AND is_deleted_upstream = 0 AND deleted_by_user = 0 AND filtered_out = 0
+          AND part_ride_ok(?, user_modified, sport_type, ride_type, activity_name)
         ORDER BY occurred_at, id
         """,
-        (period.parent_bike_id, period.installed_at, period.removed_at, period.removed_at),
+        (period.parent_bike_id, period.installed_at, period.removed_at, period.removed_at, period.component_id),
     ).fetchall()
     return [RideActivity.from_row(row) for row in rows]
 
@@ -312,7 +322,7 @@ def recent_ride_stats_for_bike(conn: sqlite3.Connection, bike_id: int, *, since:
         SELECT COALESCE(SUM(distance_miles), 0) AS miles,
                COUNT(DISTINCT substr(occurred_at, 1, 10)) AS ride_days
         FROM ride_activity
-        WHERE bike_id = ? AND is_deleted_upstream = 0 AND deleted_by_user = 0 AND occurred_at >= ?
+        WHERE bike_id = ? AND is_deleted_upstream = 0 AND deleted_by_user = 0 AND filtered_out = 0 AND occurred_at >= ?
         """,
         (bike_id, since),
     ).fetchone()
@@ -332,7 +342,7 @@ def bike_mileage_at(conn: sqlite3.Connection, bike_id: int, at: str) -> float:
     rides = conn.execute(
         """
         SELECT COALESCE(SUM(distance_miles), 0) AS total FROM ride_activity
-        WHERE bike_id = ? AND occurred_at <= ? AND is_deleted_upstream = 0 AND deleted_by_user = 0
+        WHERE bike_id = ? AND occurred_at <= ? AND is_deleted_upstream = 0 AND deleted_by_user = 0 AND filtered_out = 0
         """,
         (bike_id, at),
     ).fetchone()["total"]
@@ -362,7 +372,8 @@ def component_mileage_at(conn: sqlite3.Connection, component_id: int, at: str) -
         WHERE component_installation_period.component_id = ?
           AND ride_activity.occurred_at <= ?
           AND ride_activity.is_deleted_upstream = 0
-          AND ride_activity.deleted_by_user = 0
+          AND ride_activity.deleted_by_user = 0 AND ride_activity.filtered_out = 0
+          AND part_ride_ok(component_installation_period.component_id, ride_activity.user_modified, ride_activity.sport_type, ride_activity.ride_type, ride_activity.activity_name)
         """,
         (component_id, at),
     ).fetchone()["total"]
@@ -373,7 +384,7 @@ def component_mileage_at(conn: sqlite3.Connection, component_id: int, at: str) -
     return baseline["manual_baseline_mileage"] + rides + adjustments
 
 
-_LIVE_RIDE = "ride_activity.is_deleted_upstream = 0 AND ride_activity.deleted_by_user = 0"
+_LIVE_RIDE = "ride_activity.is_deleted_upstream = 0 AND ride_activity.deleted_by_user = 0 AND ride_activity.filtered_out = 0"
 
 
 def usage_since(
@@ -407,6 +418,7 @@ def usage_since(
                  AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= period_wall(period.installed_at)
                  AND (period.removed_at IS NULL OR ride_wall(ride_activity.occurred_at, ride_activity.source) < period_wall(period.removed_at))
                 WHERE period.component_id = ? AND ride_activity.occurred_at > ? AND {_LIVE_RIDE}
+                  AND part_ride_ok(period.component_id, ride_activity.user_modified, ride_activity.sport_type, ride_activity.ride_type, ride_activity.activity_name)
             )
             """,
             (component_id, since),
@@ -435,3 +447,21 @@ def recompute_all_component_totals(conn: sqlite3.Connection) -> int:
     for component_id in ids:
         recompute_component_total_mileage(conn, component_id)
     return len(ids)
+
+
+def apply_bike_rule(conn: sqlite3.Connection, bike_id: int, rule) -> int:
+    """Set `filtered_out` on a bike's Strava rides from its sync rule (specs/060); returns how many are out.
+
+    Manual rides and rides the rider edited are never filtered. `rule` None or empty filters nothing.
+    """
+    rows = conn.execute(
+        "SELECT id, sport_type, ride_type, activity_name FROM ride_activity "
+        "WHERE bike_id = ? AND source = 'strava' AND user_modified = 0",
+        (bike_id,),
+    ).fetchall()
+    out = 0
+    for row in rows:
+        excluded = 0 if rule is None else (0 if rule.matches(row["sport_type"], row["ride_type"], row["activity_name"]) else 1)
+        conn.execute("UPDATE ride_activity SET filtered_out = ? WHERE id = ?", (excluded, row["id"]))
+        out += excluded
+    return out

@@ -119,9 +119,10 @@ def describe_history(component_id: int) -> list[dict]:
                 SELECT COALESCE(SUM(distance_miles), 0) AS total FROM ride_activity
                 WHERE bike_id = ? AND ride_wall(occurred_at, source) >= period_wall(?)
                   AND (? IS NULL OR ride_wall(occurred_at, source) < period_wall(?))
-                  AND is_deleted_upstream = 0 AND deleted_by_user = 0
+                  AND is_deleted_upstream = 0 AND deleted_by_user = 0 AND filtered_out = 0
+                  AND part_ride_ok(?, user_modified, sport_type, ride_type, activity_name)
                 """,
-                (period.parent_bike_id, period.installed_at, period.removed_at, period.removed_at),
+                (period.parent_bike_id, period.installed_at, period.removed_at, period.removed_at, component_id),
             ).fetchone()["total"]
             name, url = place(conn, period)
             rows.append({"period": period, "place": name, "place_url": url, "miles": miles})

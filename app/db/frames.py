@@ -12,6 +12,8 @@ import sqlite3
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from app.models.sync_rules import ride_matches
+
 _OUT = "%Y-%m-%dT%H:%M:%S"
 
 
@@ -61,5 +63,15 @@ def register(conn: sqlite3.Connection) -> None:
             return moment.astimezone(zone_now()).strftime(_OUT)
         return moment.replace(tzinfo=None).strftime(_OUT)
 
+    def part_ride_ok(component_id: int | None, user_modified, sport_type, ride_type, name) -> int:
+        """1 unless the part's sync rule leaves this ride out (specs/060). Read per call, never stale."""
+        row = conn.execute(
+            "SELECT sports, ride_types, keywords FROM sync_rule WHERE component_id = ?", (component_id,)
+        ).fetchone()
+        if row is None or user_modified:  # edited rides are never left out
+            return 1
+        return 1 if ride_matches(row[0], row[1], row[2], sport_type, ride_type, name) else 0
+
+    conn.create_function("part_ride_ok", 5, part_ride_ok)
     conn.create_function("ride_wall", 2, ride_wall, deterministic=True)
     conn.create_function("period_wall", 1, period_wall, deterministic=True)

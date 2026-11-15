@@ -15,6 +15,7 @@ from app.models.requests import BIKE_CATEGORIES, BikeDetailsRequest
 from app.models.form_errors import error_context, message_context
 from app.services import bike_service, component_service, strava_client
 from app.routers.screen import render_screen
+from app.routers.sync_rules import sync_context
 from app.services.auth_dependency import require_account
 
 router = APIRouter()
@@ -51,6 +52,7 @@ def _form_context(bike, extra: dict | None = None) -> dict:
         "crumbs": [("Garage", "/")]
         + ([(bike.name, f"/bikes/{bike.id}"), ("Edit", None)] if bike else [("Add a bike", None)]),
         "legacy": bike is not None and bike.make is None and bike.model is None and bike.year is None,
+        "sync": sync_context("bike", bike.id) if bike is not None else None,
         **(extra or {}),
     }
 

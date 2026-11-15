@@ -1,0 +1,34 @@
+{# Sync rules section for a bike's or part's Edit screen (specs/060-sync-rules). Blank = no filter. #}
+{% macro sync_rules_panel(kind, owner, sync) -%}
+<section class="panel" aria-labelledby="sync-rules-heading">
+  <h2 id="sync-rules-heading">Sync rules</h2>
+  <p class="text-muted">Choose which Strava activities count for this {{ "bike" if kind == "bike" else "part" }}. A ride must match every filter you fill in; leave a filter empty to allow anything. Saving applies the rules to all synced rides. Rides you added or edited are never left out, and older rides without Strava details are kept until you Re-import.</p>
+  <form class="form" method="post" action="/{{ kind }}s/{{ owner.id }}/sync-rules">
+    {% if sync.error %}<p class="field-error" id="sync-rules-error" role="alert">{{ sync.error }}</p>{% endif %}
+    <fieldset>
+      <legend>Sport</legend>
+      {% for value, label in sync.sports.items() %}
+      <span class="field-check">
+        <input id="sport-{{ value }}" type="checkbox" name="sport" value="{{ value }}"{% if value in sync.chosen_sports %} checked{% endif %}>
+        <label for="sport-{{ value }}">{{ label }}</label>
+      </span>
+      {% endfor %}
+    </fieldset>
+    <fieldset>
+      <legend>Ride type</legend>
+      {% for value, label in sync.ride_types.items() %}
+      <span class="field-check">
+        <input id="ride-type-{{ value }}" type="checkbox" name="ride_type" value="{{ value }}"{% if value in sync.chosen_types %} checked{% endif %}>
+        <label for="ride-type-{{ value }}">{{ label }}</label>
+      </span>
+      {% endfor %}
+    </fieldset>
+    <div class="field">
+      <label for="sync-keywords">Keywords</label>
+      <input id="sync-keywords" name="keywords" type="text" value="{{ sync.keywords }}" maxlength="200" aria-describedby="sync-keywords-hint">
+      <small class="field-hint" id="sync-keywords-hint">Separate with commas. A ride counts if its name contains any one of them (any capitals).</small>
+    </div>
+    <div class="actions"><button class="btn btn-primary" type="submit">Save rules</button></div>
+  </form>
+</section>
+{%- endmacro %}

@@ -7,6 +7,7 @@
 {% block content %}
 <h1>Settings</h1>
 {{ error_summary(errors) }}
+{% if restored %}<p class="notice" role="status">{{ restored }}</p>{% endif %}
 
 {% set current_theme = request.cookies.get("theme") if request.cookies.get("theme") in ["light", "dark"] else "system" %}
 <section class="panel" aria-labelledby="appearance-heading">
@@ -99,6 +100,22 @@
   <form class="form" method="post" action="/settings/clock">
     {{ select_field("clock_format", "Clock", [{"value": "12", "label": "12-hour (2:26PM)"}, {"value": "24", "label": "24-hour (14:26)"}], account.clock_format, values, field_errors) }}
     {{ submit("Save clock") }}
+  </form>
+</section>
+<section class="panel" aria-labelledby="backup-heading">
+  <h2 id="backup-heading">Backup and restore</h2>
+  <p class="text-muted">Download everything (bikes, parts, rides, install history, maintenance, schedules and these settings) as one JSON file. Strava tokens and the webhook address are not included.</p>
+  <div class="actions"><a class="btn" href="/settings/backup">Download backup</a></div>
+  <form class="form" method="post" action="/settings/restore" enctype="multipart/form-data">
+    <div class="field{% if field_errors and 'backup' in field_errors %} has-error{% endif %}">
+      <label for="backup">Backup file</label>
+      <input id="backup" name="backup" type="file" accept="application/json,.json" required>
+    </div>
+    <span class="field-check">
+      <input id="restore-confirm" type="checkbox" name="confirm" required>
+      <label for="restore-confirm">I understand this replaces all current data</label>
+    </span>
+    {{ submit("Restore backup") }}
   </form>
 </section>
 {% endblock %}

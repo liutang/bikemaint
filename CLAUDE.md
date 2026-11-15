@@ -142,3 +142,5 @@ Nested part mileage (feature 064): `app/db/mileage._WINDOWS` expands every perio
 Drivetrain part (feature 065): the `drivetrain` kind moved from legacy to the offered Drivetrain category (35 offered kinds).
 
 Maintenance history past parts (feature 066): `maintenance_service.list_for_bike_rows` / `list_for_component_tree` also include entries made while a part was attached (`maintenance_db.list_past_for_bike` / `list_past_for_component`, install-period windows, recursive), once each; deleted parts read "(deleted)".
+
+Backup and restore (feature 067): Settings "Backup and restore" downloads `GET /settings/backup` (a JSON file of every data table plus non-secret account settings, schema-driven by `backup_service`) and restores with `POST /settings/restore` (multipart file plus a required confirm box; all or nothing, ids kept, foreign keys checked, totals recomputed). Strava tokens, athlete id and the webhook URL are never exported or overwritten. A new table needs adding to `backup_service.TABLES`.

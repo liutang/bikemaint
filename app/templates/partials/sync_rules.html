@@ -1,9 +1,6 @@
 {# Sync rules section for a bike's or part's Edit screen (specs/060-sync-rules). Blank = no filter. #}
-{% macro sync_rules_panel(kind, owner, sync) -%}
-<section class="panel" aria-labelledby="sync-rules-heading">
-  <h2 id="sync-rules-heading">Sync rules</h2>
-  <p class="text-muted">Choose which Strava activities count for this {{ "bike" if kind == "bike" else "part" }}. A ride must match every filter you fill in; leave a filter empty to allow anything. Saving applies the rules to all synced rides. Rides you added or edited are never left out, and older rides without Strava details are kept until you Re-import.</p>
-  <form class="form" method="post" action="/{{ kind }}s/{{ owner.id }}/sync-rules">
+{# The fields alone, for the Add forms (specs/062) and the panel below. #}
+{% macro sync_rules_fields(sync) -%}
     {% if sync.error %}<p class="field-error" id="sync-rules-error" role="alert">{{ sync.error }}</p>{% endif %}
     <fieldset>
       <legend>Sport</legend>
@@ -28,6 +25,14 @@
       <input id="sync-keywords" name="keywords" type="text" value="{{ sync.keywords }}" maxlength="200" aria-describedby="sync-keywords-hint">
       <small class="field-hint" id="sync-keywords-hint">Separate with commas. A ride counts if its name contains any one of them (any capitals).</small>
     </div>
+{%- endmacro %}
+
+{% macro sync_rules_panel(kind, owner, sync) -%}
+<section class="panel" aria-labelledby="sync-rules-heading">
+  <h2 id="sync-rules-heading">Sync rules</h2>
+  <p class="text-muted">Choose which Strava activities count for this {{ "bike" if kind == "bike" else "part" }}. A ride must match every filter you fill in; leave a filter empty to allow anything. Saving applies the rules to all synced rides. Rides you added or edited are never left out, and older rides without Strava details are kept until you Re-import.</p>
+  <form class="form" method="post" action="/{{ kind }}s/{{ owner.id }}/sync-rules">
+    {{ sync_rules_fields(sync) }}
     <div class="actions"><button class="btn btn-primary" type="submit">Save rules</button></div>
   </form>
 </section>

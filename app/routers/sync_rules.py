@@ -9,15 +9,16 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 
 from app.models import sync_rules as model
+from app.models.sync_rules import SyncRule
 from app.services import bike_service, component_service, sync_rule_service
 from app.services.auth_dependency import require_account
 
 router = APIRouter()
 
 
-def sync_context(kind: str, owner_id: int, *, error: str | None = None, submitted: dict | None = None) -> dict:
+def sync_context(kind: str, owner_id: int | None, *, error: str | None = None, submitted: dict | None = None) -> dict:
     """What the Sync rules section shows: the saved rule, or what was submitted when it was refused."""
-    rule = sync_rule_service.get_rule(kind, owner_id)
+    rule = sync_rule_service.get_rule(kind, owner_id) if owner_id is not None else SyncRule()
     submitted = submitted or {}
     return {
         "sports": model.SPORTS,
@@ -63,3 +64,26 @@ async def save_bike_sync_rules(request: Request, bike_id: int, account=Depends(r
 @router.post("/components/{component_id}/sync-rules", name="save_component_sync_rules")
 async def save_component_sync_rules(request: Request, component_id: int, account=Depends(require_account)):
     return await _save(request, "component", component_id)
+
+
+def read_submitted(form) -> dict:
+    """The rule fields of a create form, as `sync_context` takes them back."""
+    return {"sports": form.getlist("sport"), "ride_types": form.getlist("ride_type"), "keywords": form.get("keywords", "")}
+
+
+def check_new_rule(kind: str, form) -> tuple[dict, dict | None]:
+    """(submitted, refusal): refusal is a ready `sync` context when the rule is not allowed, else None."""
+    submitted = read_submitted(form)
+    try:
+        sync_rule_service.validate_rule(submitted["sports"], submitted["ride_types"], submitted["keywords"])
+    except ValueError as exc:
+        return submitted, sync_context(kind, None, error=str(exc), submitted=submitted)
+    return submitted, None
+
+
+def save_new_rule(kind: str, owner_id: int, submitted: dict) -> None:
+    """Store the rule typed on an Add form (nothing when it is empty)."""
+    if submitted["sports"] or submitted["ride_types"] or submitted["keywords"].strip():
+        sync_rule_service.save_rule(
+            kind, owner_id, sports=submitted["sports"], ride_types=submitted["ride_types"], keywords=submitted["keywords"]
+        )

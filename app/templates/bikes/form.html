@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% from "partials/forms.html" import field, select_field, error_summary, submit %}
 {% import "partials/icons.html" as ui_icons %}
-{% from "partials/sync_rules.html" import sync_rules_panel %}
+{% from "partials/sync_rules.html" import sync_rules_panel, sync_rules_fields %}
 
 {% block title %}{{ "Edit" if bike else "New" }} Bike — Bike Maintenance Tracker{% endblock %}
 
@@ -18,6 +18,11 @@
   {{ field("model", "Model", bike.model if bike and bike.model else "", values, field_errors, required=not legacy, hint="For example Domane or Tarmac.") }}
   {{ select_field("category", "Category", categories, bike.bike_type if bike and bike.bike_type in categories else ("other" if bike else "road"), values, field_errors) }}
   {{ field("manual_baseline_mileage", "Baseline mileage", bike.manual_baseline_mileage if bike else 0, values, field_errors, type="number", step="0.1", min=0, hint="Miles already on the bike before it was added here.") }}
+  {% if not bike and sync %}
+  <h2>Sync rules</h2>
+  <p class="text-muted">Optional. Choose which Strava activities count for this bike; leave empty to count everything.</p>
+  {{ sync_rules_fields(sync) }}
+  {% endif %}
   <div class="actions">
     {{ submit("Save") }}
     <a class="btn" href="{{ ('/bikes/' ~ bike.id) if bike else '/' }}">Cancel</a>

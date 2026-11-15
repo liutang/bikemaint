@@ -710,3 +710,11 @@ def test_parts_with_the_same_name_and_kind_are_told_apart(signed_in_client):
     html = signed_in_client.get(f"/components/{tire.id}/install-history/new").text
 
     assert f"Wheel (Wheel) #{a.id}" in html and f"Wheel (Wheel) #{b.id}" in html
+
+
+def test_the_bike_field_says_it_is_ignored_inside_a_part(signed_in_client):
+    tire = component_service.create_component(name="Tire", component_type="tire")
+
+    html = signed_in_client.get(f"/components/{tire.id}/install-history/new").text
+
+    assert "Ignored when you pick an Inside part" in html

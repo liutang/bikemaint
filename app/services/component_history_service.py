@@ -134,16 +134,7 @@ def describe_history(component_id: int) -> list[dict]:
         rows = []
         # Latest installed first (specs/035); ties: newest entry first.
         for period in reversed(components_db.list_periods(conn, component_id)):
-            miles = conn.execute(
-                """
-                SELECT COALESCE(SUM(distance_miles), 0) AS total FROM ride_activity
-                WHERE bike_id = ? AND ride_wall(occurred_at, source) >= period_wall(?)
-                  AND (? IS NULL OR ride_wall(occurred_at, source) < period_wall(?))
-                  AND is_deleted_upstream = 0 AND deleted_by_user = 0 AND filtered_out = 0
-                  AND part_ride_ok(?, user_modified, sport_type, ride_type, activity_name)
-                """,
-                (period.parent_bike_id, period.installed_at, period.removed_at, period.removed_at, component_id),
-            ).fetchone()["total"]
+            miles = sum(r.distance_miles for r in mileage_db.list_rides_for_period(conn, period))
             name, url = place(conn, period)
             rows.append({"period": period, "place": name, "place_url": url, "miles": miles})
         return rows
@@ -244,10 +235,10 @@ def log_period(
         )
         if not still_installed:
             period = components_db.insert_period(
-                conn, component_id, parent_bike_id=bike_id, parent_component_id=parent_component_id,
-                installed_at=installed_at, removed_at=removed_at,
+                conn, component_id, parent_bike_id=None if parent_component_id is not None else bike_id,
+                parent_component_id=parent_component_id, installed_at=installed_at, removed_at=removed_at,
             )
-            mileage_db.recompute_component_total_mileage(conn, component_id)
+            mileage_db.recompute_all_component_totals(conn)  # parts inside it may earn from it (specs/064)
             return period
     # The move opens its own connection, so it runs after validation's connection is closed.
     from app.services import component_service  # imported here: component_service imports this module
@@ -293,11 +284,12 @@ def update_period(
             open_period=is_open and not ending,
         )
         period = components_db.update_period(
-            conn, period_id, parent_bike_id=bike_id, parent_component_id=parent_component_id,
+            conn, period_id, parent_bike_id=None if parent_component_id is not None and not is_open else bike_id,
+            parent_component_id=parent_component_id,
             installed_at=installed_at, removed_at=None if ending else removed_at,
         )
         if not ending:
-            mileage_db.recompute_component_total_mileage(conn, existing.component_id)
+            mileage_db.recompute_all_component_totals(conn)
             return period
     # The move opens its own connection, so it runs after the edit above is saved.
     from app.services import component_service  # imported here: component_service imports this module
@@ -324,4 +316,4 @@ def delete_period(period_id: int) -> None:
         if existing.removed_at is None:
             raise ValueError("This part is still installed; remove it from the bike instead.")
         components_db.delete_period(conn, period_id)
-        mileage_db.recompute_component_total_mileage(conn, existing.component_id)
+        mileage_db.recompute_all_component_totals(conn)

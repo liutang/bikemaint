@@ -92,6 +92,22 @@ def place_name(conn: sqlite3.Connection, period: ComponentInstallationPeriod) ->
     return place(conn, period)[0]
 
 
+def default_bike_id(component_id: int) -> int | None:
+    """The bike to preselect when logging a period (specs/058): where the part is installed now
+    (through its parent parts), else the bike of its most recent period, if that bike still exists."""
+    with get_connection() as conn:
+        part = components_db.get_by_id(conn, component_id)
+        if part is None:
+            return None
+        bike_id = part.parent_bike_id
+        if bike_id is None and part.parent_component_id is not None:
+            bike_id = components_db.resolve_top_bike_id(conn, part.parent_component_id)
+        if bike_id is None:
+            periods = sorted(components_db.list_periods(conn, component_id), key=lambda p: (p.installed_at, p.id))
+            bike_id = periods[-1].parent_bike_id if periods else None
+        return bike_id if bike_id is not None and bikes_db.get_by_id(conn, bike_id) is not None else None
+
+
 def describe_history(component_id: int) -> list[dict]:
     """Periods, latest installed first, with a place label and the miles ridden in each."""
     with get_connection() as conn:

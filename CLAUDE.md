@@ -124,3 +124,5 @@ Usage overdue (040 FR-012, branch 054): `Projection.over` is how far past a usag
 Schedules page (feature 056): a bike's or part's actions row has a Schedules button (replacing Add schedule) to `/bikes/{id}/schedules` or `/components/{id}/schedules`: that item's active schedules with Add, Edit and Delete (`schedule_service.list_overview_for_owner`, `interval_text`; `schedules/owner_list.html`). Creating a schedule returns there, and Edit/Delete links carry the fixed flag `?from=owner` to return there; without it they return to Maintenance due (only that flag is honored, never a URL).
 
 Strava actions in Edit (feature 057): Re-import Strava history and Unpair from Strava are on a paired bike's Edit screen (`bikes/form.html`), no longer on its main screen; Pair with Strava stays on the main screen.
+
+Period default bike (feature 058): a part's Log a period form preselects the bike it is installed on (through parent parts), else the bike of its most recent period (`component_history_service.default_bike_id`).

@@ -37,11 +37,23 @@ class HistoryRow:
     part_id: int | None  # None on a bike's history
     part_name: str | None
     is_own: bool  # the entry belongs to the screen's own part or bike (editable there)
+    part_deleted: bool = False  # the part is gone: show its name without a link
 
 
 def _sort_key(row: HistoryRow):
     entry = row.entry
     return (entry.performed_at, entry.performed_time or entry.created_at[11:16], entry.id)
+
+
+def _past_rows(conn, entries: list[MaintenanceLogEntry], seen: set[int]) -> list[HistoryRow]:
+    """Rows for entries of parts that were attached at the time but may not be now (specs/066)."""
+    rows = []
+    for entry in entries:
+        if entry.id in seen:
+            continue
+        part = components_db.get_including_deleted(conn, entry.component_id)
+        rows.append(HistoryRow(entry, part.id, part.name, False, part.is_deleted))
+    return rows
 
 
 def list_for_bike_rows(bike_id: int) -> list[HistoryRow]:
@@ -50,6 +62,7 @@ def list_for_bike_rows(bike_id: int) -> list[HistoryRow]:
         rows = [HistoryRow(e, None, None, True) for e in maintenance_db.list_for_bike(conn, bike_id)]
         for part in components_db.get_tree_for_bike(conn, bike_id):
             rows += [HistoryRow(e, part.id, part.name, False) for e in maintenance_db.list_for_component(conn, part.id)]
+        rows += _past_rows(conn, maintenance_db.list_past_for_bike(conn, bike_id), {r.entry.id for r in rows})
     return sorted(rows, key=_sort_key, reverse=True)
 
 
@@ -65,6 +78,7 @@ def list_for_component_tree(component_id: int) -> list[HistoryRow]:
             for p, own in parts
             for entry in maintenance_db.list_for_component(conn, p.id)
         ]
+        rows += _past_rows(conn, maintenance_db.list_past_for_component(conn, component_id), {r.entry.id for r in rows})
     return sorted(rows, key=_sort_key, reverse=True)
 
 

@@ -140,3 +140,5 @@ Inside part picker (feature 063): a part's Log/Edit period form chooses "Inside 
 Nested part mileage (feature 064): `app/db/mileage._WINDOWS` expands every period into (bike, start, end) wall-clock windows; a period inside a part (no bike of its own, which Log/Edit period now stores whenever Inside part is chosen) takes the overlap with the parent's windows, recursively. All part ride sums and lists (total, period Miles, Rides, mileage-at, usage) use it, counting each ride once; period changes call `recompute_all_component_totals`. Older periods that stored a bike keep counting that bike until edited and saved.
 
 Drivetrain part (feature 065): the `drivetrain` kind moved from legacy to the offered Drivetrain category (35 offered kinds).
+
+Maintenance history past parts (feature 066): `maintenance_service.list_for_bike_rows` / `list_for_component_tree` also include entries made while a part was attached (`maintenance_db.list_past_for_bike` / `list_past_for_component`, install-period windows, recursive), once each; deleted parts read "(deleted)".

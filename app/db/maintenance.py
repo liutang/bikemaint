@@ -130,3 +130,50 @@ def latest_for_owner_and_type(
         (owner, service_type),
     ).fetchone()
     return MaintenanceLogEntry.from_row(row) if row else None
+
+
+# The wall-clock moment of an entry, as the windows' text: a blank time counts as the end of that day.
+_ENTRY_AT = "(m.performed_at || 'T' || COALESCE(m.performed_time, '23:59') || ':00')"
+
+_INSIDE = """
+WITH RECURSIVE anc(component_id, ancestor_id, s, e, depth) AS (
+    SELECT component_id, parent_component_id, period_wall(installed_at), COALESCE(period_wall(removed_at), '9999'), 0
+    FROM component_installation_period WHERE parent_component_id IS NOT NULL
+    UNION ALL
+    SELECT a.component_id, q.parent_component_id, MAX(a.s, period_wall(q.installed_at)),
+           MIN(a.e, COALESCE(period_wall(q.removed_at), '9999')), a.depth + 1
+    FROM anc AS a JOIN component_installation_period AS q ON q.component_id = a.ancestor_id
+    WHERE q.parent_component_id IS NOT NULL AND a.depth < 8
+      AND MAX(a.s, period_wall(q.installed_at)) < MIN(a.e, COALESCE(period_wall(q.removed_at), '9999'))
+)
+"""
+
+
+def list_past_for_bike(conn: sqlite3.Connection, bike_id: int) -> list[MaintenanceLogEntry]:
+    """Entries of parts made while those parts were on the bike, directly or inside a part (specs/066)."""
+    from app.db.mileage import _WINDOWS
+
+    rows = conn.execute(
+        _WINDOWS + f"""
+        SELECT DISTINCT m.* FROM win
+        JOIN maintenance_log_entry AS m ON m.component_id = win.component_id
+         AND {_ENTRY_AT} >= win.s AND {_ENTRY_AT} < win.e
+        WHERE win.bike_id = ?
+        """,
+        (bike_id,),
+    ).fetchall()
+    return [MaintenanceLogEntry.from_row(row) for row in rows]
+
+
+def list_past_for_component(conn: sqlite3.Connection, component_id: int) -> list[MaintenanceLogEntry]:
+    """Entries of parts made while those parts were inside this part, at any depth (specs/066)."""
+    rows = conn.execute(
+        _INSIDE + f"""
+        SELECT DISTINCT m.* FROM anc
+        JOIN maintenance_log_entry AS m ON m.component_id = anc.component_id
+         AND {_ENTRY_AT} >= anc.s AND {_ENTRY_AT} < anc.e
+        WHERE anc.ancestor_id = ?
+        """,
+        (component_id,),
+    ).fetchall()
+    return [MaintenanceLogEntry.from_row(row) for row in rows]

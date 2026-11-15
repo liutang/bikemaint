@@ -58,3 +58,6 @@ Opening a part's Maintenance history (for example a wheel) lists its own entries
 
 ## Amendments
 - **2026-11-15 (branch `050-bike-history-tree`)**: the feature covered parts only; bikes added (FR-004).
+
+## Amendments
+- Feature 066: histories also list entries of parts attached at the time of the entry but removed since (install-period windows, recursive); deleted parts show their name without a link.

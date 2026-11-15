@@ -37,7 +37,7 @@
             {{ entry.performed_at }}
           {%- endif -%}
         </td>
-        <td data-label="Part">{% if row.is_own %}This {{ "bike" if item_kind == "bike" else "part" }}{% else %}<a href="/components/{{ row.part_id }}/maintenance">{{ row.part_name }}</a>{% endif %}</td>
+        <td data-label="Part">{% if row.is_own %}This {{ "bike" if item_kind == "bike" else "part" }}{% elif row.part_deleted %}{{ row.part_name }} (deleted){% else %}<a href="/components/{{ row.part_id }}/maintenance">{{ row.part_name }}</a>{% endif %}</td>
         <td data-label="Service type">{{ entry.description }}</td>
         <td data-label="Mileage at service">{{ entry.mileage_at_service|num1 }} mi</td>
         <td data-label="Actions">

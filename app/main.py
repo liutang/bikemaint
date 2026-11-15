@@ -29,6 +29,7 @@ from app.routers import (
     rides,
     schedules,
     settings,
+    sync_rules,
 )
 from app.services import scheduler, sync_status_service
 from app.services.auth_dependency import AuthRequiredError
@@ -96,6 +97,7 @@ def create_app() -> FastAPI:
     app.include_router(maintenance.router)
     app.include_router(schedules.router)
     app.include_router(settings.router)
+    app.include_router(sync_rules.router)
 
     return app
 

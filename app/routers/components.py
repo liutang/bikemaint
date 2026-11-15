@@ -21,6 +21,7 @@ from app.models.requests import (
 )
 from app.routers.screen import render_screen
 from app.services import builder_service, component_service
+from app.routers.sync_rules import sync_context
 from app.services.auth_dependency import require_account
 from app.services.component_service import ComponentPlacementError
 
@@ -62,6 +63,7 @@ def _form_context(component, parent_bike_id, parent_component_id, extra: dict | 
         "parent_bike_id": parent_bike_id,
         "parent_component_id": parent_component_id,
         "errors": [],
+        "sync": sync_context("component", component.id) if component is not None else None,
         **(extra or {}),
     }
 

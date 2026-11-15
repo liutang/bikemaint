@@ -25,15 +25,11 @@ def test_icon_macro_emits_a_decorative_svg(env, name):
     assert 'focusable="false"' in html
 
 
-# ------------------------------------------------ recognizable bike and part icons (specs/006, M2)
+# ------------------------------------------------ part icon pack (specs/069-part-icon-pack)
 
 import re  # noqa: E402
 
-PART_ICONS = ["frame", "fork", "wheel", "tire", "rotor", "brake", "drivetrain", "chain", "pedal",
-              "saddle", "handlebar"]
-OFFERED_TYPES = PART_ICONS + ["other"]
-LEGACY_TYPES = ["hub", "rim", "spoke", "cassette", "crankset", "derailleur", "shifter", "pad", "stem",
-                "seatpost", "bolt"]
+from app.models import component_kinds  # noqa: E402
 
 
 def _render(env, call):
@@ -41,17 +37,8 @@ def _render(env, call):
     return env.from_string("{% from 'partials/icons.html' import " + macro + " %}{{ " + call + " }}").render()
 
 
-@pytest.mark.parametrize("name", PART_ICONS)
-def test_each_part_has_its_own_decorative_icon(env, name):
-    html = _render(env, f"{name}()")
-
-    assert html.lstrip().startswith("<svg") and 'aria-hidden="true"' in html and 'focusable="false"' in html
-
-
-def test_all_part_icons_are_different_drawings(env):
-    drawings = {name: re.search(r">(.*)</svg>", _render(env, f"{name}()"), re.S).group(1) for name in PART_ICONS}
-
-    assert len(set(drawings.values())) == len(PART_ICONS)
+def _part(env, kind):
+    return _render(env, f"part('{kind}', 'icon part-icon')")
 
 
 def test_the_bike_icon_is_a_bike_with_two_wheels_a_frame_a_saddle_and_handlebars(env):
@@ -62,34 +49,34 @@ def test_the_bike_icon_is_a_bike_with_two_wheels_a_frame_a_saddle_and_handlebars
     assert "H" in paths and paths.count("M") >= 4  # frame tubes, saddle and handlebar strokes
 
 
-@pytest.mark.parametrize("part_type", OFFERED_TYPES + LEGACY_TYPES)
-def test_the_part_macro_picks_an_icon_for_every_known_type(env, part_type):
-    html = env.from_string("{% from 'partials/icons.html' import part %}{{ part('" + part_type + "', 'icon part-icon') }}").render()
+@pytest.mark.parametrize("kind", component_kinds.ALL_COMPONENT_TYPES)
+def test_every_catalog_kind_renders_a_decorative_icon(env, kind):
+    html = _part(env, kind)
 
     assert html.lstrip().startswith("<svg") and 'class="icon part-icon"' in html
+    assert 'aria-hidden="true"' in html and 'focusable="false"' in html and 'viewBox="0 0 24 24"' in html
 
 
-def test_the_part_macro_maps_each_offered_type_to_its_own_icon(env):
-    def draw(t):
-        return env.from_string("{% from 'partials/icons.html' import part %}{{ part('" + t + "') }}").render()
+def test_every_offered_kind_has_its_own_drawing(env):
+    drawings = {kind: _part(env, kind) for kind in component_kinds.COMPONENT_TYPES}
 
-    assert len({draw(t) for t in OFFERED_TYPES}) == len(OFFERED_TYPES)
-    assert draw("rim") == draw("tire") and draw("hub") == draw("wheel")  # older kinds borrow
-
-
-def test_unknown_types_fall_back_to_the_generic_part_icon(env):
-    unknown = env.from_string("{% from 'partials/icons.html' import part %}{{ part('flux-capacitor') }}").render()
-    other = env.from_string("{% from 'partials/icons.html' import part %}{{ part('other') }}").render()
-
-    assert unknown == other
+    assert len(component_kinds.COMPONENT_TYPES) == 35
+    assert len(set(drawings.values())) == 35
 
 
-def test_every_catalog_kind_renders_an_icon_with_the_wrench_as_the_fallback():
-    from app.models import component_kinds
-    from jinja2 import Environment, FileSystemLoader
+def test_older_kinds_and_unknown_types_fall_back(env):
+    assert _part(env, "rim") == _part(env, "wheel") == _part(env, "spoke")
+    assert _part(env, "flux-capacitor") == _part(env, "other")
+    assert _part(env, "bolt") not in {_part(env, k) for k in ("other", "wheel")}
 
-    env = Environment(loader=FileSystemLoader("app/templates"))
-    macro = env.get_template("partials/icons.html").module.part
-    for kind in component_kinds.ALL_COMPONENT_TYPES:
-        assert str(macro(kind, "icon")).strip().startswith("<svg"), kind
-    assert str(macro("not-a-kind", "icon")) == str(macro("lights", "icon"))  # both fall back to the wrench
+
+@pytest.mark.parametrize("kind", ["brake_lever", "shifter", "derailleur", "chainrings"])
+def test_the_approved_solid_icons_are_filled(env, kind):
+    assert 'fill="currentColor"' in _part(env, kind)
+
+
+def test_drivetrain_uses_the_thinner_line_and_icons_are_colored_by_text(env):
+    assert 'stroke-width="1.25"' in _part(env, "drivetrain")
+    for kind in component_kinds.COMPONENT_TYPES:
+        html = _part(env, kind)
+        assert "#" not in re.sub(r"&#\d+;", "", html)  # no hard-coded colors: currentColor only

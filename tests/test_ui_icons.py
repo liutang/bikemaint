@@ -80,3 +80,22 @@ def test_drivetrain_uses_the_thinner_line_and_icons_are_colored_by_text(env):
     for kind in component_kinds.COMPONENT_TYPES:
         html = _part(env, kind)
         assert "#" not in re.sub(r"&#\d+;", "", html)  # no hard-coded colors: currentColor only
+
+
+# --- specs/070: nav icons ---
+
+def _inner(html):
+    return re.search(r">(.*)</svg>", html, re.S).group(1)
+
+
+def test_the_maintenance_due_wrench_is_the_part_pack_wrench(env):
+    assert _inner(_render(env, "wrench()")) == _inner(_part(env, "other"))
+    assert "transform" not in _render(env, "wrench()")
+
+
+def test_the_settings_icon_is_a_six_tooth_gear_with_a_hole(env):
+    html = _render(env, "settings()")
+    gear = re.search(r'<path d="(M[^"]+Z)"', html).group(1)
+
+    assert gear.count("L") + 1 == 24  # 6 teeth, 4 corners each
+    assert '<circle cx="12" cy="12" r="3"/>' in html and 'stroke-width="2"' in html

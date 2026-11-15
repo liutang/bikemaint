@@ -148,3 +148,5 @@ Backup and restore (feature 067): Settings "Backup and restore" downloads `GET /
 Rolling backups (feature 068): `BACKUP_DIR` (off when unset), `BACKUP_KEEP` (default 7) and `BACKUP_INTERVAL_HOURS` (default 24) drive a scheduler job `rolling_backup` (`backup_service.write_rolling_backup`: temp file, atomic rename, prune only names matching `bikemaint-backup-*.json`); Settings shows the folder and files and `POST /settings/backup/run` backs up now. Download names are dated in the saved zone (`backup_filename`).
 
 Part icon pack (feature 069): `partials/icons.html` `part(type, class)` draws one approved icon per kind from a data table (styles line, thin, solid-N; markup in `specs/069-part-icon-pack/contracts/icons.md`); rim and spoke show the wheel, unknown kinds the wrench. Redesigns go through the rider first.
+
+Nav icons (feature 070): Maintenance due uses the specs/069 wrench (`wrench()`), Settings a 6-tooth outlined gear (`settings()`).

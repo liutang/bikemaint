@@ -327,7 +327,7 @@ def test_a_wheel_screen_offers_the_whole_palette(signed_in_client):
 
     html = signed_in_client.get(f"/components/{wheel.id}").text
 
-    assert len(re.findall(r'data-source="palette" data-type="([a-z_]+)"', html)) == 34
+    assert len(re.findall(r'data-source="palette" data-type="([a-z_]+)"', html)) == 35
 
 
 def test_adding_before_a_sibling_orders_it(signed_in_client):

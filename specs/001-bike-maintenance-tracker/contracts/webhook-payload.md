@@ -37,3 +37,4 @@ Content-Type: application/json
 - One POST per newly-due-soon schedule per check cycle (not batched), matching the `(schedule_id, cycle_number)` dedup key in the data model.
 - Timeout 5s, up to 2 retries with backoff; failures are recorded on the `notification` row (`webhook_delivery_error`) and logged, but never block recording the in-app notification itself (research.md §6).
 - No response body is expected or parsed; any `2xx` status is treated as delivered.
+- Overdue text (feature 061): an overdue message ends with `(<amount> late)`, the figure the Maintenance due ring shows: `106d late` by date, `27mi late` / `3r late` / `2.5h late` by usage; nothing is added when unknown. Due-soon messages keep `(approx. N mi remaining)`. `schedule.overdue_amount` and `schedule.overdue_unit` (`days`, `miles`, `rides`, `hours`) carry the same figure, `null` when not overdue or unknown.

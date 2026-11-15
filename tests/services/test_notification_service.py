@@ -275,3 +275,50 @@ def test_a_failing_test_notification_reports_why(db_path):
     delivered, error = notification_service.send_test(WEBHOOK_URL)
 
     assert delivered is False and "500" in error
+
+
+# --- specs/061: how late an overdue notification says ---
+
+def _item(*, status="overdue", days_until=None, over=None, unit=None, remaining=None, due=date(2026, 8, 1)):
+    from app.models.rows import MaintenanceSchedule  # noqa: F401
+    from app.services.schedule_service import DueItem, Projection
+
+    class _S:  # the few fields the payload reads
+        id, name, cycle_number = 1, "Topup", 1
+
+    projection = Projection(due_at=due, remaining_miles=None, is_low_confidence=False,
+                            is_overdue=status == "overdue", remaining=remaining, remaining_unit=unit, over=over)
+    return DueItem(schedule=_S, owner_type="component", owner_id=2, owner_name="Bontrager RSL51",
+                   projection=projection, status=status, days_until=days_until)
+
+
+def test_overdue_by_date_says_days_late():
+    payload = notification_service.build_webhook_payload(_item(days_until=-106))
+
+    assert payload["content"] == '🔧 Maintenance overdue: Topup on "Bontrager RSL51" — projected 2026-08-01 (106d late)'
+    assert payload["schedule"]["overdue_amount"] == 106 and payload["schedule"]["overdue_unit"] == "days"
+
+
+@pytest.mark.parametrize("over,unit,text", [
+    (27.4, "miles", "(27mi late)"), (1234.0, "miles", "(1,234mi late)"), (3.0, "rides", "(3r late)"), (2.54, "hours", "(2.5h late)"),
+])
+def test_overdue_by_usage_says_the_amount_over(over, unit, text):
+    payload = notification_service.build_webhook_payload(_item(days_until=0, over=over, unit=unit, remaining=0.0))
+
+    assert payload["content"].endswith(f"— projected 2026-08-01 {text}")
+    assert "remaining" not in payload["content"]
+    assert (payload["schedule"]["overdue_amount"], payload["schedule"]["overdue_unit"]) == (over, unit)
+
+
+def test_overdue_with_no_amount_adds_nothing():
+    payload = notification_service.build_webhook_payload(_item(days_until=None))
+
+    assert payload["content"].endswith("projected 2026-08-01")
+    assert payload["schedule"]["overdue_amount"] is None and payload["schedule"]["overdue_unit"] is None
+
+
+def test_due_soon_keeps_the_remaining_text():
+    payload = notification_service.build_webhook_payload(_item(status="due_soon", days_until=3, unit="miles", remaining=180.0))
+
+    assert payload["content"].endswith("(approx. 180 mi remaining)")
+    assert payload["schedule"]["overdue_amount"] is None

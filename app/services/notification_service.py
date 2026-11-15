@@ -17,7 +17,7 @@ from app.db import accounts as accounts_db
 from app.db import notifications as notifications_db
 from app.db.connection import get_connection
 from app.models.rows import Notification
-from app.services import schedule_service
+from app.services import format_service, schedule_service
 from app.services.schedule_service import DueItem
 
 logger = logging.getLogger(__name__)
@@ -29,6 +29,26 @@ WEBHOOK_BACKOFF_SECONDS = 1.0
 _sleep = time.sleep  # indirection so tests can skip real backoff delays
 
 
+def _late(item: DueItem) -> tuple[float | None, str | None]:
+    """How late an overdue item is, by the Maintenance due ring's rule (specs/061)."""
+    projection, days = item.projection, item.days_until
+    if not projection.is_overdue:
+        return None, None
+    if (days is None or days >= 0) and projection.over and projection.remaining_unit:
+        return projection.over, projection.remaining_unit
+    if days is not None and days < 0:
+        return -days, "days"
+    return None, None
+
+
+def _late_text(amount: float, unit: str) -> str:
+    if unit == "days":
+        return f"{amount:,.0f}d"
+    if unit == "hours":
+        return f"{format_service.num1(amount)}h"
+    return f"{format_service.num0(amount)}{'mi' if unit == 'miles' else 'r'}"
+
+
 def build_webhook_payload(item: DueItem) -> dict:
     """The JSON body described in contracts/webhook-payload.md."""
     projection = item.projection
@@ -38,7 +58,11 @@ def build_webhook_payload(item: DueItem) -> dict:
         f'🔧 Maintenance {status}: {item.schedule.name} on "{item.owner_name}" — '
         f"projected {due}"
     )
-    if projection.remaining is not None:
+    amount, unit = _late(item)
+    if projection.is_overdue:
+        if amount is not None:
+            summary += f" ({_late_text(amount, unit)} late)"
+    elif projection.remaining is not None:
         left = projection.remaining
         if projection.remaining_unit == "miles":
             summary += f" (approx. {left:,.0f} mi remaining)"
@@ -60,6 +84,8 @@ def build_webhook_payload(item: DueItem) -> dict:
             "projected_remaining": projection.remaining,
             "projected_remaining_unit": projection.remaining_unit,
             "is_low_confidence": projection.is_low_confidence,
+            "overdue_amount": amount,
+            "overdue_unit": unit,
         },
     }
 

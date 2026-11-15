@@ -57,6 +57,7 @@ def _form_context(component, period, extra: dict | None = None, from_bike=None) 
         "component": component,
         "period": period,
         "bike_options": [{"value": str(b.id), "label": b.name} for b in bike_service.list_bikes()],
+        "default_bike_id": None if period else history.default_bike_id(component.id),
         "crumbs": _crumbs(component, "Edit period" if period else "Log a period"),
         "action": base + suffix,
         "back_url": _bike_history_url(from_bike) if from_bike else _list_url(component.id),

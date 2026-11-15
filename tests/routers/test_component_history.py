@@ -603,3 +603,59 @@ def test_a_part_added_now_shows_its_install_time_in_the_chosen_zone_not_utc(sign
     assert "2026-11-13 11:03PM" in bike_html
     assert 'value="2026-11-13"' in form and 'value="23:03"' in form
 
+
+
+def _selected_bike(html):
+    found = re.search(r'<option value="(\d+)" selected>', html.split('name="bike_id"')[1])
+    return found.group(1) if found else None
+
+
+def test_the_log_form_preselects_the_bike_the_part_is_on(signed_in_client):
+    first = bike_service.create_bike(name="Road")
+    second = bike_service.create_bike(name="Gravel")
+    chain = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=second.id)
+
+    html = signed_in_client.get(f"/components/{chain.id}/install-history/new").text
+
+    assert _selected_bike(html) == str(second.id) and first.id != second.id
+
+
+def test_the_log_form_resolves_the_bike_through_a_parent_part(signed_in_client):
+    bike_service.create_bike(name="Road")
+    gravel = bike_service.create_bike(name="Gravel")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=gravel.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+
+    html = signed_in_client.get(f"/components/{tire.id}/install-history/new").text
+
+    assert _selected_bike(html) == str(gravel.id)
+
+
+def test_a_stored_part_defaults_to_the_bike_of_its_most_recent_period(signed_in_client):
+    bike_service.create_bike(name="Road")
+    older = bike_service.create_bike(name="Gravel")
+    newer = bike_service.create_bike(name="Commuter")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle")
+    history.log_period(saddle.id, bike_id=older.id, installed_at="2024-01-01T00:00:00.000000Z",
+                       removed_at="2024-03-01T00:00:00.000000Z")
+    history.log_period(saddle.id, bike_id=newer.id, installed_at="2024-06-01T00:00:00.000000Z",
+                       removed_at="2024-08-01T00:00:00.000000Z")
+
+    html = signed_in_client.get(f"/components/{saddle.id}/install-history/new").text
+
+    assert _selected_bike(html) == str(newer.id)
+
+
+def test_a_deleted_bike_is_not_preselected_and_an_edit_keeps_its_own_bike(signed_in_client):
+    bike_service.create_bike(name="Road")
+    gone = bike_service.create_bike(name="Old")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle")
+    period = history.log_period(saddle.id, bike_id=gone.id, installed_at="2024-01-01T00:00:00.000000Z",
+                                removed_at="2024-03-01T00:00:00.000000Z")
+    edit = signed_in_client.get(f"/install-periods/{period.id}/edit").text
+    bike_service.delete_bike(gone.id)
+
+    html = signed_in_client.get(f"/components/{saddle.id}/install-history/new").text
+
+    assert _selected_bike(edit) == str(gone.id)
+    assert _selected_bike(html) is None  # nothing preselected: the browser shows the first bike

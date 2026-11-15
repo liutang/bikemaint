@@ -21,7 +21,7 @@ from app.models.requests import (
 )
 from app.routers.screen import render_screen
 from app.services import builder_service, component_service
-from app.routers.sync_rules import sync_context
+from app.routers.sync_rules import check_new_rule, save_new_rule, sync_context
 from app.services.auth_dependency import require_account
 from app.services.component_service import ComponentPlacementError
 
@@ -63,7 +63,7 @@ def _form_context(component, parent_bike_id, parent_component_id, extra: dict | 
         "parent_bike_id": parent_bike_id,
         "parent_component_id": parent_component_id,
         "errors": [],
-        "sync": sync_context("component", component.id) if component is not None else None,
+        "sync": sync_context("component", component.id if component is not None else None),
         **(extra or {}),
     }
 
@@ -93,6 +93,8 @@ def new_component_form(request: Request, account=Depends(require_account)):
 @router.post("/components", name="create_component")
 async def create_component(request: Request, account=Depends(require_account)):
     form = await request.form()
+    submitted, refused = check_new_rule("component", form)
+    keep = {"sync": refused or sync_context("component", None, submitted=submitted)}
     parent_bike_id = _optional_int(form.get("parent_bike_id"))
     parent_component_id = _optional_int(form.get("parent_component_id"))
     try:
@@ -107,7 +109,13 @@ async def create_component(request: Request, account=Depends(require_account)):
         return _render(
             request,
             "components/form.html",
-            _form_context(None, parent_bike_id, parent_component_id, error_context(form, exc)),
+            _form_context(None, parent_bike_id, parent_component_id, {**error_context(form, exc), **keep}),
+            status_code=422,
+        )
+    if refused:
+        return _render(
+            request, "components/form.html",
+            _form_context(None, parent_bike_id, parent_component_id, {"errors": [refused["error"]], "values": dict(form), **keep}),
             status_code=422,
         )
     try:
@@ -117,10 +125,11 @@ async def create_component(request: Request, account=Depends(require_account)):
             request,
             "components/form.html",
             _form_context(
-                None, parent_bike_id, parent_component_id, message_context(form, _message(exc))
+                None, parent_bike_id, parent_component_id, {**message_context(form, _message(exc)), **keep}
             ),
             status_code=422,
         )
+    save_new_rule("component", component.id, submitted)
     if request.headers.get("hx-request") == "true":
         return _render(
             request, "components/detail.html", {"component": component, "tree": []}

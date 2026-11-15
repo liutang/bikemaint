@@ -15,7 +15,7 @@ from app.models.requests import BIKE_CATEGORIES, BikeDetailsRequest
 from app.models.form_errors import error_context, message_context
 from app.services import bike_service, component_service, strava_client
 from app.routers.screen import render_screen
-from app.routers.sync_rules import sync_context
+from app.routers.sync_rules import check_new_rule, save_new_rule, sync_context
 from app.services.auth_dependency import require_account
 
 router = APIRouter()
@@ -52,7 +52,7 @@ def _form_context(bike, extra: dict | None = None) -> dict:
         "crumbs": [("Garage", "/")]
         + ([(bike.name, f"/bikes/{bike.id}"), ("Edit", None)] if bike else [("Add a bike", None)]),
         "legacy": bike is not None and bike.make is None and bike.model is None and bike.year is None,
-        "sync": sync_context("bike", bike.id) if bike is not None else None,
+        "sync": sync_context("bike", bike.id if bike is not None else None),
         **(extra or {}),
     }
 
@@ -75,6 +75,7 @@ def new_bike_form(request: Request, account=Depends(require_account)):
 @router.post("/bikes", name="create_bike")
 async def create_bike(request: Request, account=Depends(require_account)):
     form = await request.form()
+    submitted, refused = check_new_rule("bike", form)
     try:
         payload = _parse_details_form(form)
         missing = {
@@ -90,8 +91,15 @@ async def create_bike(request: Request, account=Depends(require_account)):
                     "errors": list(missing.values()),
                     "field_errors": missing,
                     "values": dict(form),
+                    "sync": refused or sync_context("bike", None, submitted=submitted),
                 }),
                 status_code=422,
+            )
+        if refused:
+            return _render(
+                request, "bikes/form.html", _form_context(None, {
+                    "errors": [refused["error"]], "values": dict(form), "sync": refused,
+                }), status_code=422,
             )
         bike = bike_service.create_bike_from_details(
             year=payload.year,
@@ -102,13 +110,14 @@ async def create_bike(request: Request, account=Depends(require_account)):
         )
     except ValidationError as exc:
         return _render(
-            request, "bikes/form.html", _form_context(None, error_context(form, exc)), status_code=422
+            request, "bikes/form.html", _form_context(None, {**error_context(form, exc), "sync": sync_context("bike", None, submitted=submitted)}), status_code=422
         )
     except ValueError as exc:
         return _render(
-            request, "bikes/form.html", _form_context(None, message_context(form, str(exc))),
+            request, "bikes/form.html", _form_context(None, {**message_context(form, str(exc)), "sync": sync_context("bike", None, submitted=submitted)}),
             status_code=422,
         )
+    save_new_rule("bike", bike.id, submitted)
     if request.headers.get("hx-request") == "true":
         return _render(request, "bikes/list.html", {
             "bikes": bike_service.list_bikes(),

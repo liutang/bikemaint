@@ -33,13 +33,18 @@ def apply_to_bike(conn, bike_id: int) -> None:
         mileage_db.recompute_component_total_mileage(conn, component_id)
 
 
-def save_rule(kind: str, owner_id: int, *, sports: list[str], ride_types: list[str], keywords: str) -> SyncRule:
-    """Validate and save a bike's or part's rule and re-apply it to every existing ride."""
-    rule = SyncRule(
+def validate_rule(sports: list[str], ride_types: list[str], keywords: str) -> SyncRule:
+    """The cleaned rule for the submitted choices; ValueError when something is not allowed."""
+    return SyncRule(
         model.clean_choices(sports, model.SPORTS),
         model.clean_choices(ride_types, model.RIDE_TYPES),
         model.clean_keywords(keywords),
     )
+
+
+def save_rule(kind: str, owner_id: int, *, sports: list[str], ride_types: list[str], keywords: str) -> SyncRule:
+    """Validate and save a bike's or part's rule and re-apply it to every existing ride."""
+    rule = validate_rule(sports, ride_types, keywords)
     with get_connection() as conn:
         exists = bikes_db.get_by_id(conn, owner_id) if kind == "bike" else components_db.get_by_id(conn, owner_id)
         if exists is None:

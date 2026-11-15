@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 {% from "partials/forms.html" import field, select_field, error_summary, submit %}
-{% from "partials/sync_rules.html" import sync_rules_panel %}
+{% from "partials/sync_rules.html" import sync_rules_panel, sync_rules_fields %}
 
 {% block title %}{{ "Edit" if component else "New" }} Component — Bike Maintenance Tracker{% endblock %}
 
@@ -12,6 +12,11 @@
   {{ field("name", "Name", component.name if component else "", values, field_errors, required=true) }}
   {{ select_field("component_type", "Type", component_types, component.component_type if component else "", values, field_errors) }}
   {{ field("manual_baseline_mileage", "Baseline mileage", component.manual_baseline_mileage if component else 0, values, field_errors, type="number", step="0.1", min=0) }}
+  {% if not component and sync %}
+  <h2>Sync rules</h2>
+  <p class="text-muted">Optional. Choose which Strava activities count for this part; leave empty to count everything.</p>
+  {{ sync_rules_fields(sync) }}
+  {% endif %}
   <div class="actions">
     {{ submit("Save") }}
     <a class="btn" href="{{ ('/components/' ~ component.id) if component else '/components' }}">Cancel</a>

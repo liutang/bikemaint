@@ -9,7 +9,11 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import re
 from datetime import datetime, timezone
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from app.db import accounts as accounts_db
 from app.db import mileage as mileage_db
@@ -131,3 +135,67 @@ def restore_backup(data: dict) -> dict[str, int]:
         )
     logger.info("backup restored %s", counts)
     return counts
+
+
+# ---- dated names and rolling backups (specs/068-rolling-backups) ----
+
+_NAME = re.compile(r"^bikemaint-backup-\d{4}-\d{2}-\d{2}-\d{6}(-\d+)?\.json$")
+
+
+def backup_filename(now: datetime | None = None) -> str:
+    """`bikemaint-backup-YYYY-MM-DD-HHMMSS.json` in the zone saved in Settings."""
+    from app.services import clock_service
+
+    moment = (now or datetime.now(timezone.utc)).astimezone(ZoneInfo(clock_service.zone_name()))
+    return f"bikemaint-backup-{moment.strftime('%Y-%m-%d-%H%M%S')}.json"
+
+
+def _positive_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = int(raw)
+        if value >= 1:
+            return value
+    except ValueError:
+        pass
+    logger.warning("%s must be a whole number of at least 1; using %s", name, default)
+    return default
+
+
+def rolling_config() -> tuple[Path, int, int] | None:
+    """(folder, how many to keep, interval in hours) from the environment, or None when off."""
+    folder = os.environ.get("BACKUP_DIR", "").strip()
+    if not folder:
+        return None
+    return Path(folder), _positive_int("BACKUP_KEEP", 7), _positive_int("BACKUP_INTERVAL_HOURS", 24)
+
+
+def list_rolling_backups() -> list[Path]:
+    """Backup files in the configured folder, newest first (names sort by time)."""
+    config = rolling_config()
+    if config is None or not config[0].is_dir():
+        return []
+    return sorted((p for p in config[0].iterdir() if p.is_file() and _NAME.match(p.name)), key=lambda p: p.name, reverse=True)
+
+
+def write_rolling_backup(now: datetime | None = None) -> Path:
+    """Write one backup to the folder, then keep only the newest N. Raises OSError if it cannot write."""
+    config = rolling_config()
+    if config is None:
+        raise ValueError("BACKUP_DIR is not set.")
+    folder, keep, _ = config
+    name = backup_filename(now)
+    target = folder / name
+    suffix = 1
+    while target.exists():
+        suffix += 1
+        target = folder / name.replace(".json", f"-{suffix}.json")
+    temporary = folder / (target.name + ".tmp")
+    temporary.write_text(json.dumps(export_backup(), indent=1), encoding="utf-8")
+    os.replace(temporary, target)
+    for old in list_rolling_backups()[keep:]:
+        old.unlink()
+    logger.info("rolling backup written file=%s kept=%s", target.name, keep)
+    return target

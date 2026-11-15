@@ -29,3 +29,6 @@
 
 ## Assumptions
 - Tokens and the webhook URL are secrets and stay out of the file; the rider re-enters the webhook after restoring on a new install.
+
+## Amendments
+- Feature 068: the download name carries date and time (`bikemaint-backup-YYYY-MM-DD-HHMMSS.json`, saved zone); `BACKUP_DIR`/`BACKUP_KEEP`/`BACKUP_INTERVAL_HOURS` add rolling backups to a mounted folder, plus Back up now.

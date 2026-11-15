@@ -13,7 +13,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from app.db import accounts as accounts_db
 from app.db.connection import get_connection
-from app.services import notification_service, sync_service
+from app.services import backup_service, notification_service, sync_service
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,13 @@ def _run_notification_job() -> None:
         notification_service.check_due_schedules()
     except Exception:
         logger.exception("scheduled due-soon notification check failed")
+
+
+def _run_backup_job() -> None:
+    try:
+        backup_service.write_rolling_backup()
+    except Exception:
+        logger.exception("rolling backup failed")
 
 
 def default_sync_interval_minutes() -> int:
@@ -89,6 +96,9 @@ def start() -> BackgroundScheduler:
         minutes=notification_interval_minutes,
         id="due_notifications",
     )
+    backup = backup_service.rolling_config()
+    if backup is not None:
+        scheduler.add_job(_run_backup_job, "interval", hours=backup[2], id="rolling_backup")
     scheduler.start()
     _scheduler = scheduler
     return scheduler

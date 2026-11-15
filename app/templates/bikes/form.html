@@ -23,6 +23,21 @@
   </div>
 </form>
 
+{% if bike and bike.strava_gear_id %}
+<section class="panel" aria-labelledby="strava-heading">
+  <h2 id="strava-heading">Strava</h2>
+  <p class="text-muted">This bike is paired with Strava gear. These are rarely needed.</p>
+  <div class="actions">
+    <form method="post" action="/bikes/{{ bike.id }}/strava-reimport">
+      <button class="btn" type="submit">Re-import Strava history</button>
+    </form>
+    <form method="post" action="/bikes/{{ bike.id }}/strava-unpair">
+      <button class="btn" type="submit">Unpair from Strava</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+
 {% if bike %}
 <section class="panel danger-zone" aria-labelledby="delete-heading">
   <h2 id="delete-heading">Delete this bike</h2>

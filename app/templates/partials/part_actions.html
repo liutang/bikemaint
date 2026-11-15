@@ -13,14 +13,6 @@
   <a class="btn" href="{{ base }}/schedules">Schedules</a>
   <a class="btn" href="{{ base }}/rides">Rides</a>
   {% if bike and not bike.strava_gear_id %}<a class="btn" href="{{ base }}/strava-pairing">Pair with Strava</a>{% endif %}
-  {% if bike and bike.strava_gear_id %}
-  <form method="post" action="{{ base }}/strava-reimport">
-    <button class="btn" type="submit">Re-import Strava history</button>
-  </form>
-  <form method="post" action="{{ base }}/strava-unpair">
-    <button class="btn" type="submit">Unpair from Strava</button>
-  </form>
-  {% endif %}
   {% if component %}
   <a class="btn" href="{{ base }}/install-history">Install history</a>
   {% endif %}

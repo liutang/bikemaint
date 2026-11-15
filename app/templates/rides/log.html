@@ -11,7 +11,7 @@
     <p class="text-muted">{{ log.owner_name }}{% if log.owner_kind == "component" %} · read-only: rides while this part was on a bike{% elif log.owner_kind == "period" %} · read-only: rides from {{ log.period.installed_at|wall_time }} to {% if log.period.removed_at %}{{ log.period.removed_at|wall_time }}{% else %}now{% endif %}{% endif %}</p>
   </div>
   <div class="actions">
-    <div class="stat"><small>Total mileage</small><strong>{{ "%.1f"|format(log.total) }} mi</strong></div>
+    <div class="stat"><small>Total mileage</small><strong>{{ log.total|num1 }} mi</strong></div>
     {% if log.owner_kind == "bike" %}
     <a class="btn btn-primary" href="/bikes/{{ log.owner_id }}/rides/new">{{ ui_icons.plus() }}Add a ride</a>
     {% endif %}
@@ -42,11 +42,11 @@
       <tr{% if row.kind != "ride" %} class="ride-{{ row.kind }}"{% endif %}>
         {% if row.kind == "start" %}
         <td data-label="Date &amp; time">Starting mileage</td>
-        <td data-label="Miles">{{ "%.1f"|format(row.miles) }}</td>
+        <td data-label="Miles">{{ row.miles|num1 }}</td>
         <td data-label="Moving time"></td>
         <td data-label="Source">Baseline</td>
         <td data-label="Note"></td>
-        <td data-label="Total">{{ "%.1f"|format(row.running_total) }}</td>
+        <td data-label="Total">{{ row.running_total|num1 }}</td>
         {% if log.owner_kind == "bike" %}<td data-label="Actions"></td>{% endif %}
         {% else %}
         <td data-label="Date &amp; time">
@@ -58,14 +58,14 @@
             {{ row.occurred_at|wall_time }}
           {%- endif -%}
         </td>
-        <td data-label="Miles">{{ "%.1f"|format(row.miles) }}</td>
+        <td data-label="Miles">{{ row.miles|num1 }}</td>
         <td data-label="Moving time">{{ row.moving_seconds|duration }}</td>
         <td data-label="Source">
           {%- if row.kind == "adjustment" %}Adjustment{% elif row.source == "strava" %}Strava{% else %}Manual{% endif %}
           {%- if row.bike_name %} · {{ row.bike_name }}{% endif -%}
         </td>
         <td data-label="Note">{{ row.note or "" }}</td>
-        <td data-label="Total">{{ "%.1f"|format(row.running_total) }}</td>
+        <td data-label="Total">{{ row.running_total|num1 }}</td>
         {% if log.owner_kind == "bike" %}
         <td data-label="Actions">
           {% if row.editable %}

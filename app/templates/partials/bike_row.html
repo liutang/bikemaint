@@ -7,7 +7,7 @@
       <span class="chip">{{ bike.bike_type or "bike" }}</span>
     </div>
   </header>
-  <p class="bike-card-figure"><span class="bike-card-stat"><strong>{{ "%.1f"|format(bike.total_mileage) }} mi</strong><small>total mileage</small></span></p>
+  <p class="bike-card-figure"><span class="bike-card-stat"><strong>{{ bike.total_mileage|num1 }} mi</strong><small>total mileage</small></span></p>
   <div class="bike-card-actions">
     <a class="btn btn-primary" href="/bikes/{{ bike.id }}">View</a>
     <a class="btn" href="/bikes/{{ bike.id }}/maintenance">Maintenance history</a>

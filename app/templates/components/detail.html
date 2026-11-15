@@ -11,7 +11,7 @@
     <h1>{{ component.name }}</h1>
     <p class="text-muted">{{ component.component_type|kind_name }}</p>
   </div>
-  <div class="stat"><small>Total mileage</small><strong>{{ "%.1f"|format(component.total_mileage) }} mi</strong></div>
+  <div class="stat"><small>Total mileage</small><strong>{{ component.total_mileage|num1 }} mi</strong></div>
 </div>
 
 {% include "partials/part_actions.html" %}

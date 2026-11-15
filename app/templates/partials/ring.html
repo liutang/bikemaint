@@ -6,7 +6,7 @@
   {%- set unit = item.projection.remaining_unit -%}
   {%- if (d is none or d >= 0) and over and unit -%}
     {#- Overdue by usage (specs/040 FR-012): say how far past, like the date rings do. -#}
-    {%- set n = (("%.1f" if unit == "hours" else "%.0f")|format(over)) -%}
+    {%- set n = (over|num1 if unit == "hours" else over|num0) -%}
     {%- set one = (n == "1" or n == "1.0") -%}
     {%- set short = {"miles": "mi", "rides": "r", "hours": "h"}[unit] -%}
     {%- set word = {"miles": ("mile" if one else "miles"), "rides": ("ride" if one else "rides"), "hours": ("hour" if one else "hours")}[unit] -%}

@@ -39,7 +39,7 @@
         <td data-label="Status">{{ status_badge(item.status) }}{% if item.projection.is_low_confidence %} {{ low_confidence_badge() }}{% endif %}</td>
         <td data-label="Next due">
           {%- if item.projection.over and item.projection.remaining_unit -%}
-            {{ ("%.1f" if item.projection.remaining_unit == "hours" else "%.0f")|format(item.projection.over) }} {{ "mi" if item.projection.remaining_unit == "miles" else item.projection.remaining_unit }} over
+            {{ item.projection.over|num1 if item.projection.remaining_unit == "hours" else item.projection.over|num0 }} {{ "mi" if item.projection.remaining_unit == "miles" else item.projection.remaining_unit }} over
           {%- elif item.projection.due_at -%}
             {{ item.projection.due_at.isoformat() }}
           {%- else -%}

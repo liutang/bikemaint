@@ -39,7 +39,7 @@
         </td>
         <td data-label="Part">{% if row.is_own %}This {{ "bike" if item_kind == "bike" else "part" }}{% else %}<a href="/components/{{ row.part_id }}/maintenance">{{ row.part_name }}</a>{% endif %}</td>
         <td data-label="Service type">{{ entry.description }}</td>
-        <td data-label="Mileage at service">{{ "%.1f"|format(entry.mileage_at_service) }} mi</td>
+        <td data-label="Mileage at service">{{ entry.mileage_at_service|num1 }} mi</td>
         <td data-label="Actions">
           {% if row.is_own %}
           <div class="actions">

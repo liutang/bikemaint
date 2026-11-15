@@ -21,7 +21,7 @@ from app.db.connection import get_connection
 from app.models.rows import MaintenanceSchedule
 from app.models.schedule_kinds import PERIOD_UNITS, SERVICE_TYPES, USAGE_UNITS, WHOLE_UNITS
 from app.db import maintenance as maintenance_db
-from app.services import maintenance_service
+from app.services import format_service, maintenance_service
 
 logger = logging.getLogger(__name__)
 
@@ -522,7 +522,7 @@ def _due_item(
 def _count(value: float, unit: str) -> str:
     """`186 miles`, `1 ride`, `2.5 hours`: the unit is singular for exactly one."""
     word = unit[:-1] if value == 1 else unit
-    return f"{value:g} {word}"
+    return f"{format_service.count(value)} {word}"
 
 
 def interval_text(schedule: MaintenanceSchedule) -> str:
@@ -590,7 +590,7 @@ def next_due_text(item: DueItem) -> str:
     usage = _usage(item.schedule)
     if usage:
         unit, interval = usage
-        return f"Next due after {interval:.0f} more {unit}"
+        return f"Next due after {format_service.count(interval)} more {unit}"
     return "Next due date not available yet"
 
 

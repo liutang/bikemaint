@@ -134,8 +134,8 @@ def now_in_zone_moment() -> str:
     return datetime.now(_zone()).replace(tzinfo=None).strftime(_STORED_FORMAT)
 
 
-# The time zone picker: one representative standard zone per common UTC offset, so the rider
-# chooses "-05:00 EST" and daylight saving still follows the real region (EST becomes EDT).
+# The time zone picker: one representative zone per common UTC offset; daylight saving follows
+# the real region, and the labels show the offset in force when the page is shown (specs/074).
 # Not a list of countries and cities. Order does not matter here; choices are sorted by offset.
 _PICKER_ZONES: tuple[str, ...] = (
     "Pacific/Pago_Pago", "Pacific/Honolulu", "America/Anchorage", "America/Los_Angeles",
@@ -151,16 +151,14 @@ _PICKER_ZONES: tuple[str, ...] = (
 _NO_DST_NOTE = {"America/Phoenix"}
 
 
-def _standard_time(name: str) -> datetime:
-    """A moment in the zone's standard (non-summer) time: the smaller of its January and July offsets."""
-    zone = ZoneInfo(name)
-    january = datetime(2026, 1, 15, 12, tzinfo=zone)
-    july = datetime(2026, 7, 15, 12, tzinfo=zone)
-    return january if january.utcoffset() <= july.utcoffset() else july
+def _utc_now() -> datetime:
+    """The moment the picker labels describe (replaced in tests)."""
+    return datetime.now(timezone.utc)
 
 
-def standard_offset_minutes(name: str) -> int:
-    return int(_standard_time(name).utcoffset() / timedelta(minutes=1))
+def offset_minutes(name: str, at: datetime) -> int:
+    """The zone's UTC offset in minutes at `at`, daylight saving included (specs/074)."""
+    return int(at.astimezone(ZoneInfo(name)).utcoffset() / timedelta(minutes=1))
 
 
 def _gmt_offset(minutes: int) -> str:
@@ -170,34 +168,38 @@ def _gmt_offset(minutes: int) -> str:
     return f"GMT{sign}{hours}" + (f":{rest:02d}" if rest else "")
 
 
-def _label(name: str) -> str:
-    """`(GMT-5) America/New York (EST)`: standard offset, the zone's prominent city, its code.
+def _label(name: str, at: datetime) -> str:
+    """`(GMT-5) America/New York (EST)`: the offset at `at`, the zone's prominent city, its code.
+
+    Offset and code follow daylight saving: the same entry reads `(GMT-4) ... (EDT)` in summer
+    (specs/074, replacing the standard-time label of 023/027).
 
     The code is left out where there is no well-known one (the zone database then uses a number
     such as `-03`), and a note is added for the one common region that never changes its clocks.
     """
-    offset = standard_offset_minutes(name)
-    text = f"({_gmt_offset(offset)}) {name.replace('_', ' ')}"
-    code = _standard_time(name).tzname() or ""
+    local = at.astimezone(ZoneInfo(name))
+    text = f"({_gmt_offset(offset_minutes(name, at))}) {name.replace('_', ' ')}"
+    code = local.tzname() or ""
     if code and code[0] not in "+-" and code != name:
         note = ", no daylight saving" if name in _NO_DST_NOTE else ""
         text += f" ({code}{note})"
     return text
 
 
-def timezone_choices(current: str) -> list[dict[str, str]]:
-    """The picker's options as `{value, label}`, ordered by offset.
+def timezone_choices(current: str, at: datetime | None = None) -> list[dict[str, str]]:
+    """The picker's options as `{value, label}`, described at `at` (default: now), ordered by that offset.
 
     A saved zone that is not in the list is added first, marked "Current: ...", so it stays
     selectable and saving the form unchanged keeps it.
     """
+    at = at or _utc_now()
     choices = [
-        {"value": name, "label": _label(name)}
-        for name in sorted(_PICKER_ZONES, key=lambda n: (standard_offset_minutes(n), n != "Europe/London", n))
+        {"value": name, "label": _label(name, at)}
+        for name in sorted(_PICKER_ZONES, key=lambda n: (offset_minutes(n, at), n != "Europe/London", n))
     ]
     if current not in _PICKER_ZONES:
         try:
-            extra = f"Current: {_label(current)}"
+            extra = f"Current: {_label(current, at)}"
         except Exception:
             extra = f"Current: {current}"
         choices.insert(0, {"value": current, "label": extra})

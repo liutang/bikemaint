@@ -1,7 +1,7 @@
 """Showing UTC-recorded times in the rider's time zone (specs/023-settings-sync-and-timezone, display only)."""
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -74,60 +74,94 @@ def test_now_in_the_zone_is_the_zones_wall_clock_in_the_stored_format(account):
     assert abs((datetime.strptime(moment, "%Y-%m-%dT%H:%M:%S.%fZ") - wall).total_seconds()) < 5
 
 
-# ------------------------------------------------ specs/023 amendment: a short offset picker
+# ------------------------------------------------ specs/023 amendment: a short offset picker (labels dated by 074)
 
 
 def _by_value(choices):
     return {c["value"]: c["label"] for c in choices}
 
 
-def test_the_picker_is_a_short_list_ordered_by_offset():
-    choices = clock_service.timezone_choices("UTC")
+JANUARY = datetime(2026, 1, 15, 12, tzinfo=timezone.utc)
+JULY = datetime(2026, 7, 15, 12, tzinfo=timezone.utc)
+
+
+def _offsets(choices, at):
+    return [clock_service.offset_minutes(c["value"], at) for c in choices]
+
+
+@pytest.mark.parametrize("at", [JANUARY, JULY])
+def test_the_picker_is_a_short_list_ordered_by_the_offset_shown(at):
+    choices = clock_service.timezone_choices("UTC", at=at)
 
     assert 25 <= len(choices) <= 45
-    offsets = [clock_service.standard_offset_minutes(c["value"]) for c in choices]
-    assert offsets == sorted(offsets)
+    assert _offsets(choices, at) == sorted(_offsets(choices, at))  # 074 SC-002
 
 
-def test_labels_read_offset_city_and_abbreviation():
-    labels = _by_value(clock_service.timezone_choices("UTC"))
+def test_winter_labels_read_offset_city_and_abbreviation():
+    labels = _by_value(clock_service.timezone_choices("UTC", at=JANUARY))
 
     assert labels["America/New_York"] == "(GMT-5) America/New York (EST)"
     assert labels["America/Los_Angeles"] == "(GMT-8) America/Los Angeles (PST)"
     assert labels["America/Chicago"] == "(GMT-6) America/Chicago (CST)"
-    assert labels["Asia/Kolkata"] == "(GMT+5:30) Asia/Kolkata (IST)"
-    assert labels["UTC"] == "(GMT+0) UTC"
     assert labels["Europe/London"] == "(GMT+0) Europe/London (GMT)"
-    assert labels["Australia/Sydney"] == "(GMT+10) Australia/Sydney (AEST)"  # standard time, not summer
+    assert labels["Europe/Paris"] == "(GMT+1) Europe/Paris (CET)"
+    assert labels["Australia/Sydney"] == "(GMT+11) Australia/Sydney (AEDT)"  # southern summer
+    assert labels["Pacific/Auckland"] == "(GMT+13) Pacific/Auckland (NZDT)"
     for label in labels.values():
         assert re.fullmatch(r"\(GMT[+-]\d{1,2}(:\d\d)?\) [A-Za-z_/ ]+( \([A-Za-z, ]+\))?", label), label
         assert "_" not in label
 
 
-def test_a_region_without_a_well_known_abbreviation_has_no_brackets():
-    labels = _by_value(clock_service.timezone_choices("UTC"))
+def test_summer_labels_follow_daylight_saving():
+    labels = _by_value(clock_service.timezone_choices("UTC", at=JULY))
 
-    assert labels["America/Sao_Paulo"] == "(GMT-3) America/Sao Paulo"
+    assert labels["America/New_York"] == "(GMT-4) America/New York (EDT)"
+    assert labels["America/Los_Angeles"] == "(GMT-7) America/Los Angeles (PDT)"
+    assert labels["Europe/London"] == "(GMT+1) Europe/London (BST)"
+    assert labels["Europe/Paris"] == "(GMT+2) Europe/Paris (CEST)"
+    assert labels["Australia/Sydney"] == "(GMT+10) Australia/Sydney (AEST)"
+    assert labels["Pacific/Auckland"] == "(GMT+12) Pacific/Auckland (NZST)"
+
+
+@pytest.mark.parametrize("at", [JANUARY, JULY])
+def test_zones_without_daylight_saving_read_the_same_all_year(at):
+    labels = _by_value(clock_service.timezone_choices("UTC", at=at))
+
+    assert labels["America/Phoenix"] == "(GMT-7) America/Phoenix (MST, no daylight saving)"
+    assert labels["Asia/Tokyo"] == "(GMT+9) Asia/Tokyo (JST)"
+    assert labels["Asia/Kolkata"] == "(GMT+5:30) Asia/Kolkata (IST)"
+    assert labels["UTC"] == "(GMT+0) UTC"
+    assert labels["America/Sao_Paulo"] == "(GMT-3) America/Sao Paulo"  # no letter code, no brackets
     assert labels["Asia/Kathmandu"] == "(GMT+5:45) Asia/Kathmandu"
 
 
-def test_the_offset_is_the_standard_one_even_where_summer_time_is_in_force_now():
-    labels = _by_value(clock_service.timezone_choices("UTC"))
+def test_ties_put_london_first_then_zone_names():
+    winter = [c["value"] for c in clock_service.timezone_choices("UTC", at=JANUARY)]
+    summer = clock_service.timezone_choices("UTC", at=JULY)
 
-    assert labels["Pacific/Auckland"] == "(GMT+12) Pacific/Auckland (NZST)"
-    assert labels["Europe/Paris"] == "(GMT+1) Europe/Paris (CET)"
+    assert winter.index("Europe/London") + 1 == winter.index("UTC")
+    values = [c["value"] for c in summer]
+    assert values.index("Atlantic/Azores") + 1 == values.index("UTC")
+    assert _by_value(summer)["Atlantic/Azores"] == "(GMT+0) Atlantic/Azores"
 
 
-def test_arizona_is_offered_without_daylight_saving_beside_denver():
-    labels = _by_value(clock_service.timezone_choices("UTC"))
+def test_arizona_sits_beside_denver_in_winter_and_los_angeles_in_summer():
+    winter = _by_value(clock_service.timezone_choices("UTC", at=JANUARY))
+    summer = _by_value(clock_service.timezone_choices("UTC", at=JULY))
 
-    assert labels["America/Denver"] == "(GMT-7) America/Denver (MST)"
-    assert labels["America/Phoenix"] == "(GMT-7) America/Phoenix (MST, no daylight saving)"
+    assert winter["America/Denver"] == "(GMT-7) America/Denver (MST)"
+    assert summer["America/Denver"] == "(GMT-6) America/Denver (MDT)"
+    order = [c["value"] for c in clock_service.timezone_choices("UTC", at=JULY)]
+    assert order.index("America/Los_Angeles") + 1 == order.index("America/Phoenix")
+
+
+def test_without_a_moment_the_labels_describe_now(monkeypatch):
+    monkeypatch.setattr(clock_service, "_utc_now", lambda: JULY)
+
+    assert _by_value(clock_service.timezone_choices("UTC"))["America/New_York"] == "(GMT-4) America/New York (EDT)"
 
 
 def test_every_choice_is_a_distinct_real_zone():
-    from zoneinfo import ZoneInfo
-
     values = [c["value"] for c in clock_service.timezone_choices("UTC")]
 
     assert len(values) == len(set(values))
@@ -135,8 +169,9 @@ def test_every_choice_is_a_distinct_real_zone():
         ZoneInfo(value)
 
 
-def test_a_saved_zone_that_is_not_in_the_list_stays_selectable_and_is_marked_current():
-    choices = clock_service.timezone_choices("Europe/Istanbul")
+@pytest.mark.parametrize("at", [JANUARY, JULY])
+def test_a_saved_zone_that_is_not_in_the_list_stays_selectable_and_is_marked_current(at):
+    choices = clock_service.timezone_choices("Europe/Istanbul", at=at)
 
     (extra,) = [c for c in choices if c["value"] == "Europe/Istanbul"]
     assert extra["label"] == "Current: (GMT+3) Europe/Istanbul"

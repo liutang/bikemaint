@@ -42,3 +42,5 @@ Chips, the part detail page and storage cards show the catalog display name (`ki
 
 > **Amended by `specs/033-add-a-part-panel` (2026-11-14)**: the panel is titled "Add a part" and has a sixth, last section `details.palette-category.storage-drop.drop-target[data-ref="storage"]` titled "In storage (N)" (collapsed by default); the separate In storage card is gone. The storage section is still the drop target for taking parts off the bike and for creating parts in storage.
 
+
+> **Amended by `specs/073-builder-drag-collapse` (2026-11-16)**: tree rows with sub-parts start with a `button.twisty` (collapse, remembered per browser) and carry a hidden `.sub-count`; leaf rows have `span.twisty-space`. While dragging, the dragged part lifts out (`is-lifted`) and a `li.drop-slot` gap shows where it lands; rows no longer get `is-valid`/`is-invalid`, only the holder row gets `is-over`. See `specs/073-builder-drag-collapse/contracts/ui-contract.md`.

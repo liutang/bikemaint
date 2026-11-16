@@ -31,3 +31,10 @@ overdue = red, due soon = gold (distinct hue from accent), on track = green, no 
 - Due page: no alerts list (FR-022).
 - `POST /settings/theme` (form field `theme` = `system|light|dark`): sets the `theme` cookie (1 year, `Secure`, `SameSite=Lax`, `HttpOnly`) and redirects 303 to `/settings`; any other value is 422. `layout.html` renders `<html data-theme="light|dark">` from the cookie (no attribute for System).
 - Garage: `.bike-card` (name, type chip, `.bike-card-stat` mileage, primary View + quiet secondary actions); storage components use `.bike-card.is-storage`.
+
+## Amendment (specs/071-ui-consistency)
+- Buttons in forms keep their natural width; number/date/time fields and drop-downs are sized to their values; `.form` and `.field` use a `minmax(0, 1fr)` column so nothing pushes a page sideways.
+- Cards: `.card-grid` (two columns when wide, one when narrow; `.panel.wide` spans both; a row shares one height and its action buttons sit on the bottom edge).
+- One orange `btn-primary` per card for its main action; secondary actions are `btn`.
+- Settings cards auto-save through HTMX (`hx-trigger="change"`, card re-rendered with `.save-status` "Saved"/"Not saved"); `<noscript>` Save fallback.
+- Row actions Rides/Edit/Delete are `btn btn-icon` with `aria-label` and `title` (icons `route`, `edit`, `trash`).

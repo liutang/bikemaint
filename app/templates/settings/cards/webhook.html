@@ -1,0 +1,14 @@
+{% from "settings/_card.html" import head, autosave, fallback_save with context %}
+{% from "partials/forms.html" import field %}
+<section class="panel wide" aria-labelledby="webhook-heading">
+  {{ head("webhook", "Webhook") }}
+  <p class="text-muted">Due-soon alerts are also posted to this URL (for example a Discord channel webhook).</p>
+  <form class="form" {{ autosave("/settings/webhook") }}>
+    {{ field("notification_webhook_url", "Webhook URL", account.notification_webhook_url or "", values, field_errors, type="url", hint="Leave blank to remove.") }}
+    {% if test_result %}<p class="{{ 'board-notice is-success' if test_result.ok else 'field-error' }}" role="status">{{ test_result.message }}</p>{% endif %}
+    <div class="actions">
+      {{ fallback_save(primary=false) }}
+      <button class="btn btn-primary" type="submit" formaction="/settings/notifications/test">Send test notification</button>
+    </div>
+  </form>
+</section>

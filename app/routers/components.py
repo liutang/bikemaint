@@ -21,7 +21,7 @@ from app.models.requests import (
 )
 from app.routers.screen import render_screen
 from app.services import builder_service, component_service
-from app.routers.sync_rules import check_new_rule, save_new_rule, sync_context
+from app.routers.sync_rules import check_new_rule, save_edit_rule, save_new_rule, sync_context
 from app.services.auth_dependency import require_account
 from app.services.component_service import ComponentPlacementError
 
@@ -160,6 +160,13 @@ async def update_component(request: Request, component_id: int, account=Depends(
     existing = component_service.get_component(component_id)
     if existing is None:
         return PlainTextResponse("Component not found", status_code=404)
+    # One Save stores the details and the sync rule (specs/071); a bad rule refuses both.
+    submitted, refused = check_new_rule("component", form)
+    keep = {"sync": refused or sync_context("component", existing.id, submitted=submitted)}
+    if refused:
+        return _render(request, "components/form.html", _form_context(
+            existing, existing.parent_bike_id, existing.parent_component_id,
+            {"errors": [refused["error"]], "values": dict(form), **keep}), status_code=422)
     try:
         payload = ComponentUpdateRequest(
             name=form.get("name", ""),
@@ -171,7 +178,7 @@ async def update_component(request: Request, component_id: int, account=Depends(
             request,
             "components/form.html",
             _form_context(
-                existing, existing.parent_bike_id, existing.parent_component_id, error_context(form, exc)
+                existing, existing.parent_bike_id, existing.parent_component_id, {**error_context(form, exc), **keep}
             ),
             status_code=422,
         )
@@ -185,10 +192,11 @@ async def update_component(request: Request, component_id: int, account=Depends(
                 existing,
                 existing.parent_bike_id,
                 existing.parent_component_id,
-                message_context(form, str(exc)),
+                {**message_context(form, str(exc)), **keep},
             ),
             status_code=422,
         )
+    save_edit_rule("component", component_id, form, submitted)
     return RedirectResponse(url=f"/components/{component.id}", status_code=303)
 
 

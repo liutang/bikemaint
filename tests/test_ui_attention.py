@@ -122,7 +122,7 @@ def test_edit_has_a_visible_border_on_the_cards_and_the_other_rows(signed_in_cli
 
     html = signed_in_client.get("/maintenance/due").text
 
-    assert 'class="btn" href="/schedules/1/edit"' in html
+    assert 'class="btn btn-icon" href="/schedules/1/edit"' in html
     assert "btn-quiet" not in _card(html, 1)
 
 
@@ -394,7 +394,7 @@ def test_urgent_cards_offer_delete_and_deleting_removes_the_task(signed_in_clien
 
     card = _card(signed_in_client.get("/maintenance/due").text, 1)
 
-    assert 'action="/schedules/1/delete"' in card and ">Delete</button>" in card
+    assert 'action="/schedules/1/delete"' in card and 'aria-label="Delete"' in card
     assert signed_in_client.post("/schedules/1/delete", follow_redirects=False).status_code == 303
     assert _cards(signed_in_client.get("/maintenance/due").text) == []
 

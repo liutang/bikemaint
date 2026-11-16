@@ -1650,3 +1650,58 @@ button[disabled],
 .interval:has(#interval-period:checked) .unit-usage {
   display: none;
 }
+
+/* ---------- Consistent, compact layout (specs/071-ui-consistency) ---------- */
+/* Forms are one column that can never push the page sideways. */
+.form { gap: var(--space-3); grid-template-columns: minmax(0, 1fr); }
+.field { grid-template-columns: minmax(0, 1fr); }
+
+/* A button (or checkbox row) placed straight in a form keeps its natural width. */
+.form > .btn,
+.form > button,
+.form > .theme-option,
+.form > .field-check { justify-self: start; }
+
+/* Fields sized to their values; text fields stay full width. */
+.field input[type="number"] { max-width: 9rem; justify-self: start; }
+.field input[type="date"],
+.field input[type="time"] { max-width: 13rem; justify-self: start; }
+.field select { width: auto; max-width: 100%; justify-self: start; }
+.field-row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-start; }
+.field-row > .field { flex: 1 1 12rem; }
+.field-row > .field:has(input[type="number"]) { flex: 0 0 auto; }
+
+/* Cards: two columns on wide screens, one on narrow; a row shares one height. */
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: var(--space-4); align-items: stretch; margin-bottom: var(--space-4); }
+.card-grid > .panel { margin-bottom: 0; min-width: 0; display: flex; flex-direction: column; }
+.card-grid > .panel.wide { grid-column: 1 / -1; }
+.card-grid > .panel > form:last-of-type { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); }
+.card-grid > .panel > form:last-of-type > .btn,
+.card-grid > .panel > form:last-of-type > .theme-option,
+.card-grid > .panel > form:last-of-type > .field-check { align-self: flex-start; }
+/* The card's action buttons sit on its bottom edge, so buttons in a row line up. */
+.card-grid > .panel > form:last-of-type > .actions:last-child,
+.card-grid > .panel > form:last-of-type > .btn:last-child,
+.card-grid > .panel > .actions:last-child { margin-top: auto; }
+.card-grid > .panel > .actions:last-child { padding-top: var(--space-3); }
+.edit-form > .actions { margin: 0 0 var(--space-6); }
+
+/* Card heading with an auto-save status on the right. */
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.card-head h2 { margin-top: 0; }
+.save-status { font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+.save-status.is-saved { color: var(--success); }
+.save-status.is-error { color: var(--danger); white-space: normal; text-align: right; }
+
+/* Checkbox lists in columns. */
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--space-2) var(--space-3); }
+.card-grid fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.card-grid fieldset legend { font-weight: 600; margin-bottom: var(--space-2); padding: 0; }
+
+/* Automatic backups list. */
+.backup-summary { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+.backup-summary code { overflow-wrap: anywhere; }
+.backup-files { list-style: none; margin: 0 0 var(--space-3); padding: 0; display: grid; gap: var(--space-1); font-size: 0.9rem; }
+.backup-files li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
+.backup-files .when { color: var(--text-muted); white-space: nowrap; }
+#year { max-width: 7rem; }

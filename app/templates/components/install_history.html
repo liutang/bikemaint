@@ -35,11 +35,11 @@
         <td data-label="Miles">{{ row.miles|num1 }} mi</td>
         <td data-label="Actions">
           <div class="actions">
-            <a class="btn" href="/install-periods/{{ row.period.id }}/rides">Rides</a>
-            <a class="btn" href="/install-periods/{{ row.period.id }}/edit">Edit</a>
+            <a class="btn btn-icon" href="/install-periods/{{ row.period.id }}/rides" aria-label="Rides" title="Rides">{{ ui_icons.route() }}</a>
+            <a class="btn btn-icon" href="/install-periods/{{ row.period.id }}/edit" aria-label="Edit" title="Edit">{{ ui_icons.edit() }}</a>
             {% if row.period.removed_at %}
             <form method="post" action="/install-periods/{{ row.period.id }}/delete">
-              <button class="btn" type="submit">Delete</button>
+              <button class="btn btn-icon" type="submit" aria-label="Delete" title="Delete">{{ ui_icons.trash() }}</button>
             </form>
             {% endif %}
           </div>

@@ -29,19 +29,20 @@ def test_the_edit_screen_offers_sport_ride_type_and_keywords(signed_in_client, k
 
     html = signed_in_client.get(f"/{kind}s/{owner.id}/edit").text
 
-    assert "Sync rules" in html and f'action="/{kind}s/{owner.id}/sync-rules"' in html
+    # specs/071: the rules are part of the item's own Edit form (one Save), not a separate form
+    assert "Sync rules" in html and f'action="/{kind}s/{owner.id}/sync-rules"' not in html
     assert re.search(r'<input[^>]*name="sport"[^>]*value="GravelRide"[^>]*checked', html)
     assert re.search(r'<input[^>]*name="sport"[^>]*value="Ride"(?![^>]*checked)', html)
     assert re.search(r'<input[^>]*name="ride_type"[^>]*value="race"[^>]*checked', html)
     assert re.search(r'<input[^>]*name="keywords"[^>]*value="commute"', html)
-    assert ">Save rules</button>" in html
+    assert ">Save rules</button>" not in html
 
 
 def test_new_item_forms_have_the_rules_inside_the_form_not_a_separate_one(signed_in_client):
     # specs/062 replaced "no rules on new forms": the fields are part of the create form.
     for path in ("/bikes/new", "/components/new"):
         html = signed_in_client.get(path).text
-        assert "Sync rules" in html and "sync-rules" not in html.split("<main")[1]
+        assert "Sync rules" in html and "/sync-rules" not in html.split("<main")[1]
 
 
 def test_saving_a_bike_rule_filters_its_rides_and_returns_to_edit(signed_in_client):

@@ -1,24 +1,29 @@
 {# Sync rules section for a bike's or part's Edit screen (specs/060-sync-rules). Blank = no filter. #}
 {# The fields alone, for the Add forms (specs/062) and the panel below. #}
 {% macro sync_rules_fields(sync) -%}
+    <input type="hidden" name="sync_rules" value="1">
     {% if sync.error %}<p class="field-error" id="sync-rules-error" role="alert">{{ sync.error }}</p>{% endif %}
     <fieldset>
       <legend>Sport</legend>
+      <div class="check-grid">
       {% for value, label in sync.sports.items() %}
       <span class="field-check">
         <input id="sport-{{ value }}" type="checkbox" name="sport" value="{{ value }}"{% if value in sync.chosen_sports %} checked{% endif %}>
         <label for="sport-{{ value }}">{{ label }}</label>
       </span>
       {% endfor %}
+      </div>
     </fieldset>
     <fieldset>
       <legend>Ride type</legend>
+      <div class="check-grid">
       {% for value, label in sync.ride_types.items() %}
       <span class="field-check">
         <input id="ride-type-{{ value }}" type="checkbox" name="ride_type" value="{{ value }}"{% if value in sync.chosen_types %} checked{% endif %}>
         <label for="ride-type-{{ value }}">{{ label }}</label>
       </span>
       {% endfor %}
+      </div>
     </fieldset>
     <div class="field">
       <label for="sync-keywords">Keywords</label>

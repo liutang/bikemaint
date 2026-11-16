@@ -199,3 +199,20 @@ def write_rolling_backup(now: datetime | None = None) -> Path:
         old.unlink()
     logger.info("rolling backup written file=%s kept=%s", target.name, keep)
     return target
+
+
+def describe_rolling_backups(today: "date | None" = None) -> list[dict]:
+    """Backups in the folder, newest first, with how old each is ("today", "yesterday", "3 days ago")."""
+    from datetime import date as _date
+
+    from app.services import clock_service
+
+    zone = ZoneInfo(clock_service.zone_name())
+    day = today or datetime.now(zone).date()
+    rows = []
+    for path in list_rolling_backups():
+        made = datetime.fromtimestamp(path.stat().st_mtime, zone).date()
+        days = (day - made).days
+        age = "today" if days <= 0 else "yesterday" if days == 1 else f"{days} days ago"
+        rows.append({"name": path.name, "age": age})
+    return rows

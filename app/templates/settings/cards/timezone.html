@@ -1,0 +1,10 @@
+{% from "settings/_card.html" import head, autosave, fallback_save with context %}
+{% from "partials/forms.html" import select_field %}
+<section class="panel" aria-labelledby="timezone-heading">
+  {{ head("timezone", "Time zone") }}
+  <p class="text-muted">Currently {{ timezone_label }}. Times the app records itself (Strava rides, completed tasks, when Strava was connected) are shown in this zone. Times you type are shown exactly as typed.</p>
+  <form class="form" {{ autosave("/settings/timezone") }}>
+    {{ select_field("timezone", "Time zone", timezone_choices, account.timezone, values, field_errors, hint="Zones that change their clocks follow daylight saving automatically (EST becomes EDT in summer).") }}
+    {{ fallback_save() }}
+  </form>
+</section>

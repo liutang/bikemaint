@@ -81,6 +81,17 @@ def check_new_rule(kind: str, form) -> tuple[dict, dict | None]:
     return submitted, None
 
 
+def save_edit_rule(kind: str, owner_id: int, form, submitted: dict) -> None:
+    """Store the rule from an Edit form (specs/071): what is ticked, so an empty rule removes it.
+
+    Only when the form carried the rule fields (`sync_rules` marker), so other posts never clear a rule.
+    """
+    if form.get("sync_rules"):
+        sync_rule_service.save_rule(
+            kind, owner_id, sports=submitted["sports"], ride_types=submitted["ride_types"], keywords=submitted["keywords"]
+        )
+
+
 def save_new_rule(kind: str, owner_id: int, submitted: dict) -> None:
     """Store the rule typed on an Add form (nothing when it is empty)."""
     if submitted["sports"] or submitted["ride_types"] or submitted["keywords"].strip():

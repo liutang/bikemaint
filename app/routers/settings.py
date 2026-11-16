@@ -37,12 +37,43 @@ def _backup_context() -> dict:
         return {"enabled": False}
     folder, keep, hours = config
     return {"enabled": True, "dir": str(folder), "keep": keep, "hours": hours,
-            "files": [p.name for p in backup_service.list_rolling_backups()]}
+            "files": backup_service.describe_rolling_backups()}
+
+
+def _is_htmx(request: Request) -> bool:
+    return request.headers.get("hx-request") == "true"
 
 
 def _settings_page(
     request: Request, account_id: int, context: dict | None = None, status_code: int = 200
 ):
+    return _render(request, "settings/index.html", _page_context(account_id, context), status_code)
+
+
+def _card(request: Request, account_id: int, card: str, context: dict | None = None):
+    """One card re-rendered after an auto-save (specs/071): "Saved", or "Not saved" with the errors.
+
+    Always 200, because HTMX only swaps successful answers; the card itself says what happened.
+    """
+    context = context or {}
+    status = {"card_error": card} if context.get("errors") else {"saved": card}
+    return _render(request, "settings/card.html", {**_page_context(account_id, context), **status, "card": card})
+
+
+def _done(request: Request, account_id: int, card: str):
+    """After a successful save: the card for HTMX, else back to Settings."""
+    if _is_htmx(request):
+        return _card(request, account_id, card)
+    return RedirectResponse(url="/settings", status_code=303)
+
+
+def _refused(request: Request, account_id: int, card: str, context: dict):
+    if _is_htmx(request):
+        return _card(request, account_id, card, context)
+    return _settings_page(request, account_id, context, 422)
+
+
+def _page_context(account_id: int, context: dict | None = None) -> dict:
     account = settings_service.get_account(account_id)
     page = {"errors": [], "field_errors": {}, "values": {}, **(context or {})}
     hours, minutes = settings_service.split_minutes(settings_service.effective_sync_interval(account))
@@ -53,19 +84,14 @@ def _settings_page(
     }
     choices = clock_service.timezone_choices(account.timezone)
     timezone_label = next(c["label"] for c in choices if c["value"] == account.timezone)
-    return _render(
-        request,
-        "settings/index.html",
-        {
+    return {
             "account": account,
             "sync": sync,
             "backup": _backup_context(),
             "timezone_choices": choices,
             "timezone_label": timezone_label.removeprefix("Current: "),
             **page,
-        },
-        status_code,
-    )
+    }
 
 
 @router.get("/settings", name="settings_index")
@@ -90,11 +116,11 @@ async def update_strava_sync_settings(request: Request, account=Depends(require_
             interval_minutes=form.get("interval_minutes", ""),
         )
     except ValidationError as exc:
-        return _settings_page(request, account.id, error_context(form, exc), 422)
+        return _refused(request, account.id, "strava", error_context(form, exc))
     settings_service.set_sync_settings(
         account.id, enabled=payload.sync_enabled, interval_minutes=payload.total_minutes
     )
-    return RedirectResponse(url="/settings", status_code=303)
+    return _done(request, account.id, "strava")
 
 
 @router.post("/settings/timezone", name="update_timezone_setting")
@@ -104,9 +130,9 @@ async def update_timezone_setting(request: Request, account=Depends(require_acco
     try:
         payload = TimezoneSettingsRequest(timezone=form.get("timezone", ""))
     except ValidationError as exc:
-        return _settings_page(request, account.id, error_context(form, exc), 422)
+        return _refused(request, account.id, "timezone", error_context(form, exc))
     settings_service.set_timezone(account.id, payload.timezone)
-    return RedirectResponse(url="/settings", status_code=303)
+    return _done(request, account.id, "timezone")
 
 
 @router.post("/settings/clock", name="update_clock_setting")
@@ -116,9 +142,9 @@ async def update_clock_setting(request: Request, account=Depends(require_account
     try:
         payload = ClockSettingsRequest(clock_format=form.get("clock_format", ""))
     except ValidationError as exc:
-        return _settings_page(request, account.id, error_context(form, exc), 422)
+        return _refused(request, account.id, "clock", error_context(form, exc))
     settings_service.set_clock_format(account.id, payload.clock_format)
-    return RedirectResponse(url="/settings", status_code=303)
+    return _done(request, account.id, "clock")
 
 
 @router.post("/settings/notifications/mute", name="update_notification_mute")
@@ -126,7 +152,7 @@ async def update_notification_mute(request: Request, account=Depends(require_acc
     """Mute all due-soon notifications and webhook posts (specs/045); a ticked box is present in the post."""
     form = await request.form()
     settings_service.set_notifications_muted(account.id, form.get("notifications_muted") is not None)
-    return RedirectResponse(url="/settings", status_code=303)
+    return _done(request, account.id, "mute")
 
 
 @router.post("/settings/notifications/test", name="test_notification")
@@ -154,9 +180,9 @@ async def update_webhook_settings(request: Request, account=Depends(require_acco
             notification_webhook_url=form.get("notification_webhook_url")
         )
     except ValidationError as exc:
-        return _settings_page(request, account.id, error_context(form, exc), 422)
+        return _refused(request, account.id, "webhook", error_context(form, exc))
     settings_service.set_webhook_url(account.id, payload.notification_webhook_url)
-    return RedirectResponse(url="/settings", status_code=303)
+    return _done(request, account.id, "webhook")
 
 
 @router.post("/settings/notifications", name="update_notification_settings")
@@ -167,9 +193,9 @@ async def update_notification_settings(request: Request, account=Depends(require
             notification_lead_time_days=form.get("notification_lead_time_days", "")
         )
     except ValidationError as exc:
-        return _settings_page(request, account.id, error_context(form, exc), 422)
+        return _refused(request, account.id, "lead", error_context(form, exc))
     settings_service.set_lead_time_days(account.id, payload.notification_lead_time_days)
-    return RedirectResponse(url="/settings", status_code=303)
+    return _done(request, account.id, "lead")
 
 
 THEME_COOKIE = "theme"
@@ -183,8 +209,13 @@ async def update_theme_setting(request: Request, account=Depends(require_account
     try:
         payload = ThemeSettingsRequest(theme=form.get("theme", ""))
     except ValidationError as exc:
-        return _settings_page(request, account.id, error_context(form, exc), 422)
-    response = RedirectResponse(url="/settings", status_code=303)
+        return _refused(request, account.id, "appearance", error_context(form, exc))
+    if _is_htmx(request):
+        # The theme is applied when the page is drawn, so reload it (specs/071).
+        response = _card(request, account.id, "appearance")
+        response.headers["HX-Refresh"] = "true"
+    else:
+        response = RedirectResponse(url="/settings", status_code=303)
     response.set_cookie(
         THEME_COOKIE,
         payload.theme,

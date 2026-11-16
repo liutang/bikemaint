@@ -1,26 +1,35 @@
 {% extends "layout.html" %}
 {% from "partials/forms.html" import field, select_field, error_summary, submit %}
-{% from "partials/sync_rules.html" import sync_rules_panel, sync_rules_fields %}
+{% from "partials/sync_rules.html" import sync_rules_fields %}
 
-{% block title %}{{ "Edit" if component else "New" }} Component — Bike Maintenance Tracker{% endblock %}
+{% block title %}{{ "Edit part" if component else "Add part" }} — Bike Maintenance Tracker{% endblock %}
 
 {% block content %}
 {% include "partials/breadcrumb.html" %}
 <h1>{{ "Edit part" if component else "Add part" }}</h1>
 {{ error_summary(errors) }}
-<form class="panel form" method="post" action="{{ ('/components/' ~ component.id) if component else '/components' }}">
-  {{ field("name", "Name", component.name if component else "", values, field_errors, required=true) }}
-  {{ select_field("component_type", "Type", component_types, component.component_type if component else "", values, field_errors) }}
-  {{ field("manual_baseline_mileage", "Baseline mileage", component.manual_baseline_mileage if component else 0, values, field_errors, type="number", step="0.1", min=0) }}
-  {% if not component and sync %}
-  <h2>Sync rules</h2>
-  <p class="text-muted">Optional. Choose which Strava activities count for this part; leave empty to count everything.</p>
-  {{ sync_rules_fields(sync) }}
-  {% endif %}
+{# Details and sync rules are one form with one Save (specs/071). #}
+<form class="edit-form" method="post" action="{{ ('/components/' ~ component.id) if component else '/components' }}">
+  <div class="card-grid">
+    <section class="panel" aria-labelledby="details-heading">
+      <h2 id="details-heading">Details</h2>
+      <div class="form">
+        {{ field("name", "Name", component.name if component else "", values, field_errors, required=true) }}
+        {{ select_field("component_type", "Type", component_types, component.component_type if component else "", values, field_errors) }}
+        {{ field("manual_baseline_mileage", "Baseline mileage", component.manual_baseline_mileage if component else 0, values, field_errors, type="number", step="0.1", min=0) }}
+      </div>
+    </section>
+    {% if sync %}
+    <section class="panel" aria-labelledby="sync-rules-heading">
+      <h2 id="sync-rules-heading">Sync rules</h2>
+      <p class="text-muted">{% if not component %}Optional. {% endif %}Choose which Strava activities count for this part. A ride must match every filter you fill in; leave a filter empty to allow anything. Rides you added or edited are never left out, and older rides without Strava details are kept until you Re-import.</p>
+      <div class="form">{{ sync_rules_fields(sync) }}</div>
+    </section>
+    {% endif %}
+  </div>
   <div class="actions">
     {{ submit("Save") }}
     <a class="btn" href="{{ ('/components/' ~ component.id) if component else '/components' }}">Cancel</a>
   </div>
 </form>
-{% if component and sync %}{{ sync_rules_panel("component", component, sync) }}{% endif %}
 {% endblock %}

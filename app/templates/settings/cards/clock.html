@@ -1,0 +1,10 @@
+{% from "settings/_card.html" import head, autosave, fallback_save with context %}
+{% from "partials/forms.html" import select_field %}
+<section class="panel" aria-labelledby="clock-heading">
+  {{ head("clock", "Clock") }}
+  <p class="text-muted">How times are written everywhere: 12-hour (2:26PM) or 24-hour (14:26).</p>
+  <form class="form" {{ autosave("/settings/clock") }}>
+    {{ select_field("clock_format", "Clock", [{"value": "12", "label": "12-hour (2:26PM)"}, {"value": "24", "label": "24-hour (14:26)"}], account.clock_format, values, field_errors) }}
+    {{ fallback_save() }}
+  </form>
+</section>

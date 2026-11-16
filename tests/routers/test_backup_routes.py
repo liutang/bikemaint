@@ -13,7 +13,7 @@ def test_routes_need_sign_in(client):
 def test_settings_offers_download_and_restore(signed_in_client):
     html = signed_in_client.get("/settings").text
 
-    assert "Backup and restore" in html and 'href="/settings/backup"' in html
+    assert "Backup" in html and "Restore" in html and 'href="/settings/backup"' in html
     assert 'action="/settings/restore"' in html and 'enctype="multipart/form-data"' in html and 'name="confirm"' in html
 
 
@@ -79,7 +79,7 @@ def test_back_up_now_writes_a_file_and_lists_it(signed_in_client, monkeypatch, t
 
     assert "Backed up to" in html and len(list(tmp_path.glob("bikemaint-backup-*.json"))) == 1
     page = signed_in_client.get("/settings").text
-    assert str(tmp_path) in page and "Back up now" in page and "keeps the newest 2" in page
+    assert str(tmp_path) in page and "Back up now" in page and "Keeps the newest 2" in page
 
 
 def test_back_up_now_reports_an_unwritable_folder(signed_in_client, monkeypatch, tmp_path):

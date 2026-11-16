@@ -1,0 +1,18 @@
+{% from "settings/_card.html" import head, autosave, fallback_save with context %}
+{% set current_theme = request.cookies.get("theme") if request.cookies.get("theme") in ["light", "dark"] else "system" %}
+<section class="panel" aria-labelledby="appearance-heading">
+  {{ head("appearance", "Appearance") }}
+  <p class="text-muted">System follows your device's light or dark setting. This choice is saved in this browser.</p>
+  <form class="form" {{ autosave("/settings/theme") }}>
+    <fieldset class="theme-choice">
+      <legend class="visually-hidden">Theme</legend>
+      {% for value, label in [("system", "System"), ("light", "Light"), ("dark", "Dark")] %}
+      <label for="theme-{{ value }}" class="theme-option">
+        <input type="radio" id="theme-{{ value }}" name="theme" value="{{ value }}"{% if current_theme == value %} checked{% endif %}>
+        <span>{{ label }}</span>
+      </label>
+      {% endfor %}
+    </fieldset>
+    {{ fallback_save() }}
+  </form>
+</section>

@@ -1,0 +1,32 @@
+<section class="panel" aria-labelledby="backup-heading">
+  <h2 id="backup-heading">Backup</h2>
+  <p class="text-muted">Everything (bikes, parts, rides, history, schedules and settings) in one JSON file. Strava tokens and the webhook address are left out.</p>
+  <div class="actions"><a class="btn btn-primary" href="/settings/backup">Download backup</a></div>
+</section>
+<section class="panel" aria-labelledby="restore-heading">
+  <h2 id="restore-heading">Restore</h2>
+  <p class="text-muted">Replaces all current data with a backup file.</p>
+  <form class="form" method="post" action="/settings/restore" enctype="multipart/form-data">
+    <div class="field{% if field_errors and 'backup' in field_errors %} has-error{% endif %}">
+      <label for="backup">Backup file</label>
+      <input id="backup" name="backup" type="file" accept="application/json,.json" required>
+    </div>
+    <span class="field-check">
+      <input id="restore-confirm" type="checkbox" name="confirm" required>
+      <label for="restore-confirm">I understand this replaces all current data</label>
+    </span>
+    <button class="btn btn-primary" type="submit">Restore backup</button>
+  </form>
+</section>
+<section class="panel wide" aria-labelledby="auto-backup-heading">
+  <h2 id="auto-backup-heading">Automatic backups</h2>
+  {% if backup.enabled %}
+  <p class="backup-summary text-muted"><span>Folder <code>{{ backup.dir }}</code></span><span>Every {{ backup.hours }} hour{{ "" if backup.hours == 1 else "s" }}</span><span>Keeps the newest {{ backup.keep }}</span></p>
+  {% if backup.files %}
+  <ul class="backup-files">{% for f in backup.files %}<li><span>{{ f.name }}</span><span class="when">{{ f.age }}</span></li>{% endfor %}</ul>
+  {% else %}<p class="text-muted">No backups in the folder yet.</p>{% endif %}
+  <form class="form" method="post" action="/settings/backup/run"><button class="btn btn-primary" type="submit">Back up now</button></form>
+  {% else %}
+  <p class="text-muted">Off. To keep rolling backups on a mounted folder (for example a NAS), set <code>BACKUP_DIR</code> on the container; see the README.</p>
+  {% endif %}
+</section>

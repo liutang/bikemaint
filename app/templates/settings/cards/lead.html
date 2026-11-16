@@ -1,0 +1,10 @@
+{% from "settings/_card.html" import head, autosave, fallback_save with context %}
+{% from "partials/forms.html" import field %}
+<section class="panel" aria-labelledby="lead-heading">
+  {{ head("lead", "Lead time") }}
+  <p class="text-muted">Currently {{ account.notification_lead_time_days }} days.</p>
+  <form class="form" {{ autosave("/settings/notifications") }}>
+    {{ field("notification_lead_time_days", "Notify this many days before something is due", account.notification_lead_time_days, values, field_errors, type="number", min=0, required=true) }}
+    {{ fallback_save() }}
+  </form>
+</section>

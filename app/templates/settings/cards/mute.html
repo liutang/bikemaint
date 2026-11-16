@@ -1,0 +1,12 @@
+{% from "settings/_card.html" import head, autosave, fallback_save with context %}
+<section class="panel" aria-labelledby="mute-heading">
+  {{ head("mute", "Mute notifications") }}
+  <p class="text-muted">{{ "Muted: no alerts or webhook posts are sent." if account.notifications_muted else "Alerts and webhook posts are on." }} Schedules still appear on Maintenance due.</p>
+  <form class="form" {{ autosave("/settings/notifications/mute") }}>
+    <div class="field field-check">
+      <input id="notifications_muted" type="checkbox" name="notifications_muted"{% if account.notifications_muted %} checked{% endif %}>
+      <label for="notifications_muted">Mute notifications</label>
+    </div>
+    {{ fallback_save() }}
+  </form>
+</section>

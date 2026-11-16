@@ -43,9 +43,9 @@
         <td data-label="Actions">
           {% if row.is_own %}
           <div class="actions">
-            <a class="btn" href="/maintenance/{{ entry.id }}/edit">Edit</a>
+            <a class="btn btn-icon" href="/maintenance/{{ entry.id }}/edit" aria-label="Edit" title="Edit">{{ ui_icons.edit() }}</a>
             <form method="post" action="/maintenance/{{ entry.id }}/delete">
-              <button class="btn" type="submit">Delete</button>
+              <button class="btn btn-icon" type="submit" aria-label="Delete" title="Delete">{{ ui_icons.trash() }}</button>
             </form>
           </div>
           {% endif %}

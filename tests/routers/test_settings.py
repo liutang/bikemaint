@@ -49,7 +49,8 @@ def test_set_and_remove_webhook_url(client, monkeypatch):
     assert "https://discord.example/api/webhooks/1/x" in client.get("/settings").text
 
     client.post("/settings/webhook", data={"notification_webhook_url": ""})
-    assert "not set" in client.get("/settings").text
+    # specs/071: the description no longer repeats the URL; an unset webhook is an empty field
+    assert 'name="notification_webhook_url" type="url" value=""' in client.get("/settings").text
 
 
 def test_webhook_url_must_be_http_or_https(client, monkeypatch):

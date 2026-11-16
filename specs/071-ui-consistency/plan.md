@@ -1,0 +1,7 @@
+# Plan
+- `app/static/styles.css`: section "071" with the shared rules (`.form` single minmax column and tighter gap, natural-width buttons/checkbox rows, sized number/date/time/select, `.field-row`, `.card-grid` + `.panel.wide`, equal-height cards with bottom actions, `.check-grid`, `.card-head` + `.save-status`, `.btn-icon` rows).
+- Settings: `settings/index.html` renders cards from macros in `settings/cards.html`; auto-save forms carry `hx-post`, `hx-trigger="change"`, `hx-target="closest .panel"`, `hx-swap="outerHTML"`; `<noscript>` Save. `routers/settings.py` answers HX requests by rendering `settings/card.html` (one card) with `saved`/errors; theme answers with `HX-Refresh`. `backup_service.describe_rolling_backups` gives name + age.
+- Edit screens: `bikes/form.html`, `components/form.html` use two cards in one form; `routers/bikes.py`/`components.py` validate the rule before saving and save it after the details (`sync_rule_service.validate_rule`/`save_rule`).
+- Icons: `edit()` (pencil), `route()` in `partials/icons.html`; row templates use `btn btn-icon` with `aria-label` and `title`.
+- Tests mirror: `tests/test_ui_layout.py` (CSS rules), `tests/routers/test_settings_autosave.py`, `tests/routers/test_edit_one_save.py`, `tests/test_ui_row_icons.py`; old tests that assert replaced markup are updated deliberately.
+- Constitution: HTMX only, no new JS; routers stay thin; services unchanged except a small listing helper.

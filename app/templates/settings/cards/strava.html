@@ -1,0 +1,28 @@
+{% from "settings/_card.html" import head, autosave, fallback_save with context %}
+{% from "partials/forms.html" import field %}
+{% import "partials/icons.html" as ui_icons %}
+<section class="panel" aria-labelledby="strava-heading">
+  {{ head("strava", "Strava connection") }}
+  {% if account.strava_connection_stale %}
+  <p><span class="badge badge-overdue">{{ ui_icons.warning() }}Stale</span> Mileage may not reflect recent rides.</p>
+  <form method="post" action="/settings/strava/reconnect">
+    <button class="btn btn-primary" type="submit">Reconnect</button>
+  </form>
+  {% else %}
+  <p><span class="badge badge-ok">{{ ui_icons.check() }}Connected</span> since {{ account.strava_connected_at|local_time }}.</p>
+  {% endif %}
+  <h3 id="sync-heading">Automatic sync</h3>
+  <p class="text-muted">{% if account.strava_sync_enabled %}Every {{ sync.interval_text }}.{% else %}Automatic sync is off. Use Sync now on the garage to fetch rides.{% endif %}</p>
+  <form class="form" {{ autosave("/settings/strava/sync") }} aria-labelledby="sync-heading">
+    <label class="theme-option" for="sync_enabled">
+      <input type="checkbox" id="sync_enabled" name="sync_enabled"{% if account.strava_sync_enabled %} checked{% endif %}>
+      <span>Sync automatically</span>
+    </label>
+    <div class="field-row">
+      {{ field("interval_hours", "Hours", sync.interval_hours, values, field_errors, type="number", min=0, max=168, required=true) }}
+      {{ field("interval_minutes", "Minutes", sync.interval_minutes, values, field_errors, type="number", min=0, max=59, required=true) }}
+    </div>
+    <small class="field-hint">Between 5 minutes and 7 days.</small>
+    {{ fallback_save() }}
+  </form>
+</section>

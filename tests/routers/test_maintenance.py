@@ -260,7 +260,7 @@ def test_logged_maintenance_stays_editable_and_deletable_after_the_install_histo
     row = _rows(signed_in_client.get(f"/bikes/{bike.id}/maintenance").text)[0]
 
     assert "Waxed chain" in row
-    assert f'href="/maintenance/{entry.id}/edit">Edit</a>' in row
+    assert f'href="/maintenance/{entry.id}/edit" aria-label="Edit"' in row
     assert f'action="/maintenance/{entry.id}/delete"' in row
     assert signed_in_client.get(f"/maintenance/{entry.id}/edit").status_code == 200
 

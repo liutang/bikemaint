@@ -1,3 +1,4 @@
+{% import "partials/icons.html" as ui_icons %}
 {% from "partials/badges.html" import status_badge %}
 {% from "partials/ring.html" import ring %}
 <article class="attention-card status-{{ 'overdue' if item.status == 'overdue' else 'soon' }}{% if just_done == item.schedule.id %} is-just-done{% endif %}" id="schedule-row-{{ item.schedule.id }}">
@@ -19,9 +20,9 @@
       {% if show_all %}<input type="hidden" name="all" value="1">{% endif %}
       <button class="btn {{ 'btn-primary' if item.status == 'overdue' else '' }}" type="submit">Mark done</button>
     </form>
-    <a class="btn" href="/schedules/{{ item.schedule.id }}/edit">Edit</a>
+    <a class="btn btn-icon" href="/schedules/{{ item.schedule.id }}/edit" aria-label="Edit" title="Edit">{{ ui_icons.edit() }}</a>
     <form method="post" action="/schedules/{{ item.schedule.id }}/delete">
-      <button class="btn" type="submit">Delete</button>
+      <button class="btn btn-icon" type="submit" aria-label="Delete" title="Delete">{{ ui_icons.trash() }}</button>
     </form>
   </div>
 </article>

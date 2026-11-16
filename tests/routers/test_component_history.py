@@ -190,7 +190,7 @@ def test_the_bike_history_lists_parts_newest_first_with_edit_controls(signed_in_
     assert f'href="/components/{tire.id}"' in html and f'href="/components/{chain.id}"' in html
     assert "Front" not in html and 'class="chip">Chain</span>' in html
     body = html.split("<tbody>")[1]
-    assert body.count(">Edit</a>") == 3 and body.count(">Delete</button>") == 1  # only the removed chain
+    assert body.count('aria-label="Edit"') == 3 and body.count('aria-label="Delete"') == 1  # only the removed chain
     assert f"?from_bike={bike.id}" in body
     assert f'href="/bikes/{bike.id}/install-history/new"' in html and "Log a period" in html
 
@@ -385,7 +385,7 @@ def test_rows_of_deleted_parts_have_no_edit_and_say_deleted(signed_in_client):
 
     body = signed_in_client.get(f"/bikes/{bike.id}/install-history").text.split("<tbody>")[1]
 
-    assert "Saddle (deleted)" in _text(body) and ">Edit</a>" not in body
+    assert "Saddle (deleted)" in _text(body) and 'aria-label="Edit"' not in body
 
 
 # ------------------------------------------------ specs/030: ending by edit, deleted rows, button border
@@ -468,7 +468,7 @@ def test_install_history_delete_buttons_are_bordered(signed_in_client):
 
     for url in (f"/components/{chain.id}/install-history", f"/bikes/{bike.id}/install-history"):
         html = signed_in_client.get(url).text
-        button = re.search(r'<button class="([^"]*)" type="submit">Delete</button>', html).group(1).split()
+        button = re.search(r'<button class="([^"]*)" type="submit" aria-label="Delete"', html).group(1).split()
         assert "btn" in button and "btn-quiet" not in button, url
 
 
@@ -483,7 +483,7 @@ def test_rows_of_deleted_parts_say_deleted_and_can_be_deleted_one_by_one(signed_
     body = html.split("<tbody>")[1]
 
     assert _text(body).count("Hub (deleted)") == 2
-    assert ">Edit</a>" not in body and body.count(">Delete</button>") == 2
+    assert 'aria-label="Edit"' not in body and body.count('aria-label="Delete"') == 2
     (first,) = history.list_history(a.id)
 
     response = signed_in_client.post(f"/install-periods/{first.id}/delete?from_bike={bike.id}", follow_redirects=False)
@@ -498,7 +498,7 @@ def test_a_live_period_of_an_existing_part_still_cannot_be_deleted_and_has_no_de
 
     body = signed_in_client.get(f"/bikes/{bike.id}/install-history").text.split("<tbody>")[1]
 
-    assert ">Delete</button>" not in body
+    assert 'aria-label="Delete"' not in body
     assert signed_in_client.post(f"/install-periods/{period.id}/delete").status_code == 422
 
 

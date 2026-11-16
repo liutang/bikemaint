@@ -50,8 +50,8 @@ def test_the_page_lists_only_this_items_schedules_with_actions(signed_in_client)
     assert len(rows) == 2 and "Check" not in body
     assert "Every 186 miles" in rows[0] and "Recurring" in rows[0] and "On" in rows[0]
     assert "Every 4 months" in rows[1] and "One-time" in rows[1] and "Off" in rows[1]
-    assert f'class="btn" href="/schedules/{mine.id}/edit?from=owner"' in rows[0]
-    assert f'action="/schedules/{mine.id}/delete?from=owner"' in rows[0] and ">Delete</button>" in rows[0]
+    assert f'class="btn btn-icon" href="/schedules/{mine.id}/edit?from=owner"' in rows[0]
+    assert f'action="/schedules/{mine.id}/delete?from=owner"' in rows[0] and 'aria-label="Delete"' in rows[0]
     assert f'href="/components/{chain.id}/schedules/new"' in html and "btn-quiet" not in html
 
 

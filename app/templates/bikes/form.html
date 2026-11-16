@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% from "partials/forms.html" import field, select_field, error_summary, submit %}
 {% import "partials/icons.html" as ui_icons %}
-{% from "partials/sync_rules.html" import sync_rules_panel, sync_rules_fields %}
+{% from "partials/sync_rules.html" import sync_rules_fields %}
 
 {% block title %}{{ "Edit" if bike else "New" }} Bike — Bike Maintenance Tracker{% endblock %}
 
@@ -9,28 +9,39 @@
 {% include "partials/breadcrumb.html" %}
 <h1>{{ "Edit" if bike else "Add" }} Bike</h1>
 {{ error_summary(errors) }}
-<form class="panel form" method="post" action="{{ ('/bikes/' ~ bike.id) if bike else '/bikes' }}">
-  {% if legacy %}
-  <p class="text-muted">This bike has a single name, “{{ bike.name }}”. Leave year, make and model blank to keep it, or fill in all three to replace it.</p>
-  {% endif %}
-  {{ field("year", "Year", bike.year if bike and bike.year else "", values, field_errors, type="text", required=not legacy, hint="Four digits, for example 2022.") }}
-  {{ field("make", "Make", bike.make if bike and bike.make else "", values, field_errors, required=not legacy, hint="For example Trek or Specialized.") }}
-  {{ field("model", "Model", bike.model if bike and bike.model else "", values, field_errors, required=not legacy, hint="For example Domane or Tarmac.") }}
-  {{ select_field("category", "Category", categories, bike.bike_type if bike and bike.bike_type in categories else ("other" if bike else "road"), values, field_errors) }}
-  {{ field("manual_baseline_mileage", "Baseline mileage", bike.manual_baseline_mileage if bike else 0, values, field_errors, type="number", step="0.1", min=0, hint="Miles already on the bike before it was added here.") }}
-  {% if not bike and sync %}
-  <h2>Sync rules</h2>
-  <p class="text-muted">Optional. Choose which Strava activities count for this bike; leave empty to count everything.</p>
-  {{ sync_rules_fields(sync) }}
-  {% endif %}
+<form class="edit-form" method="post" action="{{ ('/bikes/' ~ bike.id) if bike else '/bikes' }}">
+  <div class="card-grid">
+    <section class="panel" aria-labelledby="details-heading">
+      <h2 id="details-heading">Details</h2>
+      <div class="form">
+        {% if legacy %}
+        <p class="text-muted">This bike has a single name, “{{ bike.name }}”. Leave year, make and model blank to keep it, or fill in all three to replace it.</p>
+        {% endif %}
+        {{ field("year", "Year", bike.year if bike and bike.year else "", values, field_errors, type="text", required=not legacy, hint="Four digits, for example 2022.") }}
+        <div class="field-row">
+          {{ field("make", "Make", bike.make if bike and bike.make else "", values, field_errors, required=not legacy, hint="For example Trek or Specialized.") }}
+          {{ field("model", "Model", bike.model if bike and bike.model else "", values, field_errors, required=not legacy, hint="For example Domane or Tarmac.") }}
+        </div>
+        {{ select_field("category", "Category", categories, bike.bike_type if bike and bike.bike_type in categories else ("other" if bike else "road"), values, field_errors) }}
+        {{ field("manual_baseline_mileage", "Baseline mileage", bike.manual_baseline_mileage if bike else 0, values, field_errors, type="number", step="0.1", min=0, hint="Miles already on the bike before it was added here.") }}
+      </div>
+    </section>
+    {% if sync %}
+    <section class="panel" aria-labelledby="sync-rules-heading">
+      <h2 id="sync-rules-heading">Sync rules</h2>
+      <p class="text-muted">{% if not bike %}Optional. {% endif %}Choose which Strava activities count for this bike. A ride must match every filter you fill in; leave a filter empty to allow anything. Rides you added or edited are never left out, and older rides without Strava details are kept until you Re-import.</p>
+      <div class="form">{{ sync_rules_fields(sync) }}</div>
+    </section>
+    {% endif %}
+  </div>
   <div class="actions">
     {{ submit("Save") }}
     <a class="btn" href="{{ ('/bikes/' ~ bike.id) if bike else '/' }}">Cancel</a>
   </div>
 </form>
 
-{% if bike and sync %}{{ sync_rules_panel("bike", bike, sync) }}{% endif %}
-
+{% if bike %}
+<div class="card-grid">
 {% if bike and bike.strava_gear_id %}
 <section class="panel" aria-labelledby="strava-heading">
   <h2 id="strava-heading">Strava</h2>
@@ -55,5 +66,7 @@
     <button class="btn btn-danger" type="submit">{{ ui_icons.trash() }}Delete bike</button>
   </form>
 </section>
+{% endif %}
+</div>
 {% endif %}
 {% endblock %}

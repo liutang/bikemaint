@@ -15,7 +15,7 @@ from app.models.requests import BIKE_CATEGORIES, BikeDetailsRequest
 from app.models.form_errors import error_context, message_context
 from app.services import bike_service, component_service, strava_client
 from app.routers.screen import render_screen
-from app.routers.sync_rules import check_new_rule, save_new_rule, sync_context
+from app.routers.sync_rules import check_new_rule, save_edit_rule, save_new_rule, sync_context
 from app.services.auth_dependency import require_account
 
 router = APIRouter()
@@ -151,9 +151,15 @@ async def update_bike(request: Request, bike_id: int, account=Depends(require_ac
     if bike is None:
         return PlainTextResponse("Bike not found", status_code=404)
     form = await request.form()
+    # One Save stores the details and the sync rule (specs/071); a bad rule refuses both.
+    submitted, refused = check_new_rule("bike", form)
+    keep = {"sync": refused or sync_context("bike", bike.id, submitted=submitted)}
+    if refused:
+        return _render(request, "bikes/form.html", _form_context(bike, {
+            "errors": [refused["error"]], "values": dict(form), **keep}), status_code=422)
     try:
         payload = _parse_details_form(form)
-        bike = bike_service.update_bike_from_details(
+        updated = bike_service.update_bike_from_details(
             bike_id,
             year=payload.year,
             make=payload.make,
@@ -163,14 +169,15 @@ async def update_bike(request: Request, bike_id: int, account=Depends(require_ac
         )
     except ValidationError as exc:
         return _render(
-            request, "bikes/form.html", _form_context(bike, error_context(form, exc)), status_code=422
+            request, "bikes/form.html", _form_context(bike, {**error_context(form, exc), **keep}), status_code=422
         )
     except ValueError as exc:
         return _render(
-            request, "bikes/form.html", _form_context(bike, message_context(form, str(exc))),
+            request, "bikes/form.html", _form_context(bike, {**message_context(form, str(exc)), **keep}),
             status_code=422,
         )
-    return RedirectResponse(url=f"/bikes/{bike.id}", status_code=303)
+    save_edit_rule("bike", bike_id, form, submitted)
+    return RedirectResponse(url=f"/bikes/{updated.id}", status_code=303)
 
 
 @router.get("/bikes/{bike_id}/strava-pairing", name="strava_pairing_form")

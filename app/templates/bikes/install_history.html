@@ -37,13 +37,13 @@
         <td data-label="Removed">{% if row.period.removed_at %}{{ row.period.removed_at|wall_time }}{% else %}Still installed{% endif %}</td>
         <td data-label="Actions">
           <div class="actions">
-            <a class="btn" href="/install-periods/{{ row.period.id }}/rides?from_bike={{ bike.id }}">Rides</a>
+            <a class="btn btn-icon" href="/install-periods/{{ row.period.id }}/rides?from_bike={{ bike.id }}" aria-label="Rides" title="Rides">{{ ui_icons.route() }}</a>
             {% if row.linked %}
-            <a class="btn" href="/install-periods/{{ row.period.id }}/edit?from_bike={{ bike.id }}">Edit</a>
+            <a class="btn btn-icon" href="/install-periods/{{ row.period.id }}/edit?from_bike={{ bike.id }}" aria-label="Edit" title="Edit">{{ ui_icons.edit() }}</a>
             {% endif %}
             {% if row.period.removed_at %}
             <form method="post" action="/install-periods/{{ row.period.id }}/delete?from_bike={{ bike.id }}">
-              <button class="btn" type="submit">Delete</button>
+              <button class="btn btn-icon" type="submit" aria-label="Delete" title="Delete">{{ ui_icons.trash() }}</button>
             </form>
             {% endif %}
           </div>

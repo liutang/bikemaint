@@ -48,9 +48,9 @@
         </td>
         <td data-label="Actions">
           <div class="actions">
-            <a class="btn" href="/schedules/{{ item.schedule.id }}/edit?from=owner">Edit</a>
+            <a class="btn btn-icon" href="/schedules/{{ item.schedule.id }}/edit?from=owner" aria-label="Edit" title="Edit">{{ ui_icons.edit() }}</a>
             <form method="post" action="/schedules/{{ item.schedule.id }}/delete?from=owner">
-              <button class="btn" type="submit">Delete</button>
+              <button class="btn btn-icon" type="submit" aria-label="Delete" title="Delete">{{ ui_icons.trash() }}</button>
             </form>
           </div>
         </td>

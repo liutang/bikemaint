@@ -1,3 +1,4 @@
+{% import "partials/icons.html" as ui_icons %}
 {% from "partials/badges.html" import status_badge, low_confidence_badge %}
 <li class="other-row{% if just_done == item.schedule.id %} is-just-done{% endif %}" id="schedule-row-{{ item.schedule.id }}">
   <div class="other-main">
@@ -18,9 +19,9 @@
         hx-disabled-elt="find button">
     {% if show_all %}<input type="hidden" name="all" value="1">{% endif %}
     <button class="btn" type="submit">Mark done</button>
-    <a class="btn" href="/schedules/{{ item.schedule.id }}/edit">Edit</a>
+    <a class="btn btn-icon" href="/schedules/{{ item.schedule.id }}/edit" aria-label="Edit" title="Edit">{{ ui_icons.edit() }}</a>
   </form>
   <form class="other-actions" method="post" action="/schedules/{{ item.schedule.id }}/delete">
-    <button class="btn" type="submit">Delete</button>
+    <button class="btn btn-icon" type="submit" aria-label="Delete" title="Delete">{{ ui_icons.trash() }}</button>
   </form>
 </li>

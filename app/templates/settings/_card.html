@@ -1,0 +1,17 @@
+{# Shared pieces of a Settings card (specs/071): heading with auto-save status, and the auto-save form attributes. #}
+{% macro head(key, title) -%}
+<div class="card-head">
+  <h2 id="{{ key }}-heading">{{ title }}</h2>
+  {%- if saved == key %}<span class="save-status is-saved" role="status">Saved</span>
+  {%- elif card_error == key %}<span class="save-status is-error" role="status">Not saved: {{ errors[0] if errors else "check the value" }}</span>
+  {%- else %}<span class="save-status" role="status"></span>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro autosave(action) -%}
+method="post" action="{{ action }}" hx-post="{{ action }}" hx-trigger="change" hx-target="closest .panel" hx-swap="outerHTML"
+{%- endmacro %}
+
+{% macro fallback_save(primary=true) -%}
+<noscript><button class="btn{{ ' btn-primary' if primary }}" type="submit">Save</button></noscript>
+{%- endmacro %}

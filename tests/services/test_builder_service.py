@@ -334,3 +334,20 @@ def test_delete_part_removes_or_keeps_the_history(db_path):
     with connection.get_connection() as conn:
         assert components_db.list_periods(conn, gone.id) == []
         assert len(components_db.list_periods(conn, kept.id)) == 1
+
+
+def test_descendant_count_counts_every_sub_part_at_every_depth(db_path):
+    # specs/073 FR-007: a collapsed part shows how many parts it holds, at every depth.
+    bike = bike_service.create_bike(name="Road")
+    wheelset = _mk("Wheelset", "wheelset", parent_bike_id=bike.id)
+    front = _mk("Front", "wheel", parent_component_id=wheelset.id)
+    _mk("Tire", "tire", parent_component_id=front.id)
+    _mk("Tube", "tube", parent_component_id=front.id)
+    _mk("Rear", "wheel", parent_component_id=wheelset.id)
+    _mk("Chain", "chain", parent_bike_id=bike.id)
+
+    nodes = {n.component.name: n for n in _view(bike).nodes}
+
+    assert nodes["Wheelset"].descendant_count == 4
+    assert nodes["Wheelset"].children[0].descendant_count == 2
+    assert nodes["Chain"].descendant_count == 0

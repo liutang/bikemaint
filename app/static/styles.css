@@ -1567,10 +1567,6 @@ button[disabled],
   border-style: dashed;
 }
 
-.builder .is-invalid {
-  opacity: 0.45;
-}
-
 .builder .is-over {
   border-style: solid;
   background: var(--surface-2);
@@ -1580,6 +1576,97 @@ button[disabled],
 .builder .is-dragging.node-row,
 .builder .is-dragging.side-item {
   opacity: 0.5;
+}
+
+/* ---------- Builder drag gap and collapsible parts (specs/073) ---------- */
+/* The dragged part (and its sub-parts) lifts out; a gap shaped like it shows where it lands. */
+.builder .is-lifted {
+  display: none;
+}
+
+.drop-slot .slot-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap-min);
+  padding: var(--space-1) var(--space-2);
+  border: 2px dashed var(--primary);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  font-weight: 600;
+}
+
+.drop-slot .slot-where {
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.builder.is-dragging .node-row {
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+/* The part that will hold the dropped part. */
+.builder .node-row.is-over {
+  border-style: solid;
+  border-color: var(--primary);
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.twisty,
+.twisty-space {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.twisty {
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.twisty:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.twisty .icon {
+  width: 1rem;
+  height: 1rem;
+  transform: rotate(90deg);
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.twisty[aria-expanded="false"] .icon {
+  transform: none;
+}
+
+.sub-count {
+  display: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.builder-node.is-collapsed > .node-row .sub-count,
+.builder-node.is-closing > .node-row .sub-count {
+  display: inline;
+}
+
+/* Collapsed: sub-parts hidden, but a drop gap can still open inside. */
+.builder-node.is-collapsed > ul.builder-nodes > li:not(.drop-slot) {
+  display: none;
+}
+
+.builder-node.is-collapsed > ul.builder-nodes:not(:has(> .drop-slot)) {
+  display: none;
 }
 
 .builder.is-dragging {

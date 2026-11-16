@@ -31,6 +31,11 @@ class BuilderNode:
     down_before: int | None = None  # None with can_down means "move to the end"
     children: list[BuilderNode] = field(default_factory=list)
 
+    @property
+    def descendant_count(self) -> int:
+        """Every part under this one, at every depth (the "N parts" of a collapsed row, specs/073)."""
+        return sum(1 + child.descendant_count for child in self.children)
+
 
 @dataclass
 class StorageItem:

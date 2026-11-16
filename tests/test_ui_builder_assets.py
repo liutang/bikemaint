@@ -20,7 +20,8 @@ def test_script_is_served_as_javascript(signed_in_client):
 
 
 def test_script_is_small_hand_written_and_dependency_free():
-    assert len(JS.encode()) <= 12 * 1024
+    # 16 KB since specs/073 (drag gap + collapsible parts); still hand-written, no dependencies
+    assert len(JS.encode()) <= 16 * 1024
     assert not re.search(r"https?://", JS)
     assert not re.search(r"\b(eval|document\.write|innerHTML|import\s|require\()", JS)
     assert JS.lstrip().startswith("(") and '"use strict"' in JS
@@ -53,7 +54,8 @@ def test_every_data_attribute_the_script_reads_is_emitted_by_the_builder_markup(
 
 def test_every_class_the_script_toggles_is_styled():
     css = (STATIC / "styles.css").read_text()
-    for cls in ("is-valid", "is-invalid", "is-over", "is-dragging"):
+    # specs/073: is-invalid is gone (rows no longer dim); the gap and outline replace it
+    for cls in ("is-valid", "is-over", "is-dragging"):
         assert cls in JS
         assert f".{cls}" in css, f"no CSS for .{cls}"
 
@@ -91,7 +93,8 @@ def test_breadcrumb_markup_is_an_ordered_list_with_the_current_page_marked(signe
 
 
 def test_script_lets_palette_parts_be_dropped_on_the_storage_box():
-    assert re.search(r'ref === "storage"\) return drag\.source !== "storage"', JS)
+    # specs/073 rewrote the drop logic; the rule stays: anything but a stored part may go to storage
+    assert re.search(r'storage-drop.{0,80}drag\.source !== "storage"', JS, re.S)
 
 
 def test_the_browser_local_time_script_is_gone_because_the_saved_zone_is_used(signed_in_client):

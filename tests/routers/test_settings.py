@@ -1,6 +1,9 @@
 import re
+from datetime import datetime, timezone
 
 import pytest
+
+from app.services import clock_service
 
 
 @pytest.mark.parametrize(
@@ -165,8 +168,13 @@ def _timezone_select(html):
     return re.search(r'<select id="timezone".*?</select>', html, re.S).group(0)
 
 
+WINTER = datetime(2026, 1, 15, 12, tzinfo=timezone.utc)
+SUMMER = datetime(2026, 7, 15, 12, tzinfo=timezone.utc)
+
+
 def test_the_time_zone_section_is_a_short_offset_dropdown_with_utc_selected_at_first(client, monkeypatch):
     _login(client, monkeypatch)
+    monkeypatch.setattr(clock_service, "_utc_now", lambda: WINTER)
 
     html = client.get("/settings").text
 
@@ -213,11 +221,23 @@ def test_an_unknown_zone_is_refused_with_a_message_beside_the_field(client, monk
 
 def test_the_current_zone_is_described_by_its_offset_not_a_city(client, monkeypatch):
     _login(client, monkeypatch)
+    monkeypatch.setattr(clock_service, "_utc_now", lambda: WINTER)
     client.post("/settings/timezone", data={"timezone": "America/New_York"})
 
     html = client.get("/settings").text
 
     assert "Currently (GMT-5) America/New York (EST)." in html
+
+
+def test_in_summer_the_zone_list_and_current_line_show_daylight_time(client, monkeypatch):
+    _login(client, monkeypatch)
+    monkeypatch.setattr(clock_service, "_utc_now", lambda: SUMMER)
+    client.post("/settings/timezone", data={"timezone": "America/New_York"})
+
+    html = client.get("/settings").text
+
+    assert '<option value="America/New_York" selected>(GMT-4) America/New York (EDT)</option>' in _timezone_select(html)
+    assert "Currently (GMT-4) America/New York (EDT)." in html
 
 
 def test_the_clock_defaults_to_twelve_hour_and_can_be_switched(client, monkeypatch):

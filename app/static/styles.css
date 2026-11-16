@@ -1705,3 +1705,6 @@ button[disabled],
 .backup-files li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow-wrap: anywhere; }
 .backup-files .when { color: var(--text-muted); white-space: nowrap; }
 #year { max-width: 7rem; }
+
+/* Everything-else row actions: one evenly spaced group of icon buttons (specs/072). */
+.other-actions form { display: contents; }

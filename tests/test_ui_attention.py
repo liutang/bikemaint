@@ -430,3 +430,22 @@ def test_the_ring_text_scales_with_the_ring_size_for_every_length_class():
     assert "--ring-size" in css
     for cls in ("n5", "n6", "n7", "n8"):
         assert re.search(rf"\.ring-value\.{cls}\s*\{{[^}}]*var\(--ring-size\)", css), cls
+
+
+# --- specs/072: other-row actions are three evenly spaced icon buttons ---
+
+def test_other_rows_have_mark_done_edit_and_delete_as_one_icon_group(signed_in_client):
+    import re
+    from app.services import bike_service, schedule_service
+
+    bike = bike_service.create_bike(name="Road")
+    schedule_service.create_schedule(bike_id=bike.id, service_type="Check", interval_kind="period", interval_value=1, interval_unit="years")
+
+    html = signed_in_client.get("/maintenance/due?all=1").text
+    row = re.search(r'<li class="other-row[^"]*"[^>]*>.*?</li>', html, re.S).group(0)
+
+    group = re.search(r'<div class="other-actions">(.*)</div>\s*</li>', row, re.S).group(1)
+    labels = re.findall(r'aria-label="([^"]+)"', group)
+    assert labels == ["Mark done", "Edit", "Delete"]
+    assert ">Mark done</button>" not in row and 'title="Mark done"' in row
+    assert 'hx-post="/schedules/1/complete"' in group

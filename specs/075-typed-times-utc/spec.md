@@ -149,7 +149,7 @@ A maintenance entry logged at 9:00 PM on November 16 in New York is 02:00 UTC on
 - **FR-011**: "Today" MUST be the current date in the saved zone for due dates, days remaining and late, due-soon notifications and the date Mark done records (US5).
 - **FR-012**: Strava rides edited before the update MUST be left as UTC (Edge Cases).
 - **FR-013**: The Settings time zone card MUST stop saying that typed times are shown as typed. It explains that every time is recorded in UTC and shown in this zone.
-- **FR-014**: Specs whose rules this replaces MUST be amended to point here: 023 (display), 015 FR-013 and 051 (comparison clock), 036 (typed times without a zone), 044 (order of entries without a time), 049, 038, 039, 040 and 067 where they describe typed times, today's date or the backup format.
+- **FR-014**: Specs whose rules this replaces MUST be amended to point here: 023 (display), 015 FR-013 (comparison clock), 036 (typed times without a zone), 044 (order of entries without a time), 038, 039, 040 and 067, and the 049 and 051 rules recorded in CLAUDE.md (they have no spec folders) where they describe typed times, today's date or the backup format.
 
 ## Key Entities
 

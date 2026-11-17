@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db import maintenance as maintenance_db
+from app.db import frames
 from app.db import mileage as mileage_db
 from app.db import schedules as schedules_db
 from app.db.connection import get_connection
@@ -196,6 +197,28 @@ def update_entry(
         )
         _rebase_matching_schedules(conn, entry, new_cycle=False)
         return entry
+
+
+def follow_zone(zone: str) -> int:
+    """Keep entries in step with a newly saved zone (specs/075 US4); returns entries rewritten.
+
+    A timed entry's instant is its truth, so its local date and time are worked out again. An
+    untimed entry's date is its truth, so its whole day is worked out again in the new zone.
+    """
+    changed = 0
+    with get_connection() as conn:
+        for entry in maintenance_db.list_all(conn):
+            if entry.performed_time and entry.performed_instant:
+                local = frames.from_utc(entry.performed_instant, zone)
+                new = (f"{local:%Y-%m-%d}", f"{local:%H:%M}", entry.performed_instant)
+            else:
+                new = (entry.performed_at, entry.performed_time, frames.end_of_day_utc(entry.performed_at, zone))
+            if new != (entry.performed_at, entry.performed_time, entry.performed_instant):
+                maintenance_db.set_moment(
+                    conn, entry.id, performed_at=new[0], performed_time=new[1], performed_instant=new[2]
+                )
+                changed += 1
+    return changed
 
 
 def delete_entry(entry_id: int) -> None:

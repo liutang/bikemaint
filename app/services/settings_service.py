@@ -63,10 +63,16 @@ def describe_interval(minutes: int) -> str:
 
 
 def set_timezone(account_id: int, timezone: str) -> None:
-    """Save the time zone used to show UTC-recorded times (display only)."""
+    """Save the zone times are typed and shown in. Stored instants never move; maintenance
+    entries are kept on their local dates (specs/075 US4)."""
+    from app.services import maintenance_service  # imported here: it imports clock_service too
+
     with get_connection() as conn:
         accounts_db.update_timezone(conn, account_id, timezone)
     clock_service.remember_zone(timezone)
+    changed = maintenance_service.follow_zone(timezone)
+    if changed:
+        logger.info("maintenance entries follow the new zone zone=%s entries=%s", timezone, changed)
 
 
 def set_clock_format(account_id: int, clock_format: str) -> None:

@@ -136,7 +136,7 @@ def test_htmx_component_delete_redirects_to_storage_list(signed_in_client):
 
 # ------------------------------------------------------------ User Story 3: dashboard
 
-from datetime import date, timedelta  # noqa: E402
+from datetime import timedelta  # noqa: E402
 
 from app.services import notification_service, schedule_service  # noqa: E402
 
@@ -156,7 +156,7 @@ def _seed_schedules():
     from app.services import bike_service
 
     bike = bike_service.create_bike(name="Dash Bike")
-    today = date.today()
+    today = _clock.today()
     schedule_service.create_schedule(
         bike_id=bike.id, name="Overdue job", interval_days=10, today=today - timedelta(days=30)
     )  # id 1
@@ -213,7 +213,7 @@ def _make_alert():
 
     bike = bike_service.create_bike(name="Alert Bike")
     schedule_service.create_schedule(
-        bike_id=bike.id, name="Chain swap", interval_days=3, today=date.today()
+        bike_id=bike.id, name="Chain swap", interval_days=3, today=_clock.today()
     )
     return notification_service.check_due_schedules()
 
@@ -264,6 +264,7 @@ def test_mark_done_with_htmx_returns_the_updated_board(signed_in_client):
 # ------------------------------------------------------------ User Story 4: forms
 
 import pytest  # noqa: E402
+from app.services import clock_service as _clock  # "today" is the saved zone's date (specs/075)
 
 BAD_SUBMISSIONS = [
     # (id, path, form data, field with the error, entered value that must be preserved, preserved field)

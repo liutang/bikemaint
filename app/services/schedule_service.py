@@ -121,7 +121,7 @@ def split_attention(
 
 
 def _today(today: date | None) -> date:
-    return today or date.today()
+    return today or clock_service.today()  # the saved zone's date (specs/075 FR-011)
 
 
 def _validate(
@@ -209,10 +209,10 @@ def _baseline_for(conn, owner, *, bike_id, component_id, service_type: str, toda
             "baseline_date": entry.performed_at,
             "baseline_at": maintenance_service.entry_moment(entry),
         }
-    # created_at is UTC; compare it with "today" the way the rest of the module does (server-local)
-    started = datetime.fromisoformat(owner.created_at.replace("Z", "+00:00")).astimezone().date().isoformat()
+    # Dates are the rider's local ones, like "today" (specs/075 FR-011).
+    started = clock_service.to_local(owner.created_at)[:10]
     if component_id is not None:
-        installs = [p.installed_at[:10] for p in components_db.list_periods(conn, component_id)]
+        installs = [clock_service.to_local(p.installed_at)[:10] for p in components_db.list_periods(conn, component_id)]
         if installs:
             started = min(installs)
     return {
@@ -365,9 +365,7 @@ def _trailing_pace(conn, bike_id: int | None, today: date) -> tuple[float, int]:
     """(miles per day, distinct ride days) for a bike over the trailing window."""
     if bike_id is None:
         return 0.0, 0
-    since = datetime.combine(
-        today - timedelta(days=PACE_WINDOW_DAYS), datetime.min.time(), tzinfo=timezone.utc
-    ).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    since = clock_service.to_utc((today - timedelta(days=PACE_WINDOW_DAYS)).isoformat(), "00:00")
     miles, ride_days = mileage_db.recent_ride_stats_for_bike(conn, bike_id, since=since)
     return miles / PACE_WINDOW_DAYS, ride_days
 
@@ -404,9 +402,7 @@ def _trailing_usage_pace(conn, bike_id: int | None, today: date, unit: str) -> t
     """(rides or hours per day, distinct ride days) for a bike over the trailing window."""
     if bike_id is None:
         return 0.0, 0
-    since = datetime.combine(
-        today - timedelta(days=PACE_WINDOW_DAYS), datetime.min.time(), tzinfo=timezone.utc
-    ).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    since = clock_service.to_utc((today - timedelta(days=PACE_WINDOW_DAYS)).isoformat(), "00:00")
     rides, seconds, ride_days = mileage_db.recent_usage_for_bike(conn, bike_id, since=since)
     amount = float(rides) if unit == "rides" else seconds / 3600
     return amount / PACE_WINDOW_DAYS, ride_days

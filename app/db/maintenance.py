@@ -90,6 +90,20 @@ def update(
     return entry
 
 
+def list_all(conn: sqlite3.Connection) -> list[MaintenanceLogEntry]:
+    return [MaintenanceLogEntry.from_row(r) for r in conn.execute("SELECT * FROM maintenance_log_entry ORDER BY id")]
+
+
+def set_moment(
+    conn: sqlite3.Connection, entry_id: int, *, performed_at: str, performed_time: str | None, performed_instant: str
+) -> None:
+    """Rewrite an entry's local date, local time and instant together (a zone change, specs/075)."""
+    conn.execute(
+        "UPDATE maintenance_log_entry SET performed_at = ?, performed_time = ?, performed_instant = ? WHERE id = ?",
+        (performed_at, performed_time, performed_instant, entry_id),
+    )
+
+
 def delete(conn: sqlite3.Connection, entry_id: int) -> None:
     conn.execute("DELETE FROM maintenance_log_entry WHERE id = ?", (entry_id,))
 

@@ -392,3 +392,19 @@ def test_a_manual_rides_edit_form_shows_what_was_typed(signed_in_client, new_yor
     html = signed_in_client.get(f"/rides/{ride.id}/edit").text
 
     assert 'value="2026-11-16"' in html and 'value="21:15"' in html
+
+
+def test_changing_the_zone_shifts_every_time_shown(signed_in_client, new_york):
+    from app.services import maintenance_service, settings_service
+
+    bike = _bike()
+    _strava(bike, 1, 10, when="2026-11-13T19:26:41.000000Z")
+    ride_service.create_ride(bike.id, day=__import__("datetime").date(2026, 11, 16), time="17:39", miles=5, note=None)
+    maintenance_service.log_maintenance(bike_id=bike.id, description="Lube/Wax", performed_at="2026-11-16", performed_time="21:00")
+
+    settings_service.set_timezone(new_york.id, "America/Los_Angeles")
+
+    rides = signed_in_client.get(f"/bikes/{bike.id}/rides").text
+    history = signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
+    assert "2026-11-16 2:39PM PST" in rides and "2026-11-13 11:26AM PST" in rides
+    assert "2026-11-16 6:00PM PST" in history

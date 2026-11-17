@@ -7,8 +7,9 @@ import pytest
 from app.db import connection
 from app.db import mileage as mileage_db
 from app.services import bike_service, component_history_service as history, component_service, schedule_service
+from app.services import clock_service as _clock  # "today" is the saved zone's date (specs/075)
 
-TODAY = date.today()
+TODAY = _clock.today()
 _ids = iter(range(1, 10_000))
 
 

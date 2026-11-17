@@ -7,8 +7,9 @@ import respx
 from app.db import accounts, connection
 from app.db import notifications as notifications_db
 from app.services import bike_service, notification_service, schedule_service
+from app.services import clock_service as _clock  # "today" is the saved zone's date (specs/075)
 
-TODAY = date.today()
+TODAY = _clock.today()
 WEBHOOK_URL = "https://discord.example/api/webhooks/123/abc"
 
 
@@ -322,3 +323,17 @@ def test_due_soon_keeps_the_remaining_text():
 
     assert payload["content"].endswith("(approx. 180 mi remaining)")
     assert payload["schedule"]["overdue_amount"] is None
+
+
+def test_due_soon_checks_use_the_riders_date(db_path, new_york, monkeypatch):
+    from datetime import datetime, timezone
+
+    from app.services import clock_service
+
+    monkeypatch.setattr(clock_service, "_utc_now", lambda: datetime(2026, 11, 17, 1, 0, tzinfo=timezone.utc))
+    seen = []
+    monkeypatch.setattr(schedule_service, "list_due_overview", lambda *, today, **kw: seen.append(today) or [])
+
+    notification_service.check_due_schedules()
+
+    assert seen == [date(2026, 11, 16)]

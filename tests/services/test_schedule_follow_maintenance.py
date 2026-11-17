@@ -6,8 +6,9 @@ import pytest
 
 from app.db import connection, mileage as mileage_db
 from app.services import bike_service, component_service, maintenance_service, schedule_service
+from app.services import clock_service as _clock  # "today" is the saved zone's date (specs/075)
 
-TODAY = date.today()
+TODAY = _clock.today()
 
 
 @pytest.fixture

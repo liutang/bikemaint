@@ -193,15 +193,15 @@ description: "Task list for 075 store typed times in UTC"
 
 **Independent test**: switch New York to Los Angeles. The manual ride reads `2:39PM PST`, the 9 PM entry `6:00PM PST`, untimed entries keep their dates, and totals are unchanged.
 
-- [ ] T030 [P] [US4] Tests first in `tests/services/test_settings_service.py`: `set_timezone` to Los Angeles:
+- [x] T030 [P] [US4] Tests first in `tests/services/test_settings_service.py`: `set_timezone` to Los Angeles:
   - recomputes a timed entry's `performed_at`/`performed_time` from its instant;
   - recomputes an untimed entry's instant as the end of its day in Los Angeles;
   - leaves rides, periods and schedules untouched;
   - leaves bike and part totals unchanged.
-- [ ] T031 [US4] Implement T030:
+- [x] T031 [US4] Implement T030:
   - `maintenance_service.follow_zone(zone)` loops over entries, using a `maintenance_db` update function.
   - `settings_service.set_timezone` calls it after saving the zone.
-- [ ] T032 [P] [US4] Route test in `tests/routers/test_settings.py` (or `test_rides.py`): after saving Los Angeles, the Rides list and Maintenance history show `PST` times three hours earlier (SC-004).
+- [x] T032 [P] [US4] Route test in `tests/routers/test_settings.py` (or `test_rides.py`): after saving Los Angeles, the Rides list and Maintenance history show `PST` times three hours earlier (SC-004).
 
 ## Phase 7: User Story 5 - "Today" is the rider's date (P2)
 
@@ -209,13 +209,13 @@ description: "Task list for 075 store typed times in UTC"
 
 **Independent test**: `_utc_now` pinned to `2026-11-17T01:00Z`, zone New York. Today is 2026-11-16 everywhere.
 
-- [ ] T033 [P] [US5] Tests first in `tests/services/test_schedule_service.py` and `tests/services/test_notification_service.py`, with `_utc_now` pinned to `2026-11-17T01:00Z` and zone New York:
+- [x] T033 [P] [US5] Tests first in `tests/services/test_schedule_service.py` and `tests/services/test_notification_service.py`, with `_utc_now` pinned to `2026-11-17T01:00Z` and zone New York:
   - Days left and late use 2026-11-16.
   - `complete_schedule` logs `performed_at = "2026-11-16"` and sets `baseline_date` to it.
   - `check_due_schedules` uses 2026-11-16.
   - `_baseline_for` with no entry uses the local date of `created_at`, and the local date of the earliest `installed_at`.
   - The trailing pace window starts at local midnight 90 days back.
-- [ ] T034 [US5] Implement T033:
+- [x] T034 [US5] Implement T033:
   - `app/services/schedule_service.py`: `_today` returns `today or clock_service.today()`; local dates in `_baseline_for`; `_trailing_pace`/`_trailing_usage_pace` use `clock_service.to_utc(start_day, "00:00")`.
   - `app/services/notification_service.py`: `today or clock_service.today()`.
 

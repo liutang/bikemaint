@@ -1,13 +1,14 @@
 """The "What needs attention" page (specs/003-cockpit-theme, User Story 2)."""
 
 import re
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 
 from app.services import bike_service, schedule_service
+from app.services import clock_service as _clock  # "today" is the saved zone's date (specs/075)
 
-TODAY = date.today()
+TODAY = _clock.today()
 
 
 def _bike(name="Gravel Bike"):

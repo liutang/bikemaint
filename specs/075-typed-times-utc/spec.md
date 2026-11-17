@@ -105,7 +105,7 @@ A maintenance entry logged at 9:00 PM on November 16 in New York is 02:00 UTC on
 **Acceptance Scenarios**:
 
 1. **Given** typed times were recorded in New York, **When** the rider changes the zone to Los Angeles, **Then** every time is shown in Los Angeles time, three hours earlier, with PST or PDT. This includes manual rides, install moments and maintenance times. Strava rides behave this way today.
-2. **Given** a zone change, **Then** no recorded instant changes, and mileage and period totals stay the same.
+2. **Given** a zone change, **Then** no ride, install or timed maintenance instant changes, and mileage and period totals stay the same. (An untimed maintenance entry's whole day follows the new zone, since it is a date, not an instant.)
 3. **Given** a zone change, **Then** maintenance entries without a time keep their date, and schedules already counting keep their starting point.
 
 ---
@@ -125,6 +125,7 @@ A maintenance entry logged at 9:00 PM on November 16 in New York is 02:00 UTC on
   - Install or removal date alone: the start of that day (12:00 AM).
   - Ride date alone: noon.
 - **Maintenance entries without a time** are the one exception. They stay calendar dates (User Story 2).
+- **The repeated hour and totals**: a ride and a typed boundary in the same repeated hour of a fall-back day may now fall on the correct side of each other. This is the one exception to "totals unchanged", and it is not handled further.
 - **"Cannot be in the future"** checks compare the recorded instant with the current instant.
 - **No zone saved** (UTC): typed times are recorded unchanged, as today. Choosing a zone later then shifts every time already typed, so the zone should be chosen first. This rider has one saved.
 - **Strava rides edited before the update**: today the Edit form shows these in UTC, and what is saved is treated as UTC. The update keeps that reading, so they are left alone and totals do not move. The rider has edited none, so no check of them is offered.

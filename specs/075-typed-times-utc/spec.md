@@ -97,7 +97,6 @@ A maintenance entry logged at 9:00 PM on November 16 in New York is 02:00 UTC on
 5. **Given** the update fails part-way, **Then** nothing is converted. It runs again at the next start.
 6. **Given** the update has run, **Then** it is recorded and never runs again, whatever happens later.
 7. **Given** a backup file made before this change, **When** it is restored, **Then** its typed times are converted by the same table, using the zone saved in that backup.
-8. **Given** Strava rides the rider edited before the update, **Then** they are left alone, and the rider is shown them once so they can be checked (see Edge Cases).
 
 ---
 
@@ -128,10 +127,7 @@ A maintenance entry logged at 9:00 PM on November 16 in New York is 02:00 UTC on
 - **Maintenance entries without a time** are the one exception. They stay calendar dates (User Story 2).
 - **"Cannot be in the future"** checks compare the recorded instant with the current instant.
 - **No zone saved** (UTC): typed times are recorded unchanged, as today. Choosing a zone later then shifts every time already typed, so the zone should be chosen first. This rider has one saved.
-- **Strava rides edited before the update**:
-  - Today the Edit form shows these in UTC, and what is saved is treated as UTC. The update keeps that reading, so totals do not move.
-  - If the rider had retyped a local time into that form, that ride is already off by the zone's offset, and the app cannot tell.
-  - After the update the rider is shown these rides once, with their local times, and can correct any that are wrong. With none, nothing is shown. The look of this goes to the rider as a mock-up before it is built.
+- **Strava rides edited before the update**: today the Edit form shows these in UTC, and what is saved is treated as UTC. The update keeps that reading, so they are left alone and totals do not move. The rider has edited none, so no check of them is offered.
 - **Entries dated by Mark done in the evening before this change** may carry the next day's date (Background). They cannot be told from correct ones and are left alone. The rider can edit them.
 - **Going back to an older version** after the update needs the saved copy from US3 scenario 4 put back. An older version would misread converted times.
 
@@ -150,7 +146,7 @@ A maintenance entry logged at 9:00 PM on November 16 in New York is 02:00 UTC on
 - **FR-009**: Backups made after this change MUST be marked as a newer format. Restoring an older backup MUST convert it by the US3 table using that backup's saved zone, and is otherwise all-or-nothing as today.
 - **FR-010**: Comparisons between rides, install periods, maintenance entries and schedules MUST use UTC instants only. The special rules for telling typed times from recorded ones (015 FR-013, 049, 051) are retired. Mileage at service (038) and schedule usage counts (040, 043, 046) MUST use the same comparison.
 - **FR-011**: "Today" MUST be the current date in the saved zone for due dates, days remaining and late, due-soon notifications and the date Mark done records (US5).
-- **FR-012**: Strava rides edited before the update MUST be left as UTC and shown to the rider once after it (Edge Cases).
+- **FR-012**: Strava rides edited before the update MUST be left as UTC (Edge Cases).
 - **FR-013**: The Settings time zone card MUST stop saying that typed times are shown as typed. It explains that every time is recorded in UTC and shown in this zone.
 - **FR-014**: Specs whose rules this replaces MUST be amended to point here: 023 (display), 015 FR-013 and 051 (comparison clock), 036 (typed times without a zone), 044 (order of entries without a time), 049, 038, 039, 040 and 067 where they describe typed times, today's date or the backup format.
 
@@ -176,5 +172,5 @@ A maintenance entry logged at 9:00 PM on November 16 in New York is 02:00 UTC on
 - The rider typed existing times in the zone that is saved now (New York). Times typed while the zone was still UTC are converted with the saved zone too, since they were meant as local times.
 - Single rider, so no per-entry zone is kept. If the rider travels, times are entered and shown in the one saved zone.
 - The date pickers stay the browser's own. Only what is stored and shown changes.
-- Few or no Strava rides have been edited so far, so the one-time list is short or absent.
-- Schedule usage counts that change (US3 scenario 3) are not reported one by one. The corrected values simply appear.
+- The rider has not edited any Strava ride, so every Strava ride holds Strava's own UTC time (confirmed by the rider 2026-11-17).
+- Schedule usage counts that change (US3 scenario 3) are not reported one by one. The corrected values simply appear (confirmed by the rider 2026-11-17: not worth a report).

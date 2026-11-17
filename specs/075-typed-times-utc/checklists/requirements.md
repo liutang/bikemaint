@@ -46,11 +46,17 @@ The first draft was checked against the code and revised. What changed, and why:
 - **Totals promise narrowed** (FR-007, SC-002). Mileage at service and schedule usage counts compare Strava's UTC times with typed local times directly today, so they cannot stay identical once the comparison is correct. Bike, part and period totals still must.
 - **Maintenance dates** (US2, FR-005). A timed entry's UTC date can be the next day. The entry's date is now defined as its local date for display, order and date-based schedules.
 - **Schedule starting points** are named in the conversion table, with how each form is recognised.
-- **Edited Strava rides** stay UTC and are shown to the rider once (FR-012).
+- **Edited Strava rides** stay UTC (FR-012).
 - **The conversion is one-way**: database copy first, all-or-nothing, recorded so it cannot repeat (FR-008).
 - **Date-only rides and installs** are instants and show a time. Only untimed maintenance entries are dates (FR-002).
 - **Unchanged save keeps the instant** (FR-003, SC-003), which also covers Strava seconds and the repeated hour.
 - **"Today" in the saved zone** was added (US5, FR-011). Mark done dates its entry with the server's date today.
+
+### Rider decisions 2026-11-17
+
+- No report of schedule counts that change: "it's not worth chasing these extreme edge cases."
+- No one-time list of edited Strava rides: the rider has edited none, so every Strava ride holds Strava's UTC time. This removes the only new screen content, so the feature needs no mock-up.
+- The rider has never used Mark done, so no existing entry carries a server-dated next day.
 
 ### Notes for planning (not requirements)
 
@@ -58,5 +64,4 @@ The first draft was checked against the code and revised. What changed, and why:
 - The "whole minutes" and "last moment of a day" tests in the conversion table are how the stored text tells the forms apart today. The plan should test each form.
 - Once comparisons are UTC-only, the stored text of converted times should be written in one format so plain comparisons are safe.
 - The backup format number goes from 1 to 2.
-- The one-time list of edited Strava rides needs a mock-up for the rider before it is built.
 - Whether an untimed entry's "whole day" is stored or worked out when read is a plan decision. Either way US4 scenario 3 must hold.

@@ -39,3 +39,4 @@ A bike's or part's Maintenance history lists entries by date and time performed,
 ## Assumptions
 
 - Only display order changes.
+- Since 075, an untimed entry's recorded time is read in the saved zone (it was the UTC clock time), and a timed entry's date and time are its local ones.

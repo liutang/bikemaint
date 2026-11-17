@@ -305,3 +305,14 @@ def test_the_test_button_reports_delivered_failed_and_no_url(client, monkeypatch
         bad = client.post("/settings/notifications/test")
     assert bad.status_code == 502 and "could not be delivered" in bad.text
     assert "secrettoken" not in ok.text.replace(url, "") and "secrettoken" not in bad.text.replace(url, "")
+
+
+def test_the_time_zone_card_says_every_time_is_recorded_in_utc_and_shown_in_this_zone(signed_in_client):
+    # specs/075 FR-013
+    html = signed_in_client.get("/settings").text
+    card = html[html.index('aria-labelledby="timezone-heading"'):]
+    card = card[: card.index("</section>")]
+
+    assert "shown exactly as typed" not in card
+    assert "Every time is recorded in UTC and shown in this zone" in card
+    assert "Times you type are read in this zone" in card

@@ -17,6 +17,7 @@ from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db import mileage as mileage_db
 from app.db import schedules as schedules_db
+from app.db import typed_times
 from app.db.connection import get_connection
 from app.models.rows import MaintenanceSchedule
 from app.models.schedule_kinds import PERIOD_UNITS, SERVICE_TYPES, USAGE_UNITS, WHOLE_UNITS
@@ -218,7 +219,7 @@ def _baseline_for(conn, owner, *, bike_id, component_id, service_type: str, toda
     return {
         "baseline_mileage": owner.manual_baseline_mileage,
         "baseline_date": started,
-        "baseline_at": "1970-01-01T00:00:00.000000Z",
+        "baseline_at": typed_times.TRACKING_BEGAN,
     }
 
 

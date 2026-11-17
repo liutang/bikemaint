@@ -18,7 +18,7 @@ Extends `specs/001-bike-maintenance-tracker/contracts/routes.md` (Settings). All
 
 ## Display
 
-A Jinja filter `local_time` renders a stored UTC string as `YYYY-MM-DD HH:MM ABBR` in the saved zone. Used for Strava rides on the ride log, completed-task times on maintenance history and connected-since. Typed values are rendered as stored.
+A Jinja filter `local_time` renders a stored UTC string as `YYYY-MM-DD HH:MM ABBR` in the saved zone. Used for every stored time (075): rides, install and removal moments, timed maintenance entries, completed tasks and connected-since. `to_local` prefills date and time fields in the saved zone. The `wall_time` and `to_wall` filters were removed.
 
 ## Scheduler
 

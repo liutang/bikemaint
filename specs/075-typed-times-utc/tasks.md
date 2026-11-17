@@ -221,8 +221,8 @@ description: "Task list for 075 store typed times in UTC"
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T035 [P] Settings copy (FR-013): a test in `tests/routers/test_settings.py` that the Time zone card no longer says typed times are shown as typed, and says times are recorded in UTC and shown in this zone. Then edit `app/templates/settings/cards/timezone.html`.
-- [ ] T036 [P] Amend the older specs (FR-014), each with an Amendments line pointing to 075:
+- [x] T035 [P] Settings copy (FR-013): a test in `tests/routers/test_settings.py` that the Time zone card no longer says typed times are shown as typed, and says times are recorded in UTC and shown in this zone. Then edit `app/templates/settings/cards/timezone.html`.
+- [x] T036 [P] Amend the older specs (FR-014), each with an Amendments line pointing to 075:
   - `specs/015-component-install-history/spec.md` (FR-013)
   - `specs/023-settings-sync-and-timezone/spec.md` (FR-008, card copy)
   - `specs/036-twelve-hour-clock/spec.md`
@@ -233,11 +233,11 @@ description: "Task list for 075 store typed times in UTC"
   - `specs/067-backup-restore/spec.md` (format 2)
 
   Also add 075 notes where 049 and 051 are referenced (`CLAUDE.md` "Period boundaries" paragraph), and correct `specs/023-settings-sync-and-timezone/contracts/routes.md` if it describes typed-time display.
-- [ ] T037 [P] Update `CLAUDE.md`:
+- [x] T037 [P] Update `CLAUDE.md`:
   - Replace the typed-times wording in the Settings (023), Clock (036), Period boundaries (051) and Maintenance history paragraphs.
   - Append a "Typed times in UTC (feature 075)" paragraph covering `frames.to_utc`, `performed_instant`, `typed_times`/`DATA_STEPS`, the pre-update copy, backup format 2, `clock_service.today()` and `follow_zone`.
-- [ ] T038 Grep `app/` and `tests/` for `wall_time`, `to_wall`, `period_wall`, `ride_wall`, `now_in_zone_moment`, `date.today()` (schedules and notifications) and `T00:00:00.000000Z` fallbacks. Each must be gone or justified.
-- [ ] T039 Run the full suite (`.venv/bin/python -m pytest -q`). It must be green with no skipped new tests.
+- [x] T038 Grep `app/` and `tests/` for `wall_time`, `to_wall`, `period_wall`, `ride_wall`, `now_in_zone_moment`, `date.today()` (schedules and notifications) and `T00:00:00.000000Z` fallbacks. Each must be gone or justified.
+- [x] T039 Run the full suite (`.venv/bin/python -m pytest -q`). It must be green with no skipped new tests.
 - [ ] T040 Quickstart sections 1–6 against a copy of the real database on the local check server (`scratchpad/proto/run.py`, `REAL=1`). Never against the live database or a local Docker container.
 
 ## Dependencies & Execution Order

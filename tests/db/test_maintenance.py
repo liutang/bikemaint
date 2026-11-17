@@ -62,3 +62,42 @@ def test_update_and_delete_entry(conn):
 
     maintenance_db.delete(conn, entry.id)
     assert maintenance_db.get_by_id(conn, entry.id) is None
+
+
+# ------------------------------------------------ specs/075: each entry has a UTC instant
+
+
+def test_an_entry_stores_and_updates_its_instant(conn):
+    bike = bikes_db.create(conn, name="Road Bike")
+    entry = maintenance_db.create(
+        conn, bike_id=bike.id, component_id=None, description="Lube", performed_at="2026-11-16",
+        performed_time="21:00", performed_instant="2026-11-17T02:00:00.000000Z", mileage_at_service=0.0,
+    )
+    assert entry.performed_instant == "2026-11-17T02:00:00.000000Z"
+
+    updated = maintenance_db.update(
+        conn, entry.id, description="Lube", performed_at="2026-11-16", performed_time="22:00",
+        performed_instant="2026-11-17T03:00:00.000000Z", mileage_at_service=0.0,
+    )
+    assert updated.performed_instant == "2026-11-17T03:00:00.000000Z"
+
+
+def test_past_part_entries_are_placed_by_their_instant(conn):
+    from app.db import components as components_db
+
+    bike = bikes_db.create(conn, name="Road Bike")
+    part = components_db.create(conn, name="Chain", component_type="chain")
+    components_db.insert_period(
+        conn, part.id, parent_bike_id=bike.id, parent_component_id=None,
+        installed_at="2026-11-16T05:00:00.000000Z", removed_at="2026-11-17T02:30:00.000000Z",
+    )  # midnight EST on the 16th to 9:30 PM EST that evening
+    inside = maintenance_db.create(
+        conn, bike_id=None, component_id=part.id, description="Lube", performed_at="2026-11-16",
+        performed_time="21:00", performed_instant="2026-11-17T02:00:00.000000Z", mileage_at_service=0.0,
+    )
+    maintenance_db.create(
+        conn, bike_id=None, component_id=part.id, description="Clean", performed_at="2026-11-16",
+        performed_time="22:00", performed_instant="2026-11-17T03:00:00.000000Z", mileage_at_service=0.0,
+    )
+
+    assert [e.id for e in maintenance_db.list_past_for_bike(conn, bike.id)] == [inside.id]

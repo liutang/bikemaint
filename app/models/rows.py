@@ -208,7 +208,8 @@ class MaintenanceLogEntry:
     created_at: str
     updated_at: str
     kind: str = "service"  # "service" (logged work) or "event" (parts added/removed)
-    performed_time: str | None = None  # optional HH:MM typed by the rider
+    performed_time: str | None = None  # optional HH:MM typed by the rider, local
+    performed_instant: str | None = None  # UTC: the typed time, or the end of the local day (specs/075)
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> MaintenanceLogEntry:
@@ -224,6 +225,7 @@ class MaintenanceLogEntry:
             updated_at=row["updated_at"],
             kind=row["kind"],
             performed_time=row["performed_time"],
+            performed_instant=row["performed_instant"] if "performed_instant" in row.keys() else None,
         )
 
 

@@ -82,14 +82,14 @@ def test_the_log_has_breadcrumbs_and_an_add_button(signed_in_client):
     assert f'href="/bikes/{bike.id}/rides/new"' in html
 
 
-def test_strava_ride_times_are_converted_to_local_time_and_manual_ones_shown_as_typed(signed_in_client):
+def test_manual_and_strava_ride_times_read_the_same_way(signed_in_client):
     bike = _bike()
     _strava(bike, 1, 10)
     ride_service.create_ride(bike.id, day=__import__("datetime").date(2026, 9, 2), time="07:30", miles=5, note=None)
 
     rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
 
-    assert "2026-09-02 7:30AM" in rows[0] and "<time" not in rows[0]
+    assert '<time datetime="2026-09-02T07:30:00.000000Z">2026-09-02 7:30AM UTC</time>' in rows[0]
     assert '<time datetime="2026-09-01T08:00:00.000000Z">2026-09-01 8:00AM UTC</time>' in rows[1]
 
 
@@ -107,7 +107,7 @@ def test_strava_ride_times_follow_the_chosen_time_zone(signed_in_client):
     rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
 
     assert "2026-09-01 11:00AM PDT" in rows[1]  # converted
-    assert "2026-09-02 7:30AM" in rows[0] and "PDT" not in rows[0]  # typed: shown as typed
+    assert "2026-09-02 7:30AM PDT" in rows[0]  # typed in the zone, shown in it (specs/075)
     assert "data-local" not in "".join(rows)
 
 
@@ -359,3 +359,36 @@ def test_a_bad_moving_time_is_refused_beside_the_field(signed_in_client, bad):
 
     assert response.status_code == 422 and 'id="moving_time-error"' in response.text
     assert len(ride_service.get_log_for_bike(bike.id).rows) == 1  # only the start row
+
+
+# ------------------------------------------------ specs/075: one way of showing times
+
+
+def test_in_new_york_manual_and_strava_rows_both_show_est(signed_in_client, new_york):
+    bike = _bike()
+    _strava(bike, 1, 10, when="2026-11-13T19:26:41.000000Z")
+    ride_service.create_ride(bike.id, day=__import__("datetime").date(2026, 11, 16), time="17:39", miles=5, note=None)
+
+    rows = _rows(signed_in_client.get(f"/bikes/{bike.id}/rides").text)
+
+    assert "2026-11-16 5:39PM EST" in rows[0]
+    assert "2026-11-13 2:26PM EST" in rows[1]
+
+
+def test_a_strava_rides_edit_form_shows_its_local_time(signed_in_client, new_york):
+    bike = _bike()
+    _strava(bike, 1, 10, when="2026-11-13T19:26:41.000000Z")
+    ride_id = ride_service.get_log_for_bike(bike.id).rows[0].id
+
+    html = signed_in_client.get(f"/rides/{ride_id}/edit").text
+
+    assert 'value="2026-11-13"' in html and 'value="14:26"' in html
+
+
+def test_a_manual_rides_edit_form_shows_what_was_typed(signed_in_client, new_york):
+    bike = _bike()
+    ride = ride_service.create_ride(bike.id, day=__import__("datetime").date(2026, 11, 16), time="21:15", miles=5, note=None)
+
+    html = signed_in_client.get(f"/rides/{ride.id}/edit").text
+
+    assert 'value="2026-11-16"' in html and 'value="21:15"' in html

@@ -21,7 +21,7 @@ from app.db.connection import get_connection
 from app.models.rows import MaintenanceSchedule
 from app.models.schedule_kinds import PERIOD_UNITS, SERVICE_TYPES, USAGE_UNITS, WHOLE_UNITS
 from app.db import maintenance as maintenance_db
-from app.services import format_service, maintenance_service
+from app.services import clock_service, format_service, maintenance_service
 
 logger = logging.getLogger(__name__)
 
@@ -393,7 +393,7 @@ def _time_due(schedule: MaintenanceSchedule) -> date | None:
 
 def _used_since_baseline(conn, schedule: MaintenanceSchedule, unit: str) -> float:
     """Rides or hours since the schedule's last baseline (parts count only rides while installed)."""
-    since = schedule.baseline_at or f"{schedule.baseline_date}T00:00:00.000000Z"
+    since = schedule.baseline_at or clock_service.to_utc(schedule.baseline_date, "00:00")
     rides, seconds = mileage_db.usage_since(
         conn, bike_id=schedule.bike_id, component_id=schedule.component_id, since=since
     )
@@ -423,7 +423,7 @@ def _with_latest_service(conn, schedule: MaintenanceSchedule) -> MaintenanceSche
     if entry is None:
         return schedule
     moment = maintenance_service.entry_moment(entry)
-    if moment <= (schedule.baseline_at or f"{schedule.baseline_date}T00:00:00.000000Z"):
+    if moment <= (schedule.baseline_at or clock_service.to_utc(schedule.baseline_date, "00:00")):
         return schedule
     return replace(
         schedule, baseline_mileage=entry.mileage_at_service, baseline_date=entry.performed_at, baseline_at=moment

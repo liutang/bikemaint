@@ -8,7 +8,7 @@
 <div class="page-head">
   <div>
     <h1>Rides</h1>
-    <p class="text-muted">{{ log.owner_name }}{% if log.owner_kind == "component" %} · read-only: rides while this part was on a bike{% elif log.owner_kind == "period" %} · read-only: rides from {{ log.period.installed_at|wall_time }} to {% if log.period.removed_at %}{{ log.period.removed_at|wall_time }}{% else %}now{% endif %}{% endif %}</p>
+    <p class="text-muted">{{ log.owner_name }}{% if log.owner_kind == "component" %} · read-only: rides while this part was on a bike{% elif log.owner_kind == "period" %} · read-only: rides from {{ log.period.installed_at|local_time }} to {% if log.period.removed_at %}{{ log.period.removed_at|local_time }}{% else %}now{% endif %}{% endif %}</p>
   </div>
   <div class="actions">
     <div class="stat"><small>Total mileage</small><strong>{{ log.total|num1 }} mi</strong></div>
@@ -50,13 +50,7 @@
         {% if log.owner_kind == "bike" %}<td data-label="Actions"></td>{% endif %}
         {% else %}
         <td data-label="Date &amp; time">
-          {%- if row.kind == "adjustment" -%}
-            <time datetime="{{ row.occurred_at }}">{{ row.occurred_at|local_time }}</time>
-          {%- elif row.source == "strava" -%}
-            <time datetime="{{ row.occurred_at }}">{{ row.occurred_at|local_time }}</time>
-          {%- else -%}
-            {{ row.occurred_at|wall_time }}
-          {%- endif -%}
+          <time datetime="{{ row.occurred_at }}">{{ row.occurred_at|local_time }}</time>
         </td>
         <td data-label="Miles">{{ row.miles|num1 }}</td>
         <td data-label="Moving time">{{ row.moving_seconds|duration }}</td>

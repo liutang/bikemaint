@@ -280,3 +280,67 @@ def test_a_bikes_rows_include_every_attached_part_latest_first(db_path):
     assert [(r.entry.description, r.part_name, r.is_own) for r in rows] == [
         ("Topup", "Tire", False), ("Check", "Wheel", False), ("Clean", None, True)]
 
+
+
+# ------------------------------------------------ specs/075: maintenance keeps its local date and has an instant
+
+
+def test_a_timed_entry_keeps_its_local_date_and_records_its_instant(db_path, new_york):
+    bike = bike_service.create_bike(name="Road")
+
+    entry = maintenance_service.log_maintenance(
+        bike_id=bike.id, description="Lube", performed_at="2026-11-16", performed_time="21:00"
+    )
+
+    assert (entry.performed_at, entry.performed_time) == ("2026-11-16", "21:00")
+    assert entry.performed_instant == "2026-11-17T02:00:00.000000Z"
+    assert maintenance_service.entry_moment(entry) == entry.performed_instant
+
+
+def test_an_untimed_entry_counts_to_the_end_of_its_local_day(db_path, new_york):
+    bike = bike_service.create_bike(name="Road")
+
+    entry = maintenance_service.log_maintenance(bike_id=bike.id, description="Lube", performed_at="2026-11-16")
+
+    assert entry.performed_instant == "2026-11-17T04:59:59.999999Z"
+
+
+def test_a_ride_shortly_before_a_service_counts_toward_its_mileage(db_path, new_york):
+    # spec Background: 2:26PM EST is 19:26 UTC; a 3:00PM service must include it, a 2:00PM one must not.
+    bike = bike_service.create_bike(name="Road", manual_baseline_mileage=0.0)
+    _ride(bike, 1, 12, "2026-11-13T19:26:41.000000Z")
+
+    after = maintenance_service.log_maintenance(bike_id=bike.id, description="a", performed_at="2026-11-13", performed_time="15:00")
+    before = maintenance_service.log_maintenance(bike_id=bike.id, description="b", performed_at="2026-11-13", performed_time="14:00")
+
+    assert (after.mileage_at_service, before.mileage_at_service) == (12.0, 0.0)
+
+
+def test_editing_with_an_unchanged_date_and_time_keeps_the_instant(db_path, new_york):
+    from app.db import maintenance as maintenance_db
+
+    bike = bike_service.create_bike(name="Road")
+    entry = maintenance_service.log_maintenance(bike_id=bike.id, description="Lube", performed_at="2026-11-16", performed_time="21:00")
+    with connection.get_connection() as conn:  # an instant with seconds, as a converted Strava-like value
+        conn.execute("UPDATE maintenance_log_entry SET performed_instant = ? WHERE id = ?", ("2026-11-17T02:00:30.000000Z", entry.id))
+
+    kept = maintenance_service.update_entry(entry.id, description="Lube", performed_at="2026-11-16", performed_time="21:00", mileage_at_service=0)
+    moved = maintenance_service.update_entry(entry.id, description="Lube", performed_at="2026-11-16", performed_time="20:00", mileage_at_service=0)
+    untimed = maintenance_service.update_entry(entry.id, description="Lube", performed_at="2026-11-16", performed_time=None, mileage_at_service=0)
+
+    assert kept.performed_instant == "2026-11-17T02:00:30.000000Z"
+    assert moved.performed_instant == "2026-11-17T01:00:00.000000Z"
+    assert untimed.performed_instant == "2026-11-17T04:59:59.999999Z"
+    assert maintenance_db  # imported for the direct update above
+
+
+def test_an_untimed_entry_sorts_by_the_local_time_it_was_recorded(db_path, new_york):
+    bike = bike_service.create_bike(name="Road")
+    timed = maintenance_service.log_maintenance(bike_id=bike.id, description="a", performed_at="2026-11-16", performed_time="20:00")
+    untimed = maintenance_service.log_maintenance(bike_id=bike.id, description="b", performed_at="2026-11-16")
+    with connection.get_connection() as conn:  # recorded at 9:30 PM EST, which is 02:30 UTC
+        conn.execute("UPDATE maintenance_log_entry SET created_at = ? WHERE id = ?", ("2026-11-17T02:30:00.000000Z", untimed.id))
+
+    rows = maintenance_service.list_for_bike_rows(bike.id)
+
+    assert [r.entry.id for r in rows] == [untimed.id, timed.id]

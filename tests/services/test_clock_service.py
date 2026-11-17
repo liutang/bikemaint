@@ -64,16 +64,6 @@ def test_the_setting_is_picked_up_after_a_change_and_separate_databases_do_not_s
     assert clock_service.zone_name() == "UTC"
 
 
-def test_now_in_the_zone_is_the_zones_wall_clock_in_the_stored_format(account):
-    settings_service.set_timezone(account.id, "Pacific/Auckland")
-
-    moment = clock_service.now_in_zone_moment()
-
-    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{6}Z", moment)
-    wall = datetime.now(ZoneInfo("Pacific/Auckland")).replace(tzinfo=None)
-    assert abs((datetime.strptime(moment, "%Y-%m-%dT%H:%M:%S.%fZ") - wall).total_seconds()) < 5
-
-
 # ------------------------------------------------ specs/023 amendment: a short offset picker (labels dated by 074)
 
 
@@ -195,30 +185,60 @@ def test_the_twenty_four_hour_clock_keeps_the_old_form(account):
     settings_service.set_clock_format(account.id, "24")
 
     assert clock_service.format_utc("2026-11-13T14:26:00.000000Z") == "2026-11-13 14:26 UTC"
-    assert clock_service.format_wall("2026-09-02T07:30:00.000000Z") == "2026-09-02 07:30"
 
 
-def test_typed_times_follow_the_clock_without_a_zone(account):
-    assert clock_service.format_wall("2026-09-02T07:30:00.000000Z") == "2026-09-02 7:30AM"
-    assert clock_service.format_wall("2026-09-02 19:05") == "2026-09-02 7:05PM"
-    assert clock_service.format_wall("") == "" and clock_service.format_wall(None) == ""
-    assert clock_service.format_wall("not a time") == "not a time"
-
-
-def test_a_system_recorded_instant_is_shown_in_the_zone_but_a_typed_time_is_shown_as_typed(account):
-    # 023 FR-008 (049): 4:03 AM UTC recorded by the app is 11:03 PM the evening before in New York.
+def test_every_time_is_shown_in_the_zone_whether_typed_or_recorded(account):
+    # specs/075 replaced 023 FR-008 (049): one rule, whatever wrote the time.
     settings_service.set_timezone(account.id, "America/New_York")
     settings_service.set_clock_format(account.id, "24")
 
-    assert clock_service.format_wall("2026-11-14T04:03:21.123456Z") == "2026-11-13 23:03"
-    assert clock_service.format_wall("2026-11-14T04:03:00.000000Z") == "2026-11-14 04:03"  # typed: as typed
-    assert clock_service.to_wall("2026-11-14T04:03:21.123456Z") == "2026-11-13T23:03"
-    assert clock_service.to_wall("2026-11-14T04:03:00.000000Z") == "2026-11-14T04:03"
-    assert clock_service.to_wall(None) == "" and clock_service.to_wall("junk") == "junk"
+    assert clock_service.format_utc("2026-11-14T04:03:21.123456Z") == "2026-11-13 23:03 EST"
+    assert clock_service.format_utc("2026-11-14T04:03:00.000000Z") == "2026-11-13 23:03 EST"
+    assert clock_service.format_utc("2026-07-01T03:30:10.500000Z") == "2026-06-30 23:30 EDT"
 
 
-def test_summer_time_is_applied_to_recorded_instants(account):
+def test_the_old_wall_clock_helpers_are_gone():
+    for name in ("format_wall", "to_wall", "now_in_zone_moment", "_wall_moment"):
+        assert not hasattr(clock_service, name)
+
+
+# ------------------------------------------------ specs/075: typed times are stored in UTC
+
+
+def test_typed_times_are_read_in_the_saved_zone(account):
     settings_service.set_timezone(account.id, "America/New_York")
 
-    assert clock_service.format_wall("2026-07-01T03:30:10.500000Z") == "2026-06-30 11:30PM"
+    assert clock_service.to_utc("2026-11-16", "17:39") == "2026-11-16T22:39:00.000000Z"
+    assert clock_service.to_utc("2026-07-04", "09:00") == "2026-07-04T13:00:00.000000Z"
 
+
+def test_to_local_prefills_a_date_and_a_time_field(account):
+    settings_service.set_timezone(account.id, "America/New_York")
+
+    assert clock_service.to_local("2026-11-16T22:39:00.000000Z") == "2026-11-16T17:39"
+    assert clock_service.to_local("2026-11-13T19:26:41.000000Z") == "2026-11-13T14:26"
+    assert clock_service.to_local(None) == ""
+    assert clock_service.to_local("not a time") == "not a time"
+
+
+def test_today_is_the_date_in_the_saved_zone(account, monkeypatch):
+    settings_service.set_timezone(account.id, "America/New_York")
+    monkeypatch.setattr(clock_service, "_utc_now", lambda: datetime(2026, 11, 17, 1, 0, tzinfo=timezone.utc))
+
+    assert clock_service.today().isoformat() == "2026-11-16"
+
+
+def test_an_unchanged_date_and_minute_keep_the_stored_instant(account):
+    settings_service.set_timezone(account.id, "America/New_York")
+    strava = "2026-11-13T19:26:41.000000Z"  # 2:26:41 PM EST
+
+    assert clock_service.keep_or_convert(strava, "2026-11-13", "14:26") == strava
+    assert clock_service.keep_or_convert(strava, "2026-11-13", "14:30") == "2026-11-13T19:30:00.000000Z"
+    assert clock_service.keep_or_convert(None, "2026-11-13", "14:26") == "2026-11-13T19:26:00.000000Z"
+
+
+def test_an_unchanged_save_in_the_repeated_hour_keeps_the_second_one(account):
+    settings_service.set_timezone(account.id, "America/New_York")
+    second = "2026-11-01T06:30:00.000000Z"  # 1:30 AM EST, the second 1:30 that day
+
+    assert clock_service.keep_or_convert(second, "2026-11-01", "01:30") == second

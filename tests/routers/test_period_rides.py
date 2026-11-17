@@ -24,7 +24,7 @@ def _setup():
             )
         period = components.insert_period(
             conn, part.id, parent_bike_id=bike.id, parent_component_id=None,
-            installed_at="2024-08-22T12:51:00.000000Z", removed_at="2025-02-27T00:00:00.000000Z",
+            installed_at="2024-08-22T16:51:00.000000Z", removed_at="2025-02-27T05:00:00.000000Z",
         )
     return bike, part, period
 

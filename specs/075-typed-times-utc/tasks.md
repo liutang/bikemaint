@@ -10,13 +10,13 @@ description: "Task list for 075 store typed times in UTC"
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the branch `075-typed-times-utc` and that `.specify/feature.json` points at `specs/075-typed-times-utc`. Run the full suite once as the baseline (`.venv/bin/python -m pytest -q`).
+- [x] T001 Confirm the branch `075-typed-times-utc` and that `.specify/feature.json` points at `specs/075-typed-times-utc`. Run the full suite once as the baseline (`.venv/bin/python -m pytest -q`).
 
 ## Phase 2: Foundational (blocks every story)
 
 **Purpose**: pure zone math and the service wrappers everything else calls (research §1, §2, §11, §12).
 
-- [ ] T002 [P] Tests first in new `tests/db/test_frames.py`:
+- [x] T002 [P] Tests first in new `tests/db/test_frames.py`:
   - **`to_utc`**:
     - `to_utc("2026-11-16", "17:39", "America/New_York")` returns `"2026-11-16T22:39:00.000000Z"`.
     - In July, `"09:00"` returns `13:00` UTC.
@@ -26,8 +26,8 @@ description: "Task list for 075 store typed times in UTC"
   - **`from_utc`**: returns the aware local `datetime`. It accepts `…Z` with or without microseconds.
   - **`end_of_day_utc("2026-11-16", "America/New_York")`** returns `"2026-11-17T04:59:59.999999Z"`.
   - **`STORED_FORMAT`** is `"%Y-%m-%dT%H:%M:%S.%fZ"`.
-- [ ] T003 Implement T002 in `app/db/frames.py`: add `STORED_FORMAT`, `to_utc`, `from_utc` and `end_of_day_utc` using `zoneinfo` with `fold=0`. Leave `ride_wall`/`period_wall` in place for now; T013 removes them.
-- [ ] T004 [P] Tests first in `tests/services/test_clock_service.py`:
+- [x] T003 Implement T002 in `app/db/frames.py`: add `STORED_FORMAT`, `to_utc`, `from_utc` and `end_of_day_utc` using `zoneinfo` with `fold=0`. Leave `ride_wall`/`period_wall` in place for now; T013 removes them.
+- [x] T004 [P] Tests first in `tests/services/test_clock_service.py`:
   - **`clock_service.to_utc(day, hhmm)`** uses the saved zone.
   - **`to_local(value)`** returns `"YYYY-MM-DDTHH:MM"` in the saved zone, or `""` for blank.
   - **`today()`**: with `_utc_now` pinned to `2026-11-17T01:00Z` and the zone set to New York, it returns `2026-11-16`.
@@ -35,7 +35,7 @@ description: "Task list for 075 store typed times in UTC"
     - The same local date and minute returns `stored` unchanged. This includes a Strava value with seconds (`…T19:26:41.000000Z` stays).
     - A stored value in the second `01:30` of 2026-11-01 (EST, `06:30Z`) stays when `01:30` is submitted.
     - A changed minute returns `to_utc(...)`.
-- [ ] T005 Implement T004 in `app/services/clock_service.py`. `today()` uses `_utc_now()`. Do not remove the old functions yet; T013 removes them.
+- [x] T005 Implement T004 in `app/services/clock_service.py`. `today()` uses `_utc_now()`. Do not remove the old functions yet; T013 removes them.
 
 **Checkpoint**: the new helpers are tested, and the app's behavior hasn't changed yet.
 
@@ -45,7 +45,7 @@ description: "Task list for 075 store typed times in UTC"
 
 **Independent test**: zone New York, add a manual ride at 2026-11-16 5:39 PM. It is stored as `2026-11-16T22:39:00.000000Z`, and the Rides list shows `2026-11-16 5:39PM EST` in the same format as Strava rows.
 
-- [ ] T006 [P] [US1] Tests first in `tests/services/test_ride_service.py`:
+- [x] T006 [P] [US1] Tests first in `tests/services/test_ride_service.py`:
   - Zone New York:
     - A manual ride on 2026-11-16 at 17:39 is stored as `…T22:39:00.000000Z`.
     - A blank time is stored as noon local (`…T17:00:00.000000Z`).
@@ -53,10 +53,10 @@ description: "Task list for 075 store typed times in UTC"
   - **`update_ride`**:
     - Unchanged date and time keep the stored text, including a Strava ride's seconds.
     - A changed time converts.
-- [ ] T007 [US1] Implement T006 in `app/services/ride_service.py`:
+- [x] T007 [US1] Implement T006 in `app/services/ride_service.py`:
   - `_occurred_at(day, time)` calls `clock_service.to_utc(day, time or "12:00")`.
   - `update_ride` uses `clock_service.keep_or_convert` against the stored `occurred_at`.
-- [ ] T008 [P] [US1] Tests first in `tests/services/test_component_history_service.py`:
+- [x] T008 [P] [US1] Tests first in `tests/services/test_component_history_service.py`:
   - **`moment(day, time)`**, zone New York:
     - `2026-11-16` at `08:00` returns `…T13:00:00.000000Z`.
     - A blank time returns local midnight in UTC (`…T05:00:00.000000Z`).
@@ -65,30 +65,30 @@ description: "Task list for 075 store typed times in UTC"
   - **Overlap error**: the message shows local dates.
   - **Editing a period**: unchanged installed and removed fields keep their stored text.
   - **Adding a part** with an install date via `/builder/add` stores UTC.
-- [ ] T009 [US1] Implement T008 in `app/services/component_history_service.py`:
+- [x] T009 [US1] Implement T008 in `app/services/component_history_service.py`:
   - `moment()` goes through `clock_service.to_utc`.
   - `check_not_future` compares with the current UTC instant in `STORED_FORMAT`, not `now_in_zone_moment`.
   - The clash message uses `clock_service.to_local(...)[:10]`.
   - The period edit applies `keep_or_convert` to installed and removed.
-- [ ] T010 [P] [US1] Tests first in `tests/routers/test_rides.py`:
+- [x] T010 [P] [US1] Tests first in `tests/routers/test_rides.py`:
   - Zone New York: a manual row and a Strava row both render as `date time EST`.
   - A Strava ride's Edit form prefills the local date and time, not UTC (US1 scenario 6).
   - A manual ride's Edit form prefills what was typed.
-- [ ] T011 [P] [US1] Tests first in `tests/routers/test_component_history.py`:
+- [x] T011 [P] [US1] Tests first in `tests/routers/test_component_history.py`:
   - Zone New York: a part's and a bike's Install History show typed and recorded moments with `EST`/`EDT`.
   - The Log/Edit period form prefills local date and time.
   - The period Rides page header shows `local_time` values.
-- [ ] T012 [US1] Implement T010 and T011:
+- [x] T012 [US1] Implement T010 and T011:
   - `app/templates/rides/log.html`: every row uses `local_time`; the period header too.
   - `app/templates/rides/form.html`: prefill `(ride.occurred_at|to_local)[:10]` and `[11:16]`.
   - `app/templates/components/install_period_form.html`: `to_local` instead of `to_wall`.
   - `app/templates/components/install_history.html` and `app/templates/bikes/install_history.html`: `local_time` instead of `wall_time`.
   - `app/main.py`: register `to_local`.
-- [ ] T013 [P] [US1] Tests first in `tests/db/test_mileage_period_frames.py`, `tests/db/test_mileage_at.py` and `tests/db/test_mileage_usage.py`:
+- [x] T013 [P] [US1] Tests first in `tests/db/test_mileage_period_frames.py`, `tests/db/test_mileage_at.py` and `tests/db/test_mileage_usage.py`:
   - Rewrite the mixed-clock cases (015 FR-013, 051) with UTC inputs for typed times, keeping each case's expected rides and miles.
   - Add a regression case for the Background bug: zone New York, a Strava ride at `19:26Z` (2:26 PM EST) and a schedule starting at 3:00 PM local stored as `20:00Z`. `usage_since` must not count the ride, and `bike_mileage_at` at `20:00Z` must include it.
   - Assert that `ride_wall` and `period_wall` are no longer registered SQL functions.
-- [ ] T014 [US1] Implement T013:
+- [x] T014 [US1] Implement T013:
   - `app/db/mileage.py`: `_WINDOWS` and the period ride filter use `installed_at`, `COALESCE(removed_at, '9999')` and `occurred_at` directly.
   - `app/db/maintenance.py`: the past-part windows use the raw columns.
   - `app/db/frames.py`: delete `ride_wall` and `period_wall` and their registration.
@@ -103,18 +103,18 @@ description: "Task list for 075 store typed times in UTC"
 
 **Independent test**: zone New York, log 2026-11-16 at 9:00 PM and an untimed entry on 2026-11-17. The first reads `2026-11-16 9:00PM EST`, sorts below the second, and a months schedule from it counts from 2026-11-16.
 
-- [ ] T015 [US2] Add `app/db/migrations/0018_maintenance_performed_instant.sql` (`ALTER TABLE maintenance_log_entry ADD COLUMN performed_instant TEXT;`). Add a test in `tests/db/test_connection.py` that the column exists after `run_migrations`.
-- [ ] T016 [P] [US2] Tests first in `tests/db/test_maintenance.py`:
+- [x] T015 [US2] Add `app/db/migrations/0018_maintenance_performed_instant.sql` (`ALTER TABLE maintenance_log_entry ADD COLUMN performed_instant TEXT;`). Add a test in `tests/db/test_connection.py` that the column exists after `run_migrations`.
+- [x] T016 [P] [US2] Tests first in `tests/db/test_maintenance.py`:
   - `create` and `update` store `performed_instant`, and the model exposes it (`app/models/rows.py`).
   - `list_past_for_bike` and `list_past_for_component` place an entry by `performed_instant` against UTC windows.
-- [ ] T017 [P] [US2] Tests first in `tests/services/test_maintenance_service.py`, zone New York:
+- [x] T017 [P] [US2] Tests first in `tests/services/test_maintenance_service.py`, zone New York:
   - **`log_maintenance`** at 2026-11-16 21:00 stores `performed_at = "2026-11-16"`, `performed_time = "21:00"` and `performed_instant = "2026-11-17T02:00:00.000000Z"`.
   - **Untimed entry**: stores `end_of_day_utc`.
   - **`entry_moment`** returns `performed_instant`.
   - **Mileage at service**: a Strava ride at 2:26 PM EST counts before a 3:00 PM entry (spec Background).
   - **Editing**: an unchanged date and time keeps the instant.
   - **History order**: an untimed entry sorts by the local time of `created_at`.
-- [ ] T018 [US2] Implement T016 and T017:
+- [x] T018 [US2] Implement T016 and T017:
   - `app/db/maintenance.py`: `create`/`update` take `performed_instant`, and `_ENTRY_AT = "m.performed_instant"`.
   - The `MaintenanceLogEntry` model in `app/models/rows.py` gains `performed_instant`.
   - `app/services/maintenance_service.py`:
@@ -122,12 +122,12 @@ description: "Task list for 075 store typed times in UTC"
     - `entry_moment` returns `performed_instant`.
     - The mileage-at moment uses it.
     - `_sort_key` uses `clock_service.to_local(entry.created_at)[11:16]` for untimed entries.
-- [ ] T019 [P] [US2] Tests first in `tests/routers/test_maintenance.py`: a timed entry renders `performed_instant|local_time` (`2026-11-16 9:00PM EST`), and an untimed one renders the date alone.
-- [ ] T020 [US2] Implement T019 in `app/templates/maintenance/history_list.html`.
-- [ ] T021 [P] [US2] Tests first in `tests/services/test_schedule_follow_maintenance.py` and `tests/services/test_schedule_intervals.py`:
+- [x] T019 [P] [US2] Tests first in `tests/routers/test_maintenance.py`: a timed entry renders `performed_instant|local_time` (`2026-11-16 9:00PM EST`), and an untimed one renders the date alone.
+- [x] T020 [US2] Implement T019 in `app/templates/maintenance/history_list.html`.
+- [x] T021 [P] [US2] Tests first in `tests/services/test_schedule_follow_maintenance.py` and `tests/services/test_schedule_intervals.py`:
   - A months schedule created after a 9 PM entry gets `baseline_date` of the local date and a `baseline_at` equal to the entry's instant.
   - A schedule with no `baseline_at` counts from local midnight of `baseline_date` in UTC.
-- [ ] T022 [US2] Implement T021 in `app/services/schedule_service.py` and `app/services/maintenance_service.py`: replace every `f"{baseline_date}T00:00:00.000000Z"` fallback with `clock_service.to_utc(baseline_date, "00:00")`.
+- [x] T022 [US2] Implement T021 in `app/services/schedule_service.py` and `app/services/maintenance_service.py`: replace every `f"{baseline_date}T00:00:00.000000Z"` fallback with `clock_service.to_utc(baseline_date, "00:00")`.
 
 **Checkpoint**: maintenance compares by instant and stays on its local date.
 

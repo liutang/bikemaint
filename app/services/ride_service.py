@@ -19,6 +19,7 @@ from app.db import components as components_db
 from app.db import mileage as mileage_db
 from app.db.connection import get_connection
 from app.models.rows import RideActivity
+from app.services import clock_service
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +65,12 @@ def format_duration(seconds: int | None) -> str:
     return f"{seconds // 3600}:{seconds % 3600 // 60:02d}"
 
 
-def _occurred_at(day: date, time: str | None) -> str:
-    """Stored as typed (no zone conversion); a ride without a time counts as noon."""
-    return f"{day.isoformat()}T{time or '12:00'}:00.000000Z"
+def _occurred_at(day: date, time: str | None, stored: str | None = None) -> str:
+    """Read in the saved zone and stored in UTC; a ride without a time counts as noon (specs/075).
+
+    An edit whose date and minute match `stored` keeps it exactly, seconds included (FR-003).
+    """
+    return clock_service.keep_or_convert(stored, day.isoformat(), time or "12:00")
 
 
 def _check_miles(miles: float) -> None:
@@ -194,7 +198,8 @@ def update_ride(
         _require_bike(conn, bike_id)
         ride = mileage_db.update_ride(
             conn, ride_id, bike_id=bike_id, distance_miles=miles,
-            occurred_at=_occurred_at(day, time), note=note, moving_time_seconds=moving_seconds,
+            occurred_at=_occurred_at(day, time, existing.occurred_at), note=note,
+            moving_time_seconds=moving_seconds,
         )
         affected = {bike_id} | ({existing.bike_id} if existing.bike_id is not None else set())
         _recompute(conn, affected)

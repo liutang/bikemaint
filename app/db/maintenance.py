@@ -23,17 +23,18 @@ def create(
     schedule_id: int | None = None,
     kind: str = "service",
     performed_time: str | None = None,
+    performed_instant: str | None = None,
 ) -> MaintenanceLogEntry:
     now = _now()
     cursor = conn.execute(
         """
         INSERT INTO maintenance_log_entry (
-            bike_id, component_id, description, performed_at, performed_time, mileage_at_service,
-            schedule_id, kind, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            bike_id, component_id, description, performed_at, performed_time, performed_instant,
+            mileage_at_service, schedule_id, kind, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
-            bike_id, component_id, description, performed_at, performed_time,
+            bike_id, component_id, description, performed_at, performed_time, performed_instant,
             mileage_at_service, schedule_id, kind, now, now,
         ),
     )
@@ -73,15 +74,16 @@ def update(
     performed_at: str,
     mileage_at_service: float,
     performed_time: str | None = None,
+    performed_instant: str | None = None,
 ) -> MaintenanceLogEntry:
     conn.execute(
         """
         UPDATE maintenance_log_entry
-        SET description = ?, performed_at = ?, performed_time = ?, mileage_at_service = ?,
-            updated_at = ?
+        SET description = ?, performed_at = ?, performed_time = ?, performed_instant = ?,
+            mileage_at_service = ?, updated_at = ?
         WHERE id = ?
         """,
-        (description, performed_at, performed_time, mileage_at_service, _now(), entry_id),
+        (description, performed_at, performed_time, performed_instant, mileage_at_service, _now(), entry_id),
     )
     entry = get_by_id(conn, entry_id)
     assert entry is not None
@@ -132,19 +134,19 @@ def latest_for_owner_and_type(
     return MaintenanceLogEntry.from_row(row) if row else None
 
 
-# The wall-clock moment of an entry, as the windows' text: a blank time counts as the end of that day.
-_ENTRY_AT = "(m.performed_at || 'T' || COALESCE(m.performed_time, '23:59') || ':00')"
+# An entry's UTC instant: its typed time, or the end of its local day when it has none (specs/075).
+_ENTRY_AT = "m.performed_instant"
 
 _INSIDE = """
 WITH RECURSIVE anc(component_id, ancestor_id, s, e, depth) AS (
-    SELECT component_id, parent_component_id, period_wall(installed_at), COALESCE(period_wall(removed_at), '9999'), 0
+    SELECT component_id, parent_component_id, installed_at, COALESCE(removed_at, '9999'), 0
     FROM component_installation_period WHERE parent_component_id IS NOT NULL
     UNION ALL
-    SELECT a.component_id, q.parent_component_id, MAX(a.s, period_wall(q.installed_at)),
-           MIN(a.e, COALESCE(period_wall(q.removed_at), '9999')), a.depth + 1
+    SELECT a.component_id, q.parent_component_id, MAX(a.s, q.installed_at),
+           MIN(a.e, COALESCE(q.removed_at, '9999')), a.depth + 1
     FROM anc AS a JOIN component_installation_period AS q ON q.component_id = a.ancestor_id
     WHERE q.parent_component_id IS NOT NULL AND a.depth < 8
-      AND MAX(a.s, period_wall(q.installed_at)) < MIN(a.e, COALESCE(period_wall(q.removed_at), '9999'))
+      AND MAX(a.s, q.installed_at) < MIN(a.e, COALESCE(q.removed_at, '9999'))
 )
 """
 

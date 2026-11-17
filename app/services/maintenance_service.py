@@ -17,6 +17,7 @@ from app.db import mileage as mileage_db
 from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models.rows import MaintenanceLogEntry
+from app.services import clock_service
 
 
 def get_entry(entry_id: int) -> MaintenanceLogEntry | None:
@@ -42,7 +43,8 @@ class HistoryRow:
 
 def _sort_key(row: HistoryRow):
     entry = row.entry
-    return (entry.performed_at, entry.performed_time or entry.created_at[11:16], entry.id)
+    # An untimed entry sorts by the local time it was recorded (specs/044, in one clock since 075).
+    return (entry.performed_at, entry.performed_time or clock_service.to_local(entry.created_at)[11:16], entry.id)
 
 
 def _past_rows(conn, entries: list[MaintenanceLogEntry], seen: set[int]) -> list[HistoryRow]:
@@ -87,11 +89,19 @@ def list_for_component(component_id: int) -> list[MaintenanceLogEntry]:
         return maintenance_db.list_for_component(conn, component_id)
 
 
+def instant_for(performed_at: str, performed_time: str | None, stored: str | None = None) -> str:
+    """The UTC instant of a local date and optional time; a blank time counts the whole day (specs/075).
+
+    A timed entry whose date and minute match `stored` keeps it exactly (FR-003).
+    """
+    if performed_time:
+        return clock_service.keep_or_convert(stored, performed_at, performed_time)
+    return clock_service.end_of_day(performed_at)
+
+
 def entry_moment(entry: MaintenanceLogEntry) -> str:
-    """When an entry was performed, in the stored format (a blank time counts the whole day)."""
-    if entry.performed_time:
-        return f"{entry.performed_at}T{entry.performed_time}:00.000000Z"
-    return f"{entry.performed_at}T23:59:59.999999Z"
+    """When an entry was performed, as a UTC instant (a blank time counts the whole local day)."""
+    return entry.performed_instant or instant_for(entry.performed_at, entry.performed_time)
 
 
 def _rebase_matching_schedules(conn, entry: MaintenanceLogEntry, *, new_cycle: bool) -> None:
@@ -109,7 +119,7 @@ def _rebase_matching_schedules(conn, entry: MaintenanceLogEntry, *, new_cycle: b
     for schedule in schedules:
         if schedule.service_type != entry.description:
             continue
-        if moment <= (schedule.baseline_at or f"{schedule.baseline_date}T00:00:00.000000Z"):
+        if moment <= (schedule.baseline_at or clock_service.to_utc(schedule.baseline_date, "00:00")):
             continue
         args = dict(baseline_mileage=entry.mileage_at_service, baseline_date=entry.performed_at)
         if new_cycle:
@@ -135,7 +145,7 @@ def log_maintenance(
     """
     if (bike_id is None) == (component_id is None):
         raise ValueError("Maintenance must be logged against exactly one of a bike or a component.")
-    at = f"{performed_at}T{performed_time or '23:59:59'}.999999Z"
+    at = instant_for(performed_at, performed_time)
     with get_connection() as conn:
         if bike_id is not None:
             bike = bikes_db.get_by_id(conn, bike_id)
@@ -156,6 +166,7 @@ def log_maintenance(
             mileage_at_service=mileage_then(conn) if mileage_at_service is None else mileage_at_service,
             schedule_id=schedule_id,
             performed_time=performed_time,
+            performed_instant=at,
         )
         if schedule_id is None:  # a schedule's own completion restarts itself
             _rebase_matching_schedules(conn, entry, new_cycle=True)
@@ -171,7 +182,8 @@ def update_entry(
     performed_time: str | None = None,
 ) -> MaintenanceLogEntry:
     with get_connection() as conn:
-        if maintenance_db.get_by_id(conn, entry_id) is None:
+        existing = maintenance_db.get_by_id(conn, entry_id)
+        if existing is None:
             raise LookupError(f"No maintenance entry with id {entry_id}")
         entry = maintenance_db.update(
             conn,
@@ -180,6 +192,7 @@ def update_entry(
             performed_at=performed_at,
             mileage_at_service=mileage_at_service,
             performed_time=performed_time,
+            performed_instant=instant_for(performed_at, performed_time, existing.performed_instant),
         )
         _rebase_matching_schedules(conn, entry, new_cycle=False)
         return entry

@@ -273,36 +273,52 @@ def test_a_deleted_part_and_a_deleted_parent_are_described_without_a_link(db_pat
     assert tire.id
 
 
-# ------------------------------------------------ specs/023: the future check follows the time zone
+# ------------------------------------------------ specs/075: typed moments are stored in UTC
 
 
-def _in_zone(minutes_from_now, zone):
-    from datetime import datetime, timedelta
-    from zoneinfo import ZoneInfo
-
-    wall = datetime.now(ZoneInfo(zone)).replace(tzinfo=None) + timedelta(minutes=minutes_from_now)
-    return wall.strftime("%Y-%m-%dT%H:%M:00.000000Z")
+def test_typed_moments_are_read_in_the_saved_zone(db_path, new_york):
+    assert history.moment("2026-11-16", "08:00") == "2026-11-16T13:00:00.000000Z"
+    assert history.moment("2026-11-16", None) == "2026-11-16T05:00:00.000000Z"  # local midnight
+    assert history.moment("2026-07-04", "08:00") == "2026-07-04T12:00:00.000000Z"  # EDT
 
 
-def test_a_typed_moment_is_compared_with_the_current_time_in_the_chosen_zone(db_path):
-    from app.db import accounts
-    from app.services import settings_service
+def test_the_future_check_compares_instants(db_path):
+    from datetime import datetime, timedelta, timezone
 
-    with connection.get_connection() as conn:
-        account = accounts.upsert_from_strava(
-            conn, strava_athlete_id=1, access_token="a", refresh_token="r",
-            expires_at="2099-01-01T00:00:00.000000Z",
-        )
-    settings_service.set_timezone(account.id, "Pacific/Auckland")  # many hours ahead of UTC
+    def utc(minutes):
+        return (datetime.now(timezone.utc) + timedelta(minutes=minutes)).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
     bike = bike_service.create_bike(name="A")
     saddle = _saddle()
-
-    # an hour ago on the rider's clock is in the future by the UTC clock, yet it has passed here
-    history.log_period(saddle.id, bike_id=bike.id, installed_at=_in_zone(-120, "Pacific/Auckland"),
-                       removed_at=_in_zone(-60, "Pacific/Auckland"))
+    history.log_period(saddle.id, bike_id=bike.id, installed_at=utc(-120), removed_at=utc(-1))
     with pytest.raises(ValueError, match="future"):
-        history.log_period(saddle.id, bike_id=bike.id, installed_at=_in_zone(-300, "Pacific/Auckland"),
-                           removed_at=_in_zone(60, "Pacific/Auckland"))
+        history.log_period(saddle.id, bike_id=bike.id, installed_at=utc(-300), removed_at=utc(60))
+
+
+def test_an_overlap_names_local_dates(db_path, new_york):
+    bike = bike_service.create_bike(name="A")
+    saddle = _saddle()
+    # 9 PM EST on Jan 10 to 9 PM EST on Jan 20: the next UTC day each time
+    history.log_period(saddle.id, bike_id=bike.id, installed_at="2025-01-11T02:00:00.000000Z",
+                       removed_at="2025-01-21T02:00:00.000000Z")
+    with pytest.raises(ValueError, match=r"2025-01-10 to 2025-01-20"):
+        history.log_period(saddle.id, bike_id=bike.id, installed_at="2025-01-15T12:00:00.000000Z",
+                           removed_at="2025-01-25T12:00:00.000000Z")
+
+
+def test_an_unchanged_edit_keeps_recorded_instants(db_path, new_york):
+    bike = bike_service.create_bike(name="A")
+    saddle = _saddle()
+    period = history.log_period(saddle.id, bike_id=bike.id, installed_at="2025-01-11T02:00:41.123456Z",
+                                removed_at="2025-01-21T02:00:07.000000Z")
+
+    saved = history.update_period(period.id, bike_id=bike.id, installed_at=history.moment("2025-01-10", "21:00"),
+                                  removed_at=history.moment("2025-01-20", "21:00"))
+    moved = history.update_period(period.id, bike_id=bike.id, installed_at=history.moment("2025-01-10", "22:00"),
+                                  removed_at=history.moment("2025-01-20", "21:00"))
+
+    assert (saved.installed_at, saved.removed_at) == ("2025-01-11T02:00:41.123456Z", "2025-01-21T02:00:07.000000Z")
+    assert (moved.installed_at, moved.removed_at) == ("2025-01-11T03:00:00.000000Z", "2025-01-21T02:00:07.000000Z")
 
 
 # ------------------------------------------------ specs/030: end an installation from the edit form
@@ -479,7 +495,7 @@ def test_describe_history_miles_use_the_same_clock_as_mileage(tmp_path, monkeypa
         )
         components.insert_period(
             conn, part.id, parent_bike_id=bike.id, parent_component_id=None,
-            installed_at="2024-08-22T12:51:00.000000Z", removed_at="2025-02-27T00:00:00.000000Z",
+            installed_at="2024-08-22T16:51:00.000000Z", removed_at="2025-02-27T05:00:00.000000Z",
         )
     rows = component_history_service.describe_history(part.id)
     assert rows[0]["miles"] == 0

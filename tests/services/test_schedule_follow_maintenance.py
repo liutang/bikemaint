@@ -6,8 +6,9 @@ import pytest
 
 from app.db import connection, mileage as mileage_db
 from app.services import bike_service, component_service, maintenance_service, schedule_service
+from app.services import clock_service as _clock  # "today" is the saved zone's date (specs/075)
 
-TODAY = date.today()
+TODAY = _clock.today()
 
 
 @pytest.fixture
@@ -145,3 +146,39 @@ def test_an_entry_older_than_the_saved_starting_point_does_not_pull_a_schedule_b
 
     assert schedule_service.project_due_date(_now(schedule.id), today=TODAY).due_at == date(2025, 9, 1)
 
+
+
+# ------------------------------------------------ specs/075: starting points are UTC, dates stay local
+
+
+def test_a_schedule_after_an_evening_entry_counts_from_its_local_date_and_instant(db_path, new_york):
+    bike = bike_service.create_bike(name="Road")
+    entry = maintenance_service.log_maintenance(
+        bike_id=bike.id, description="Lube/Wax", performed_at="2026-11-16", performed_time="21:00"
+    )
+
+    schedule = schedule_service.create_schedule(
+        bike_id=bike.id, service_type="Lube/Wax", interval_kind="period", interval_value=1, interval_unit="months"
+    )
+
+    assert schedule.baseline_date == "2026-11-16"
+    assert schedule.baseline_at == entry.performed_instant == "2026-11-17T02:00:00.000000Z"
+
+
+def test_a_schedule_without_a_starting_instant_counts_from_local_midnight(db_path, new_york):
+    bike = bike_service.create_bike(name="Road")
+    for n, when in enumerate(["2026-11-16T03:00:00.000000Z", "2026-11-16T06:00:00.000000Z"], start=1):
+        with connection.get_connection() as conn:  # 10 PM EST on the 15th, then 1 AM EST on the 16th
+            mileage_db.upsert_ride_activity(
+                conn, strava_activity_id=n, strava_gear_id="g", bike_id=bike.id, distance_miles=5, occurred_at=when
+            )
+    schedule = schedule_service.create_schedule(
+        bike_id=bike.id, service_type="Clean", interval_kind="usage", interval_value=10, interval_unit="rides"
+    )
+    with connection.get_connection() as conn:
+        conn.execute(
+            "UPDATE maintenance_schedule SET baseline_at = NULL, baseline_date = '2026-11-16' WHERE id = ?", (schedule.id,)
+        )
+    older = schedule_service.get_schedule(schedule.id)
+    with connection.get_connection() as conn:
+        assert schedule_service._used_since_baseline(conn, older, "rides") == 1.0

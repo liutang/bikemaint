@@ -179,27 +179,26 @@ def insert_mileage_adjustment(
     return MileageAdjustment.from_row(row)
 
 
-# Where each period of a part really was, as (bike, start, end) in the saved zone's wall clock
-# (specs/064): a period on a bike counts directly; a period inside another part counts where that
+# Where each period of a part really was, as (bike, start, end) UTC instants (specs/064, 075): a period on a bike counts directly; a period inside another part counts where that
 # part was on a bike, limited to the overlap. '9999' stands for "still installed".
 _WINDOWS = """
 WITH RECURSIVE win(period_id, component_id, bike_id, s, e, depth) AS (
-    SELECT id, component_id, parent_bike_id, period_wall(installed_at), COALESCE(period_wall(removed_at), '9999'), 0
+    SELECT id, component_id, parent_bike_id, installed_at, COALESCE(removed_at, '9999'), 0
     FROM component_installation_period WHERE parent_bike_id IS NOT NULL
     UNION ALL
     SELECT p.id, p.component_id, w.bike_id,
-           MAX(period_wall(p.installed_at), w.s),
-           MIN(COALESCE(period_wall(p.removed_at), '9999'), w.e), w.depth + 1
+           MAX(p.installed_at, w.s),
+           MIN(COALESCE(p.removed_at, '9999'), w.e), w.depth + 1
     FROM component_installation_period AS p
     JOIN win AS w ON w.component_id = p.parent_component_id
     WHERE p.parent_bike_id IS NULL AND w.depth < 8
-      AND MAX(period_wall(p.installed_at), w.s) < MIN(COALESCE(period_wall(p.removed_at), '9999'), w.e)
+      AND MAX(p.installed_at, w.s) < MIN(COALESCE(p.removed_at, '9999'), w.e)
 )
 """
 _RIDE_IN_WINDOW = (
     "ride_activity.bike_id = win.bike_id "
-    "AND ride_wall(ride_activity.occurred_at, ride_activity.source) >= win.s "
-    "AND ride_wall(ride_activity.occurred_at, ride_activity.source) < win.e"
+    "AND ride_activity.occurred_at >= win.s "
+    "AND ride_activity.occurred_at < win.e"
 )
 _PART_RIDE_OK = (
     "part_ride_ok(win.component_id, ride_activity.user_modified, ride_activity.sport_type, "

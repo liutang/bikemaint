@@ -88,3 +88,33 @@ def test_set_timezone_saves_the_zone(account):
     settings_service.set_timezone(account.id, "Europe/London")
 
     assert settings_service.get_account(account.id).timezone == "Europe/London"
+
+
+# ------------------------------------------------ specs/075 US4: maintenance follows a zone change
+
+
+def test_a_zone_change_moves_timed_entries_and_keeps_untimed_dates(account):
+    from app.db import mileage as mileage_db
+    from app.services import bike_service, maintenance_service
+
+    settings_service.set_timezone(account.id, "America/New_York")
+    bike = bike_service.create_bike(name="Road", manual_baseline_mileage=0.0)
+    with connection.get_connection() as conn:
+        mileage_db.create_manual_ride(conn, bike_id=bike.id, distance_miles=4, occurred_at="2026-11-16T22:39:00.000000Z", note=None)
+        mileage_db.recompute_bike_total_mileage(conn, bike.id)
+    timed = maintenance_service.log_maintenance(bike_id=bike.id, description="Lube/Wax", performed_at="2026-11-16", performed_time="21:00")
+    untimed = maintenance_service.log_maintenance(bike_id=bike.id, description="Clean", performed_at="2026-11-16")
+
+    settings_service.set_timezone(account.id, "America/Los_Angeles")
+
+    with connection.get_connection() as conn:
+        from app.db import maintenance as maintenance_db
+
+        t = maintenance_db.get_by_id(conn, timed.id)
+        u = maintenance_db.get_by_id(conn, untimed.id)
+        ride_at = conn.execute("SELECT occurred_at FROM ride_activity").fetchone()[0]
+    assert (t.performed_at, t.performed_time, t.performed_instant) == ("2026-11-16", "18:00", timed.performed_instant)
+    assert (u.performed_at, u.performed_time) == ("2026-11-16", None)
+    assert u.performed_instant == "2026-11-17T07:59:59.999999Z"  # end of the 16th in Los Angeles
+    assert ride_at == "2026-11-16T22:39:00.000000Z"  # rides do not move
+    assert bike_service.get_bike(bike.id).total_mileage == 4

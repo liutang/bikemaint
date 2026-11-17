@@ -17,11 +17,12 @@ from app.db import bikes as bikes_db
 from app.db import components as components_db
 from app.db import mileage as mileage_db
 from app.db import schedules as schedules_db
+from app.db import typed_times
 from app.db.connection import get_connection
 from app.models.rows import MaintenanceSchedule
 from app.models.schedule_kinds import PERIOD_UNITS, SERVICE_TYPES, USAGE_UNITS, WHOLE_UNITS
 from app.db import maintenance as maintenance_db
-from app.services import format_service, maintenance_service
+from app.services import clock_service, format_service, maintenance_service
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,7 @@ def split_attention(
 
 
 def _today(today: date | None) -> date:
-    return today or date.today()
+    return today or clock_service.today()  # the saved zone's date (specs/075 FR-011)
 
 
 def _validate(
@@ -209,16 +210,16 @@ def _baseline_for(conn, owner, *, bike_id, component_id, service_type: str, toda
             "baseline_date": entry.performed_at,
             "baseline_at": maintenance_service.entry_moment(entry),
         }
-    # created_at is UTC; compare it with "today" the way the rest of the module does (server-local)
-    started = datetime.fromisoformat(owner.created_at.replace("Z", "+00:00")).astimezone().date().isoformat()
+    # Dates are the rider's local ones, like "today" (specs/075 FR-011).
+    started = clock_service.to_local(owner.created_at)[:10]
     if component_id is not None:
-        installs = [p.installed_at[:10] for p in components_db.list_periods(conn, component_id)]
+        installs = [clock_service.to_local(p.installed_at)[:10] for p in components_db.list_periods(conn, component_id)]
         if installs:
             started = min(installs)
     return {
         "baseline_mileage": owner.manual_baseline_mileage,
         "baseline_date": started,
-        "baseline_at": "1970-01-01T00:00:00.000000Z",
+        "baseline_at": typed_times.TRACKING_BEGAN,
     }
 
 
@@ -365,9 +366,7 @@ def _trailing_pace(conn, bike_id: int | None, today: date) -> tuple[float, int]:
     """(miles per day, distinct ride days) for a bike over the trailing window."""
     if bike_id is None:
         return 0.0, 0
-    since = datetime.combine(
-        today - timedelta(days=PACE_WINDOW_DAYS), datetime.min.time(), tzinfo=timezone.utc
-    ).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    since = clock_service.to_utc((today - timedelta(days=PACE_WINDOW_DAYS)).isoformat(), "00:00")
     miles, ride_days = mileage_db.recent_ride_stats_for_bike(conn, bike_id, since=since)
     return miles / PACE_WINDOW_DAYS, ride_days
 
@@ -393,7 +392,7 @@ def _time_due(schedule: MaintenanceSchedule) -> date | None:
 
 def _used_since_baseline(conn, schedule: MaintenanceSchedule, unit: str) -> float:
     """Rides or hours since the schedule's last baseline (parts count only rides while installed)."""
-    since = schedule.baseline_at or f"{schedule.baseline_date}T00:00:00.000000Z"
+    since = schedule.baseline_at or clock_service.to_utc(schedule.baseline_date, "00:00")
     rides, seconds = mileage_db.usage_since(
         conn, bike_id=schedule.bike_id, component_id=schedule.component_id, since=since
     )
@@ -404,9 +403,7 @@ def _trailing_usage_pace(conn, bike_id: int | None, today: date, unit: str) -> t
     """(rides or hours per day, distinct ride days) for a bike over the trailing window."""
     if bike_id is None:
         return 0.0, 0
-    since = datetime.combine(
-        today - timedelta(days=PACE_WINDOW_DAYS), datetime.min.time(), tzinfo=timezone.utc
-    ).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    since = clock_service.to_utc((today - timedelta(days=PACE_WINDOW_DAYS)).isoformat(), "00:00")
     rides, seconds, ride_days = mileage_db.recent_usage_for_bike(conn, bike_id, since=since)
     amount = float(rides) if unit == "rides" else seconds / 3600
     return amount / PACE_WINDOW_DAYS, ride_days
@@ -423,7 +420,7 @@ def _with_latest_service(conn, schedule: MaintenanceSchedule) -> MaintenanceSche
     if entry is None:
         return schedule
     moment = maintenance_service.entry_moment(entry)
-    if moment <= (schedule.baseline_at or f"{schedule.baseline_date}T00:00:00.000000Z"):
+    if moment <= (schedule.baseline_at or clock_service.to_utc(schedule.baseline_date, "00:00")):
         return schedule
     return replace(
         schedule, baseline_mileage=entry.mileage_at_service, baseline_date=entry.performed_at, baseline_at=moment

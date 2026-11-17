@@ -5,8 +5,9 @@ import pytest
 from app.db import connection
 from app.db import mileage as mileage_db
 from app.services import bike_service, component_service, maintenance_service, schedule_service
+from app.services import clock_service as _clock  # "today" is the saved zone's date (specs/075)
 
-TODAY = date.today()
+TODAY = _clock.today()
 
 
 @pytest.fixture
@@ -317,3 +318,72 @@ def test_next_due_text_names_the_date_or_the_mileage(db_path):
 
     assert schedule_service.next_due_text(dated_item) == f"Next due {dated_item.projection.due_at.isoformat()}"
     assert schedule_service.next_due_text(miles_item).startswith("Next due")
+
+
+# ------------------------------------------------ specs/075 US5: today is the rider's date
+
+
+EVENING_UTC = datetime(2026, 11, 17, 1, 0, tzinfo=timezone.utc)  # 8:00 PM EST on Nov 16
+
+
+@pytest.fixture
+def evening_in_new_york(db_path, new_york, monkeypatch):
+    from app.services import clock_service
+
+    monkeypatch.setattr(clock_service, "_utc_now", lambda: EVENING_UTC)
+
+
+def test_days_left_count_from_the_riders_date(evening_in_new_york):
+    bike = bike_service.create_bike(name="Road")
+    schedule = schedule_service.create_schedule(
+        bike_id=bike.id, service_type="Check", interval_kind="period", interval_value=1, interval_unit="weeks"
+    )
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE maintenance_schedule SET baseline_date = '2026-11-09' WHERE id = ?", (schedule.id,))
+
+    projection = schedule_service.project_due_date(schedule_service.get_schedule(schedule.id))
+
+    assert projection.due_at == date(2026, 11, 16) and projection.is_overdue is False  # due today, not yesterday
+
+
+def test_mark_done_in_the_evening_dates_the_entry_today(evening_in_new_york):
+    bike = bike_service.create_bike(name="Road")
+    schedule = schedule_service.create_schedule(
+        bike_id=bike.id, service_type="Check", interval_kind="period", interval_value=1, interval_unit="weeks"
+    )
+
+    done = schedule_service.complete_schedule(schedule.id)
+
+    assert done.baseline_date == "2026-11-16"
+    assert maintenance_service.list_for_bike_rows(bike.id)[0].entry.performed_at == "2026-11-16"
+
+
+def test_a_new_schedule_with_no_history_starts_on_the_local_dates(evening_in_new_york):
+    from app.services import component_history_service as history
+
+    bike = bike_service.create_bike(name="Road")
+    part = component_service.create_component(name="Chain", component_type="chain")
+    history.log_period(part.id, bike_id=bike.id, installed_at="2026-11-02T03:00:00.000000Z",  # 10 PM EST on Nov 1
+                       removed_at="2026-11-03T03:00:00.000000Z")
+    with connection.get_connection() as conn:  # added at 9 PM EST on Nov 16
+        conn.execute("UPDATE bike SET created_at = '2026-11-17T02:00:00.000000Z' WHERE id = ?", (bike.id,))
+
+    on_part = schedule_service.create_schedule(
+        component_id=part.id, service_type="Check", interval_kind="period", interval_value=1, interval_unit="months"
+    )
+    on_bike = schedule_service.create_schedule(
+        bike_id=bike.id, service_type="Clean", interval_kind="period", interval_value=1, interval_unit="months"
+    )
+
+    assert on_part.baseline_date == "2026-11-01"
+    assert on_bike.baseline_date == "2026-11-16"
+
+
+def test_the_trailing_pace_window_starts_at_local_midnight(evening_in_new_york):
+    bike = bike_service.create_bike(name="Road")
+    with connection.get_connection() as conn:  # 11 PM EDT on Aug 17 is 03:00 UTC on Aug 18
+        mileage_db.upsert_ride_activity(conn, strava_activity_id=1, strava_gear_id="g", bike_id=bike.id,
+                                        distance_miles=90, occurred_at="2026-08-18T03:00:00.000000Z")
+        miles_per_day, _ = schedule_service._trailing_pace(conn, bike.id, date(2026, 11, 16))
+
+    assert miles_per_day == 0  # the window starts at local midnight on Aug 18 (04:00 UTC); the ride was before it

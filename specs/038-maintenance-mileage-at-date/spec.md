@@ -57,5 +57,5 @@ When the rider logs maintenance and leaves "Mileage at service" blank, the syste
 
 ## Assumptions
 
-- Ride times are compared as stored, as installation periods already are.
+- Ride times are compared as stored, as installation periods already are. Since 075 both sides are UTC instants (the entry's `performed_instant`), which fixed rides within a few hours of a service time landing on the wrong side.
 - Applies to logging only, not editing.

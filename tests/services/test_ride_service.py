@@ -70,7 +70,7 @@ def test_creating_a_ride_updates_bike_and_part_mileage(db_path):
     assert component_service.get_component(chain.id).total_mileage == 12.5
 
 
-def test_manual_rides_are_stored_as_typed_with_a_noon_default(db_path):
+def test_manual_rides_are_stored_in_utc_with_a_noon_default(db_path):
     bike = _bike()
 
     a = ride_service.create_ride(bike.id, day=date(2026, 9, 2), time="07:30", miles=1, note=None)
@@ -246,3 +246,30 @@ def test_a_manual_ride_keeps_its_moving_time_and_the_log_shows_it(db_path):
 
     (row, _start) = ride_service.get_log_for_bike(bike.id).rows
     assert row.moving_seconds == 3600
+
+
+# ------------------------------------------------ specs/075: typed times are stored in UTC
+
+
+def test_a_manual_ride_is_read_in_the_saved_zone_and_stored_in_utc(db_path, new_york):
+    bike = _bike()
+
+    evening = ride_service.create_ride(bike.id, day=date(2026, 11, 16), time="17:39", miles=1, note=None)
+    noon = ride_service.create_ride(bike.id, day=date(2026, 11, 16), time=None, miles=1, note=None)
+    summer = ride_service.create_ride(bike.id, day=date(2026, 7, 4), time="09:00", miles=1, note=None)
+
+    assert evening.occurred_at == "2026-11-16T22:39:00.000000Z"  # 5:39 PM EST
+    assert noon.occurred_at == "2026-11-16T17:00:00.000000Z"  # noon EST
+    assert summer.occurred_at == "2026-07-04T13:00:00.000000Z"  # 9:00 AM EDT
+
+
+def test_saving_a_ride_with_an_unchanged_date_and_time_keeps_its_instant(db_path, new_york):
+    bike = _bike()
+    _strava(bike, 7, 10, "2026-11-13T19:26:41.000000Z")  # 2:26:41 PM EST
+    ride = ride_service.get_log_for_bike(bike.id).rows[0]
+
+    kept = ride_service.update_ride(ride.id, bike_id=bike.id, day=date(2026, 11, 13), time="14:26", miles=12, note=None)
+    moved = ride_service.update_ride(ride.id, bike_id=bike.id, day=date(2026, 11, 13), time="15:00", miles=12, note=None)
+
+    assert kept.occurred_at == "2026-11-13T19:26:41.000000Z"
+    assert moved.occurred_at == "2026-11-13T20:00:00.000000Z"

@@ -426,3 +426,20 @@ def test_a_typed_service_time_follows_the_clock_setting_for_bikes_and_parts(sign
     settings_service.set_clock_format(account.id, "24")
     for page in pages:
         assert "2026-05-01 14:30" in signed_in_client.get(page).text
+
+
+# ------------------------------------------------ specs/075: one way of showing times
+
+
+def test_a_timed_entry_shows_its_local_time_with_the_zone_and_an_untimed_one_its_date(signed_in_client, new_york):
+    from app.services import bike_service, maintenance_service
+
+    bike = bike_service.create_bike(name="Road")
+    maintenance_service.log_maintenance(bike_id=bike.id, description="Lube", performed_at="2026-11-16", performed_time="21:00")
+    maintenance_service.log_maintenance(bike_id=bike.id, description="Clean", performed_at="2026-11-17")
+
+    html = signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
+
+    assert "2026-11-16 9:00PM EST" in html
+    assert ">2026-11-17<" in html
+    assert html.index("2026-11-17") < html.index("2026-11-16 9:00PM EST")  # latest first by local date

@@ -20,7 +20,7 @@
 - The restore is all or nothing.
 
 ## Requirements
-- **FR-001**: `backup_service.export_backup()` / `restore_backup(data)` callable without FastAPI; format `{"app": "bikemaint", "format": 1, "schema": <last migration>, "exported_at": ..., "settings": {...}, "tables": {name: [row dicts]}}`.
+- **FR-001**: `backup_service.export_backup()` / `restore_backup(data)` callable without FastAPI; format `{"app": "bikemaint", "format": 2 (075; 1 before), "schema": <last migration>, "exported_at": ..., "settings": {...}, "tables": {name: [row dicts]}}`.
 - **FR-002**: Routes `GET /settings/backup` and `POST /settings/restore` (multipart `backup` file, `confirm`), sign-in required; upload limit 50 MB.
 - **FR-003**: Restore validates before writing, runs in one transaction, and checks foreign keys.
 
@@ -32,3 +32,4 @@
 
 ## Amendments
 - Feature 068: the download name carries date and time (`bikemaint-backup-YYYY-MM-DD-HHMMSS.json`, saved zone); `BACKUP_DIR`/`BACKUP_KEEP`/`BACKUP_INTERVAL_HOURS` add rolling backups to a mounted folder, plus Back up now.
+- Feature 075: backups are format 2 (every time UTC, maintenance entries carry `performed_instant`). A format-1 file is still restored, and its typed times are converted with the zone saved in that file; see `specs/075-typed-times-utc/`.

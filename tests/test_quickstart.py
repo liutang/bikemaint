@@ -7,13 +7,13 @@ real credentials, so the login step stubs the token exchange.
 
 import json
 import re
-from datetime import date
 
 import httpx
 import pytest
 import respx
 
 from app.db import connection
+from app.services import clock_service as _clock  # "today" is the saved zone's date (specs/075)
 from app.services import (
     bike_service,
     maintenance_service,
@@ -179,7 +179,7 @@ def test_scenario_4_schedules_notifications_and_completion(signed_in, monkeypatc
     client.post("/schedules/2/complete", follow_redirects=False)
     assert "Service" in client.get("/bikes/1/maintenance").text
     assert schedule_service.get_schedule(2).cycle_number == 2
-    assert schedule_service.get_schedule(2).baseline_date == date.today().isoformat()
+    assert schedule_service.get_schedule(2).baseline_date == _clock.today().isoformat()
 
 
 def test_cross_cutting_unauthenticated_and_delete_confirmation(client, monkeypatch):

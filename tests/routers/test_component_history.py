@@ -718,3 +718,27 @@ def test_the_bike_field_says_it_is_ignored_inside_a_part(signed_in_client):
     html = signed_in_client.get(f"/components/{tire.id}/install-history/new").text
 
     assert "Ignored when you pick an Inside part" in html
+
+
+# ------------------------------------------------ specs/075: install times are shown with the zone
+
+
+def test_install_histories_and_the_period_form_use_local_time_with_the_zone(signed_in_client, new_york):
+    bike = bike_service.create_bike(name="Road")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle")
+    period = history.log_period(
+        saddle.id, bike_id=bike.id,
+        installed_at=history.moment("2025-01-10", "21:00"),  # 9 PM EST = 02:00 UTC on the 11th
+        removed_at=history.moment("2025-07-04", "08:30"),  # EDT
+    )
+
+    part_page = signed_in_client.get(f"/components/{saddle.id}/install-history").text
+    bike_page = signed_in_client.get(f"/bikes/{bike.id}/install-history").text
+    form = signed_in_client.get(f"/install-periods/{period.id}/edit").text
+    rides = signed_in_client.get(f"/install-periods/{period.id}/rides").text
+
+    for page in (part_page, bike_page):
+        assert "2025-01-10 9:00PM EST" in page and "2025-07-04 8:30AM EDT" in page
+    assert 'value="2025-01-10"' in form and 'value="21:00"' in form
+    assert 'value="2025-07-04"' in form and 'value="08:30"' in form
+    assert "2025-01-10 9:00PM EST" in rides and "2025-07-04 8:30AM EDT" in rides

@@ -36,7 +36,7 @@ def test_only_rides_on_that_bike_inside_the_period_in_order(db_path):
         _strava(conn, bike, 5, 7.0, "2025-03-01T12:00:00.000000Z")  # after the removal
         period = components.insert_period(
             conn, part.id, parent_bike_id=bike.id, parent_component_id=None,
-            installed_at="2024-08-22T12:51:00.000000Z", removed_at="2025-02-27T00:00:00.000000Z",
+            installed_at="2024-08-22T16:51:00.000000Z", removed_at="2025-02-27T05:00:00.000000Z",
         )
         rides = mileage.list_rides_for_period(conn, period)
 
@@ -51,6 +51,6 @@ def test_an_open_period_has_no_end_and_deleted_rides_are_left_out(db_path):
         conn.execute("UPDATE ride_activity SET deleted_by_user = 1 WHERE strava_activity_id = 2")
         period = components.insert_period(
             conn, part.id, parent_bike_id=bike.id, parent_component_id=None,
-            installed_at="2024-08-22T12:51:00.000000Z", removed_at=None,
+            installed_at="2024-08-22T16:51:00.000000Z", removed_at=None,
         )
         assert [r.distance_miles for r in mileage.list_rides_for_period(conn, period)] == [10.0]

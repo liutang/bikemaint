@@ -49,3 +49,19 @@ def signed_in_client(client, monkeypatch):
     )
     client.get("/auth/strava/callback?code=auth-code", follow_redirects=False)
     return client
+
+
+@pytest.fixture
+def new_york(db_path):
+    """The rider's saved zone is New York (specs/075 tests). Signs in no one; reuses athlete 42."""
+    from app.db import accounts, connection
+    from app.services import settings_service
+
+    connection.run_migrations()
+    with connection.get_connection() as conn:
+        account = accounts.get_singleton(conn) or accounts.upsert_from_strava(
+            conn, strava_athlete_id=42, access_token="a", refresh_token="r",
+            expires_at="2099-01-01T00:00:00.000000Z",
+        )
+    settings_service.set_timezone(account.id, "America/New_York")
+    return account

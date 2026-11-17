@@ -31,8 +31,8 @@ def now_moment() -> str:
 def moment(day: str | None, time: str | None) -> str:
     """Build a stored timestamp from typed date/time; both blank means now.
 
-    A date alone counts as 00:00; a time without a date is an error. Stored as typed (no zone
-    conversion), like rides.
+    A date alone counts as 00:00; a time without a date is an error. Read in the saved zone and
+    stored in UTC, like rides (specs/075).
     """
     if not day:
         if time:
@@ -44,12 +44,12 @@ def moment(day: str | None, time: str | None) -> str:
             datetime.strptime(time, "%H:%M")
     except ValueError as exc:
         raise ValueError("Enter a valid date and time.") from exc
-    return f"{day}T{time or '00:00'}:00.000000Z"
+    return clock_service.to_utc(day, time or "00:00")
 
 
 def check_not_future(value: str, label: str = "The install time") -> None:
-    """Typed moments are wall-clock times, so compare with the current time in the rider's zone."""
-    if value > clock_service.now_in_zone_moment():
+    """Every stored moment is a UTC instant, so compare with the current instant."""
+    if value > now_moment():
         raise ValueError(f"{label} cannot be in the future.")
 
 
@@ -207,8 +207,8 @@ def _validate(
     )
     if clash is not None:
         raise ValueError(
-            f"That overlaps another period ({clash.installed_at[:10]} to "
-            f"{clash.removed_at[:10] if clash.removed_at else 'now'}) for this part."
+            f"That overlaps another period ({clock_service.to_local(clash.installed_at)[:10]} to "
+            f"{clock_service.to_local(clash.removed_at)[:10] if clash.removed_at else 'now'}) for this part."
         )
 
 
@@ -276,6 +276,9 @@ def update_period(
         existing = components_db.get_period(conn, period_id)
         if existing is None:
             raise LookupError(f"No installation period with id {period_id}")
+        # An unchanged date and minute keep the stored instant, seconds included (specs/075 FR-003).
+        installed_at = clock_service.keep_if_same(existing.installed_at, installed_at)
+        removed_at = clock_service.keep_if_same(existing.removed_at, removed_at)
         is_open = existing.removed_at is None
         ending = is_open and removed_at is not None
         _validate(

@@ -22,11 +22,11 @@ Each part has an "Install history" screen (`/components/{id}/install-history`) l
 - **FR-007**: Periods of one part must not overlap (touching ends are fine). Removal must be after install; neither may be in the future.
 - **FR-008**: After any add/edit/delete the part's mileage is recomputed (baseline + rides across all periods + adjustments).
 - **FR-009**: Add/delete leave a "Parts" event on the part's maintenance history dated at the logged moment. *(Superseded by `specs/022-install-history-split`: add/delete of a period no longer writes any maintenance entry.)*
-- **FR-013** *(added by branch `051-period-boundary-frames`)*: A ride counts toward a period when it started at or after the install moment and before the removal moment, with both read as wall-clock times in the saved time zone: Strava rides are UTC instants and are converted; typed install/removal and manual-ride times are used as typed; moments the app recorded itself are UTC and are converted. Example: a ride at 12:41PM EDT is outside a period installed 12:51PM EDT. Part totals are recomputed at startup so stored totals follow this rule.
+- **FR-013** *(added by branch `051-period-boundary-frames`)*: A ride counts toward a period when it started at or after the install moment and before the removal moment, with both read as wall-clock times in the saved time zone: Strava rides are UTC instants and are converted; typed install/removal and manual-ride times are used as typed; moments the app recorded itself are UTC and are converted. Example: a ride at 12:41PM EDT is outside a period installed 12:51PM EDT. Part totals are recomputed at startup so stored totals follow this rule. *(Replaced by feature 075: all of these times are UTC instants and are compared directly.)*
 - **FR-010**: All routes require sign-in; invalid input re-renders the form with inline errors.
 
 ## Assumptions
-- Times are stored as typed (no zone conversion), like rides.
+- Times are read in the saved zone and stored in UTC, like rides (amended by 075; originally stored as typed).
 - Mileage of a part under a parent part uses the bike chosen on the logged period.
 
 ## Amendments
@@ -36,3 +36,4 @@ Each part has an "Install history" screen (`/components/{id}/install-history`) l
 ## Amendments
 - Feature 063: "Inside part (optional)" on Log/Edit a period is a list of parts by name instead of a part-number field (`component_history_service.parent_options`); stored the same way.
 - Feature 064: a period inside another part stores no bike; its rides are those on the bikes the parent was on during the overlap (`mileage._WINDOWS`), so a tire in a wheelset earns the wheelset's miles. Parent period changes recompute all parts.
+- **2026-11-17 (feature 075)**: FR-013 is replaced. Every install, removal and ride time is a UTC instant (typed ones are read in the saved zone first), so rides and periods are compared as plain instants and the `ride_wall`/`period_wall` rules are retired; see `specs/075-typed-times-utc/`.

@@ -51,7 +51,7 @@ A "Clock" setting on the Settings screen offers "12-hour" and "24-hour". Saving 
 
 - **FR-001**: The account MUST hold a clock setting, `12` or `24`, defaulting to `12` (existing accounts too).
 - **FR-002**: UTC-recorded times shown by the app MUST use `YYYY-MM-DD h:MMAM/PM ZONE` on a 12-hour clock and `YYYY-MM-DD HH:MM ZONE` on a 24-hour clock.
-- **FR-003**: Typed times shown as typed (rides, install history rows) MUST follow the same setting without a zone label: `YYYY-MM-DD h:MMAM/PM` or `YYYY-MM-DD HH:MM`.
+- **FR-003**: Typed times shown as typed (rides, install history rows) MUST follow the same setting without a zone label: `YYYY-MM-DD h:MMAM/PM` or `YYYY-MM-DD HH:MM`. *(Replaced by 075: typed times are UTC instants shown like FR-002, with the zone.)*
 - **FR-004**: Settings MUST offer the choice, validate it server-side, and apply it immediately to every screen.
 
 ### Key Entities
@@ -70,3 +70,6 @@ A "Clock" setting on the Settings screen offers "12-hour" and "24-hour". Saving 
 - The space between the time and AM/PM is omitted, as in the rider's example (`2:26PM`).
 - Display only; stored values do not change.
 - **FR-006** *(added by branch `052-local-maintenance-times`)*: A maintenance entry's typed date and time MUST be shown through the same rule as FR-003 (`2026-05-01 2:30PM`) on bike and part histories; an entry with no time shows only the date. Completed-task entries already use FR-002.
+
+## Amendments
+- **2026-11-17 (feature 075)**: FR-003 and FR-006 now use the FR-002 form with the zone abbreviation (`2026-05-01 2:30PM EDT`), since typed times are stored in UTC; an untimed maintenance entry still shows only its date; see `specs/075-typed-times-utc/`.

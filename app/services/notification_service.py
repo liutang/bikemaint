@@ -17,7 +17,7 @@ from app.db import accounts as accounts_db
 from app.db import notifications as notifications_db
 from app.db.connection import get_connection
 from app.models.rows import Notification
-from app.services import format_service, schedule_service
+from app.services import clock_service, format_service, schedule_service
 from app.services.schedule_service import DueItem
 
 logger = logging.getLogger(__name__)
@@ -128,7 +128,7 @@ def check_due_schedules(*, today: date | None = None) -> list[Notification]:
 
     Returns the notifications created by this call (already-notified cycles are skipped).
     """
-    day = today or date.today()
+    day = today or clock_service.today()  # the saved zone's date (specs/075 FR-011)
     with get_connection() as conn:
         account = accounts_db.get_singleton(conn)
     if account is None or account.notifications_muted:

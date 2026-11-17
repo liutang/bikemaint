@@ -46,10 +46,10 @@ def test_overview_items_carry_a_status(tmp_path, monkeypatch):
     connection.run_migrations()
     bike = bike_service.create_bike(name="Road Bike")
     schedule_service.create_schedule(
-        bike_id=bike.id, name="Soon", interval_days=3, today=date.today()
+        bike_id=bike.id, name="Soon", interval_days=3, today=_clock.today()
     )
     schedule_service.create_schedule(
-        bike_id=bike.id, name="Later", interval_days=100, today=date.today()
+        bike_id=bike.id, name="Later", interval_days=100, today=_clock.today()
     )
 
     items = {i.schedule.name: i.status for i in schedule_service.list_due_overview(lead_time_days=7)}
@@ -61,6 +61,7 @@ def test_overview_items_carry_a_status(tmp_path, monkeypatch):
 
 from app.db import connection  # noqa: E402
 from app.services import bike_service, component_service, schedule_service  # noqa: E402
+from app.services import clock_service as _clock  # "today" is the saved zone's date (specs/075)
 
 
 def _db(tmp_path, monkeypatch):

@@ -73,3 +73,12 @@ def test_account_requires_unique_strava_athlete_id(db_path):
                           '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
                 """
             )
+
+
+def test_maintenance_entries_have_a_performed_instant_column(tmp_path, monkeypatch):
+    # specs/075 migration 0018
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "m.sqlite3"))
+    connection.run_migrations()
+    with connection.get_connection() as conn:
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(maintenance_log_entry)")}
+    assert "performed_instant" in columns

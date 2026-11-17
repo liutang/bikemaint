@@ -66,3 +66,4 @@ The Add a ride and Edit ride forms have an optional "Moving time (h:mm)" field. 
 
 - Moving time (not elapsed time) is what counts as time on the bike.
 - Rides imported before this feature stay blank until re-imported.
+- A manual ride's date and time are read in the saved zone and stored in UTC (075); moving time is unchanged.

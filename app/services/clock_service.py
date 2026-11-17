@@ -1,20 +1,20 @@
-"""The rider's time zone, for display (specs/023-settings-sync-and-timezone).
+"""The rider's time zone (specs/023-settings-sync-and-timezone, 075).
 
-Times the app records in UTC (Strava rides, completed-task times, connected-since) are shown in
-the zone saved in Settings. Display only: no stored time is converted, and typed times are shown
-as typed. Callable without FastAPI or request objects.
+Every stored time is a UTC instant (specs/075): times the rider types are read in the zone saved
+in Settings (`to_utc`), and every time is shown in it (`format_utc`, `to_local`). "Today" is that
+zone's date. Callable without FastAPI or request objects.
 """
 
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from app.db import accounts as accounts_db
+from app.db import frames
 from app.db.connection import get_connection
 
-_STORED_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 # Zone name per database file, so a lookup is not a query every time a time is rendered.
 _cache: dict[str, str] = {}
@@ -70,40 +70,6 @@ def _clock(moment: datetime) -> str:
     return f"{hour}:{moment:%M}{'AM' if moment.hour < 12 else 'PM'}"
 
 
-def _wall_moment(value: str | None) -> datetime | None:
-    """A stored moment as a wall-clock time in the chosen zone, or None if it is not a time.
-
-    Typed times are stored as typed, always whole minutes, and are shown as typed. A moment the app
-    recorded itself (such as installing a part "now") carries seconds or microseconds and is a UTC
-    instant, so it is converted to the chosen zone (specs/023 FR-008, amended by 049).
-    """
-    if not value:
-        return None
-    try:
-        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if moment.second or moment.microsecond:
-        return moment.astimezone(_zone()).replace(tzinfo=None)  # `Z` text is read as UTC
-    return moment.replace(tzinfo=None)
-
-
-def format_wall(value: str | None) -> str:
-    """A stored time as `YYYY-MM-DD time`, no zone label; other text is returned as is."""
-    if not value:
-        return ""
-    moment = _wall_moment(value)
-    return value if moment is None else f"{moment:%Y-%m-%d} {_clock(moment)}"
-
-
-def to_wall(value: str | None) -> str:
-    """Like `format_wall` but as `YYYY-MM-DDTHH:MM`, to prefill a date and a time field."""
-    if not value:
-        return ""
-    moment = _wall_moment(value)
-    return value if moment is None else f"{moment:%Y-%m-%dT%H:%M}"
-
-
 def _zone() -> ZoneInfo:
     try:
         return ZoneInfo(zone_name())
@@ -125,13 +91,46 @@ def format_utc(value: str | None) -> str:
     return f"{local:%Y-%m-%d} {_clock(local)} {local:%Z}"
 
 
-def now_in_zone_moment() -> str:
-    """The current wall-clock time in the saved zone, in the stored text format.
+def to_utc(day: str, hhmm: str) -> str:
+    """A date and minute the rider typed, read in the saved zone, as stored UTC text (specs/075 FR-001)."""
+    return frames.to_utc(day, hhmm, _zone().key)
 
-    For comparing with times the rider typed, which are wall-clock times (never for values that
-    are stored, which stay in UTC).
-    """
-    return datetime.now(_zone()).replace(tzinfo=None).strftime(_STORED_FORMAT)
+
+def to_local(value: str | None) -> str:
+    """A stored instant as `YYYY-MM-DDTHH:MM` in the saved zone, to prefill a date and a time field."""
+    if not value:
+        return ""
+    try:
+        moment = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return value
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return f"{moment.astimezone(_zone()):%Y-%m-%dT%H:%M}"
+
+
+def keep_or_convert(stored: str | None, day: str, hhmm: str) -> str:
+    """The stored instant when the form's date and minute are unchanged, else the new one (specs/075 FR-003)."""
+    if stored and to_local(stored) == f"{day[:10]}T{hhmm[:5]}":
+        return stored
+    return to_utc(day, hhmm)
+
+
+def keep_if_same(stored: str | None, new: str | None) -> str | None:
+    """`stored` when `new` reads as the same local date and minute, else `new` (specs/075 FR-003)."""
+    if stored and new and to_local(stored) == to_local(new):
+        return stored
+    return new
+
+
+def end_of_day(day: str) -> str:
+    """The last moment of a local date in the saved zone, as stored UTC text (a whole-day entry)."""
+    return frames.end_of_day_utc(day, _zone().key)
+
+
+def today() -> date:
+    """Today's date in the saved zone (specs/075 FR-011)."""
+    return _utc_now().astimezone(_zone()).date()
 
 
 # The time zone picker: one representative zone per common UTC offset; daylight saving follows

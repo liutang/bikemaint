@@ -51,7 +51,7 @@ def test_the_export_has_every_table_and_no_secrets(db_path):
     data = backup_service.export_backup()
     text = json.dumps(data)
 
-    assert data["app"] == "bikemaint" and data["format"] == 1
+    assert data["app"] == "bikemaint" and data["format"] == 2
     assert len(data["tables"]["bike"]) == 1 and len(data["tables"]["component"]) == 2
     assert len(data["tables"]["component_installation_period"]) >= 2 and len(data["tables"]["ride_activity"]) == 1
     assert "SECRET" not in text and "access_token" not in text
@@ -111,3 +111,65 @@ def test_a_bad_file_changes_nothing(db_path):
         backup_service.restore_backup(data)
     assert _snapshot() == before
 
+
+
+# ------------------------------------------------ specs/075: format 2, and older files are converted on restore
+
+
+def test_a_new_backup_is_format_2_and_carries_each_entrys_instant(db_path):
+    _fill()
+    data = backup_service.export_backup()
+    assert data["format"] == 2
+    assert all("performed_instant" in row for row in data["tables"]["maintenance_log_entry"])
+
+
+def _format_1_file():
+    """A backup as an older version wrote it: typed times as typed, no performed_instant."""
+    bike = bike_service.create_bike(name="Road")
+    part = component_service.create_component(name="Chain", component_type="chain")
+    data = backup_service.export_backup()
+    data["format"] = 1
+    data["settings"]["timezone"] = "America/New_York"
+    data["tables"]["ride_activity"] = [{
+        "id": 1, "source": "manual", "strava_activity_id": None, "strava_gear_id": None, "bike_id": bike.id,
+        "distance_miles": 5.0, "occurred_at": "2026-11-16T17:00:00.000000Z", "synced_at": None,
+        "is_deleted_upstream": 0, "note": None, "user_modified": 1, "deleted_by_user": 0,
+    }]
+    data["tables"]["component_installation_period"] = [{
+        "id": 1, "component_id": part.id, "parent_bike_id": bike.id, "parent_component_id": None,
+        "installed_at": "2026-11-01T08:00:00.000000Z", "removed_at": None,
+    }]
+    data["tables"]["maintenance_log_entry"] = [{
+        "id": 1, "bike_id": bike.id, "component_id": None, "description": "Lube/Wax", "performed_at": "2026-11-16",
+        "performed_time": "21:00", "mileage_at_service": 3.0, "schedule_id": None, "kind": "service",
+        "created_at": "2026-11-17T02:05:00.000000Z", "updated_at": "2026-11-17T02:05:00.000000Z",
+    }]
+    return data
+
+
+def test_restoring_an_older_backup_converts_its_typed_times_with_its_zone(db_path):
+    data = _format_1_file()
+    with connection.get_connection() as conn:  # the zone saved here must not be the one used
+        conn.execute("UPDATE account SET timezone = 'Europe/London'")
+
+    backup_service.restore_backup(data)
+
+    with connection.get_connection() as conn:
+        assert conn.execute("SELECT occurred_at FROM ride_activity").fetchone()[0] == "2026-11-16T22:00:00.000000Z"
+        assert conn.execute("SELECT installed_at FROM component_installation_period").fetchone()[0] == "2026-11-01T13:00:00.000000Z"
+        row = conn.execute("SELECT performed_at, performed_time, performed_instant FROM maintenance_log_entry").fetchone()
+        assert tuple(row) == ("2026-11-16", "21:00", "2026-11-17T02:00:00.000000Z")
+
+
+def test_restoring_a_format_2_backup_converts_nothing(db_path):
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE account SET timezone = 'America/New_York'")
+    bike = bike_service.create_bike(name="Road")
+    maintenance_service.log_maintenance(bike_id=bike.id, description="Lube/Wax", performed_at="2026-11-16", performed_time="21:00")
+    with connection.get_connection() as conn:
+        mileage_db.create_manual_ride(conn, bike_id=bike.id, distance_miles=1, occurred_at="2026-11-16T22:00:00.000000Z", note=None)
+    before = _snapshot()
+
+    backup_service.restore_backup(json.loads(json.dumps(backup_service.export_backup())))
+
+    assert _snapshot() == before

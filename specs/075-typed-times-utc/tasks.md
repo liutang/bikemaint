@@ -141,7 +141,7 @@ description: "Task list for 075 store typed times in UTC"
 - a copy file exists;
 - running again changes nothing (SC-007).
 
-- [ ] T023 [P] [US3] Tests first in new `tests/db/test_typed_times.py` (`convert(conn, zone)`), one case per US3 table row:
+- [x] T023 [P] [US3] Tests first in new `tests/db/test_typed_times.py` (`convert(conn, zone)`), one case per US3 table row:
   - A manual ride converts, deleted ones too.
   - A Strava ride, edited or not, is unchanged.
   - Whole-minute install and removal moments convert, and ones with seconds are unchanged.
@@ -153,23 +153,23 @@ description: "Task list for 075 store typed times in UTC"
     - Other values are unchanged.
   - Created, updated, synced, completed and notified columns are unchanged.
   - Zone `UTC` changes no value.
-- [ ] T024 [US3] Implement T023 in new `app/db/typed_times.py`:
+- [x] T024 [US3] Implement T023 in new `app/db/typed_times.py`:
   - `convert(conn, zone)` does parameterized `UPDATE`s, row by row.
   - `convert_database(conn)` reads the zone from `account`, else UTC.
   - `has_rows(conn)` reports whether anything needs converting.
-- [ ] T025 [P] [US3] Tests first in `tests/db/test_connection.py`:
+- [x] T025 [P] [US3] Tests first in `tests/db/test_connection.py`:
   - `run_migrations` records `0019_typed_times_utc` in `schema_version` after the `.sql` files.
   - A second run converts nothing (SC-007).
   - A failure inside the step (monkeypatched `convert` raising) leaves every row and `schema_version` unchanged, and the next run converts.
   - With rows present, a copy `<stem>-before-075-<YYYY-MM-DD><suffix>` appears beside `DATABASE_PATH` and opens as a valid database with the old values.
   - An empty database gets no copy.
   - A copy that cannot be written (read-only folder) raises, logs an error naming the path, and converts nothing.
-- [ ] T026 [US3] Implement T025 in `app/db/connection.py`:
+- [x] T026 [US3] Implement T025 in `app/db/connection.py`:
   - Add `DATA_STEPS = [("0019_typed_times_utc", typed_times.convert_database)]`, run after the SQL migrations.
   - Each step runs in one transaction with its `schema_version` insert.
   - The pre-update copy uses `sqlite3.Connection.backup`.
   - Log one info line with counts per table and the copy path.
-- [ ] T027 [P] [US3] Test for unchanged totals in `tests/db/test_typed_times.py`. Seed New York data:
+- [x] T027 [P] [US3] Test for unchanged totals in `tests/db/test_typed_times.py`. Seed New York data:
   - Strava rides near typed period boundaries and maintenance times;
   - nested part periods (064);
   - past-part maintenance (066).
@@ -178,12 +178,12 @@ description: "Task list for 075 store typed times in UTC"
   - Record before the step: every bike and part total, every period's Miles and Rides (053), and each maintenance history's rows in order.
   - Run `run_migrations` and `recompute_all_component_totals`.
   - Assert they are identical (FR-007, SC-002).
-- [ ] T028 [P] [US3] Tests first in `tests/services/test_backup_service.py`:
+- [x] T028 [P] [US3] Tests first in `tests/services/test_backup_service.py`:
   - A new backup has `"format": 2` and includes `performed_instant`.
   - Restoring a format-1 file with `timezone = "America/New_York"` converts its typed times by the US3 table and recomputes totals.
   - Restoring format 2 converts nothing.
   - Other formats are refused, as today.
-- [ ] T029 [US3] Implement T028 in `app/services/backup_service.py`: set `FORMAT = 2`, accept `{1, 2}`, and on 1 call `typed_times.convert(conn, <backup timezone or "UTC">)` inside the restore transaction before recomputing totals.
+- [x] T029 [US3] Implement T028 in `app/services/backup_service.py`: set `FORMAT = 2`, accept `{1, 2}`, and on 1 call `typed_times.convert(conn, <backup timezone or "UTC">)` inside the restore transaction before recomputing totals.
 
 **Checkpoint**: the update is safe to deploy against the real database.
 

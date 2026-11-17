@@ -17,11 +17,13 @@ from zoneinfo import ZoneInfo
 
 from app.db import accounts as accounts_db
 from app.db import mileage as mileage_db
+from app.db import typed_times
 from app.db.connection import MIGRATIONS_DIR, get_connection
 
 logger = logging.getLogger(__name__)
 
-FORMAT = 1
+FORMAT = 2  # 2: every time is UTC (specs/075); 1 held typed times as typed
+READABLE_FORMATS = (1, 2)
 MAX_BYTES = 50 * 1024 * 1024
 
 # Parents before children; restore deletes in the reverse order.
@@ -34,6 +36,14 @@ SETTINGS = (
     "strava_sync_enabled", "strava_sync_interval_minutes", "timezone", "clock_format",
     "notifications_muted", "notification_lead_time_days",
 )
+
+
+def _zone_or_utc(name: str | None) -> str:
+    try:
+        ZoneInfo(name or "UTC")
+    except Exception:
+        return "UTC"
+    return name or "UTC"
 
 
 def _columns(conn, table: str) -> list[str]:
@@ -66,8 +76,10 @@ def parse_backup(raw: bytes) -> dict:
         raise ValueError("That file is not valid JSON.") from None
     if not isinstance(data, dict) or data.get("app") != "bikemaint":
         raise ValueError("That file is not a BikeMaint backup.")
-    if data.get("format") != FORMAT:
-        raise ValueError(f"Unsupported backup format {data.get('format')!r}; this version reads format {FORMAT}.")
+    if data.get("format") not in READABLE_FORMATS:
+        raise ValueError(
+            f"Unsupported backup format {data.get('format')!r}; this version reads formats 1 and {FORMAT}."
+        )
     if not isinstance(data.get("tables"), dict):
         raise ValueError("That backup has no data tables.")
     return data
@@ -122,6 +134,12 @@ def restore_backup(data: dict) -> dict[str, int]:
         if settings:
             conn.execute(
                 f"UPDATE account SET {', '.join(f'{k} = ?' for k in settings)}", list(settings.values())
+            )
+        if data.get("format") == 1:  # typed times as typed: convert with the backup's own zone (specs/075 FR-009)
+            counts_converted = typed_times.convert(conn, _zone_or_utc(settings.get("timezone")))
+            logger.info(
+                "converted an older backup's typed times %s",
+                " ".join(f"{table}={n}" for table, n in counts_converted.items()),
             )
         for (bike_id,) in conn.execute("SELECT id FROM bike").fetchall():
             mileage_db.recompute_bike_total_mileage(conn, bike_id)

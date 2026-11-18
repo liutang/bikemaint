@@ -90,7 +90,7 @@ description: "Task list for 076 four-digit years, two-digit typing"
 
 **Independent Test**: restore a backup whose period starts at `21-04-18T04:56:02.000000Z`, with New York saved. It starts at `2021-04-18T04:00:00.000000Z`.
 
-- [ ] T016 [P] [US3] Tests first in `tests/db/test_typed_times.py` for `repair_short_years(conn, "America/New_York")`:
+- [x] T016 [P] [US3] Tests first in `tests/db/test_typed_times.py` for `repair_short_years(conn, "America/New_York")` (counts are values changed; `maintenance_schedule.baseline_date`, a local date, is repaired too):
   - **Install moment:** `21-04-18T04:56:02.000000Z` becomes `2021-04-18T04:00:00.000000Z`, and `0021-04-18T04:56:02.000000Z` becomes the same.
   - **Manual ride:** `26-07-17T16:56:02.000000Z` becomes `2026-07-17T16:00:00.000000Z` (noon EDT).
   - **Maintenance entry:** `performed_at` `0021-04-18` becomes `2021-04-18`, and its `performed_instant` is repaired.
@@ -99,22 +99,22 @@ description: "Task list for 076 four-digit years, two-digit typing"
   - **Normal values** are untouched.
   - **An unrepairable value** (forced into the table) stays unchanged and logs a warning with its table and id.
   - It returns counts per table.
-- [ ] T017 [US3] Implement T016 in `app/db/typed_times.py`:
+- [x] T017 [US3] Implement T016 in `app/db/typed_times.py`:
   - `repair_short_years(conn, zone)`, which parses short-year values by hand (research §5);
   - `repair_database(conn)`, which uses the saved zone.
-- [ ] T018 [P] [US3] Tests first in `tests/db/test_connection.py`:
+- [x] T018 [P] [US3] Tests first in `tests/db/test_typed_times.py`, beside the 075 data-step tests (also covers SC-004: a database with no short years is unchanged):
   - **Runs once:** `run_migrations` on a database holding a short year runs `0020_four_digit_years` once, records it in `schema_version`, and a second run changes nothing.
   - **No copy:** no `-before-` copy is made for it.
   - **Still copies for 075:** an older database still gets its 075 copy, once.
-- [ ] T019 [US3] Implement T018 in `app/db/connection.py`:
+- [x] T019 [US3] Implement T018 in `app/db/connection.py`:
   - `DATA_STEPS` entries become `(name, step, copy_first)`;
   - add `("0020_four_digit_years", typed_times.repair_database, False)`;
   - copy only when `copy_first`.
-- [ ] T020 [P] [US3] Tests first in `tests/services/test_backup_service.py`:
+- [x] T020 [P] [US3] Tests first in `tests/services/test_backup_service.py`:
   - A format-2 backup holding the old pads value restores with the period at `2021-04-18T04:00:00.000000Z`, and the part's total counts the rides since.
   - A format-1 backup with a `0021-…` typed date is converted and repaired.
   - A clean backup restores unchanged (the existing round-trip test still passes).
-- [ ] T021 [US3] Implement T020 in `app/services/backup_service.py`: call `typed_times.repair_short_years(conn, zone)` after the format-1 conversion, or for every format, before totals are recomputed, in the same transaction.
+- [x] T021 [US3] Implement T020 in `app/services/backup_service.py`: call `typed_times.repair_short_years(conn, zone)` after the format-1 conversion, or for every format, before totals are recomputed, in the same transaction.
 
 **Checkpoint**: all stories complete.
 

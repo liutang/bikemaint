@@ -14,11 +14,15 @@ Recognising each stored form (the US3 table):
 
 from __future__ import annotations
 
+import logging
+import re
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 from app.db import frames
+
+logger = logging.getLogger(__name__)
 
 TRACKING_BEGAN = "1970-01-01T00:00:00.000000Z"
 _END_OF_DAY = "T23:59:59.999999Z"
@@ -122,3 +126,86 @@ def has_rows(conn: sqlite3.Connection) -> bool:
 def convert_database(conn: sqlite3.Connection) -> dict[str, int]:
     """The data step: convert with the zone saved in the database itself."""
     return convert(conn, saved_zone(conn))
+
+
+# ------------------------------------------------ specs/076 US3: repair stored short years
+
+# A stored value whose year has fewer than four digits, or four digits below 100 (`21-…`, `0021-…`).
+_SHORT_INSTANT = re.compile(r"^(\d{1,4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?Z$")
+_SHORT_DATE = re.compile(r"^(\d{1,4})-(\d{2})-(\d{2})$")
+
+# (table, column, rows): the columns the rider types into (076 data-model.md). Strava rides are never touched.
+_INSTANT_COLUMNS = (
+    ("ride_activity", "occurred_at", "source = 'manual'"),
+    ("component_installation_period", "installed_at", "1 = 1"),
+    ("component_installation_period", "removed_at", "1 = 1"),
+    ("maintenance_log_entry", "performed_instant", "1 = 1"),
+    ("maintenance_schedule", "baseline_at", "1 = 1"),
+)
+_DATE_COLUMNS = (
+    ("maintenance_log_entry", "performed_at"),
+    ("maintenance_schedule", "baseline_date"),
+)
+
+
+class _Unrepairable(ValueError):
+    pass
+
+
+def _is_short(match: re.Match | None) -> bool:
+    return match is not None and int(match.group(1)) < 100
+
+
+def _repair_instant(value: str, zone: str) -> str:
+    """Read the value back as the local moment it was typed as, make the year 20yy, store it again (FR-008)."""
+    parts = _SHORT_INSTANT.match(value)
+    year, month, day, hour, minute, second = (int(g) for g in parts.groups()[:6])
+    micro = int((parts.group(7) or "0").ljust(6, "0"))
+    try:
+        utc = datetime(year, month, day, hour, minute, second, micro, tzinfo=timezone.utc)
+        local = utc.astimezone(ZoneInfo(zone))
+        typed = local.replace(year=local.year + 2000, tzinfo=None)
+    except (ValueError, OverflowError) as exc:
+        raise _Unrepairable(str(exc)) from exc
+    return frames.stored(typed.replace(tzinfo=ZoneInfo(zone)).astimezone(timezone.utc))
+
+
+def _repair_date(value: str) -> str:
+    year, month, day = (int(g) for g in _SHORT_DATE.match(value).groups())
+    try:
+        return date(year + 2000, month, day).isoformat()
+    except ValueError as exc:
+        raise _Unrepairable(str(exc)) from exc
+
+
+def repair_short_years(conn: sqlite3.Connection, zone: str) -> dict[str, int]:
+    """Rewrite every stored year below 100 as 20yy, as if it had been typed that way (specs/076 US3).
+
+    Returns the values changed per table. A value that can't be repaired is left as it is and
+    logged as a warning with its table and id (FR-010).
+    """
+    counts = {"ride_activity": 0, "component_installation_period": 0, "maintenance_log_entry": 0, "maintenance_schedule": 0}
+
+    def fix(table, column, row_id, value, repair):
+        try:
+            new = repair(value)
+        except _Unrepairable:
+            logger.warning("short year left unrepaired table=%s column=%s id=%s", table, column, row_id)
+            return
+        conn.execute(f"UPDATE {table} SET {column} = ? WHERE id = ?", (new, row_id))
+        counts[table] += 1
+
+    for table, column, rows in _INSTANT_COLUMNS:
+        for row_id, value in conn.execute(f"SELECT id, {column} FROM {table} WHERE {rows} AND {column} IS NOT NULL").fetchall():
+            if _is_short(_SHORT_INSTANT.match(value)):
+                fix(table, column, row_id, value, lambda v: _repair_instant(v, zone))
+    for table, column in _DATE_COLUMNS:
+        for row_id, value in conn.execute(f"SELECT id, {column} FROM {table} WHERE {column} IS NOT NULL").fetchall():
+            if _is_short(_SHORT_DATE.match(value)):
+                fix(table, column, row_id, value, _repair_date)
+    return counts
+
+
+def repair_database(conn: sqlite3.Connection) -> dict[str, int]:
+    """The data step `0020_four_digit_years`: repair with the zone saved in the database itself."""
+    return repair_short_years(conn, saved_zone(conn))

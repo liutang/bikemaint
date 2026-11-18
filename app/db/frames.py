@@ -19,6 +19,14 @@ from app.models.sync_rules import ride_matches
 STORED_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
+def stored(moment: datetime) -> str:
+    """A UTC moment as stored text, with a four-digit year on every platform (specs/076 FR-004).
+
+    glibc's `strftime("%Y")` writes year 21 as `21`, which sorts after every real date.
+    """
+    return f"{moment.year:04d}-" + moment.strftime("%m-%dT%H:%M:%S.%fZ")
+
+
 def to_utc(day: str, hhmm: str, zone: str) -> str:
     """A local date and minute in `zone` as stored UTC text (specs/075 FR-001).
 
@@ -27,7 +35,7 @@ def to_utc(day: str, hhmm: str, zone: str) -> str:
     """
     hour, minute = (int(part) for part in hhmm.split(":")[:2])
     local = datetime.combine(datetime.fromisoformat(day[:10]).date(), time(hour, minute), tzinfo=ZoneInfo(zone))
-    return local.astimezone(timezone.utc).strftime(STORED_FORMAT)
+    return stored(local.astimezone(timezone.utc))
 
 
 def from_utc(value: str, zone: str) -> datetime:
@@ -42,7 +50,7 @@ def end_of_day_utc(day: str, zone: str) -> str:
     """The last microsecond of a local day in `zone`, as stored UTC text (a whole-day maintenance entry)."""
     start = datetime.combine(datetime.fromisoformat(day[:10]).date(), time(0, 0), tzinfo=ZoneInfo(zone))
     next_day = datetime.combine(start.date() + timedelta(days=1), time(0, 0), tzinfo=ZoneInfo(zone))
-    return (next_day.astimezone(timezone.utc) - timedelta(microseconds=1)).strftime(STORED_FORMAT)
+    return stored(next_day.astimezone(timezone.utc) - timedelta(microseconds=1))
 
 
 def register(conn: sqlite3.Connection) -> None:

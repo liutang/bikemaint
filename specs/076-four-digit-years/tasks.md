@@ -12,24 +12,24 @@ description: "Task list for 076 four-digit years, two-digit typing"
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the branch `076-four-digit-years` (master merged in) and that `.specify/feature.json` points at `specs/076-four-digit-years`. Run the full suite once as the baseline (`.venv/bin/python -m pytest -q`).
+- [x] T001 Confirm the branch `076-four-digit-years` (master merged in) and that `.specify/feature.json` points at `specs/076-four-digit-years`. Run the full suite once as the baseline (`.venv/bin/python -m pytest -q`).
 
 ## Phase 2: Foundational (blocks every story)
 
 **Purpose**: the year rule and the four-digit writer that every story uses (research §1, §4).
 
-- [ ] T002 [P] Tests first in new `tests/models/test_typed_dates.py` for `full_year(text)`:
+- [x] T002 [P] Tests first in new `tests/models/test_typed_dates.py` for `full_year(text)`:
   - Short years become 20yy: `"0026-07-17"` → `"2026-07-17"`, `"0000-07-17"` → `"2000-07-17"`, `"0099-12-31"` → `"2099-12-31"`, `"0024-02-29"` → `"2024-02-29"`.
   - Normal years are unchanged: `"1900-01-01"` and `"2026-11-18"` stay as they are.
   - Years 100 to 1899 (`"0202-03-01"`, `"1899-12-31"`) raise `PydanticCustomError` with the message exactly "Enter a valid date".
   - Text that isn't `YYYY-MM-DD` is returned unchanged, so the field's own validation reports it.
-- [ ] T003 Implement T002 in new `app/models/typed_dates.py`.
-- [ ] T004 [P] Tests first in `tests/db/test_frames.py`:
+- [x] T003 Implement T002 in new `app/models/typed_dates.py`.
+- [x] T004 [P] Tests first in `tests/db/test_frames.py`:
   - `frames.stored(datetime(999, 1, 2, 3, 4, 5, tzinfo=timezone.utc))` returns `"0999-01-02T03:04:05.000000Z"`.
   - `to_utc("0021-04-18", "00:00", "UTC")` starts with `"0021-"`.
   - `end_of_day_utc("0021-04-18", "UTC")` starts with `"0021-"`.
   - These fail on Linux/glibc before the fix.
-- [ ] T005 Implement T004 in `app/db/frames.py`: add `stored(dt)` (`f"{dt.year:04d}-" + dt.strftime("%m-%dT%H:%M:%S.%fZ")`) and use it in `to_utc` and `end_of_day_utc`.
+- [x] T005 Implement T004 in `app/db/frames.py`: add `stored(dt)` (`f"{dt.year:04d}-" + dt.strftime("%m-%dT%H:%M:%S.%fZ")`) and use it in `to_utc` and `end_of_day_utc`.
 
 **Checkpoint**: the helpers are tested; no form uses them yet.
 

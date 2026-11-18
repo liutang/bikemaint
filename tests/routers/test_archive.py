@@ -186,3 +186,163 @@ def test_the_archived_bike_screen_offers_only_the_storage_drop(signed_in_client)
     assert "Add to…" not in page
     assert f'href="/bikes/{bike.id}/schedules"' not in page and "Pair with Strava" not in page
     assert "Garage Wheel (move to storage)" in page  # the keyboard way to take a part off stays
+
+
+# ------------------------------------------------ US2: take parts off an archived bike (FR-007)
+
+
+def _kept():
+    """An archived bike that kept a wheel holding a tire, plus an active bike and a stored chain."""
+    bike = bike_service.create_bike(name="2014 Trek Madone 2.1")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id,
+                                               installed_at="2026-01-01T00:00:00.000000Z")
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id,
+                                              installed_at="2026-01-01T00:00:00.000000Z")
+    archive_service.archive_bike(bike.id, attached="keep")
+    other = bike_service.create_bike(name="New Road")
+    chain = component_service.create_component(name="Chain", component_type="chain")
+    return bike, wheel, tire, other, chain
+
+
+def _place(component_id):
+    c = component_service.get_component(component_id)
+    return (c.parent_bike_id, c.parent_component_id)
+
+
+def test_dragging_a_part_off_an_archived_bike_moves_it_to_storage_with_its_sub_parts(signed_in_client):
+    bike, wheel, tire, _, _ = _kept()
+    response = signed_in_client.post("/builder/move", data={"root": f"bike:{bike.id}", "component_id": wheel.id, "target": "storage"},
+                                     headers={"HX-Request": "true"})
+    assert response.status_code == 200
+    assert _place(wheel.id) == (None, None) and _place(tire.id) == (None, wheel.id)
+    assert not archive_service.is_locked("component", wheel.id)
+
+
+def test_the_old_move_route_can_take_a_part_off_too(signed_in_client):
+    _, wheel, tire, _, _ = _kept()
+    signed_in_client.post(f"/components/{wheel.id}/move", data={"target": "storage"})
+    assert _place(wheel.id) == (None, None) and _place(tire.id) == (None, wheel.id)
+
+
+@pytest.mark.parametrize("change", ["move_elsewhere", "move_within", "move_onto", "add_onto", "add_into", "delete_inside"])
+def test_any_other_builder_change_on_an_archived_bike_answers_409(signed_in_client, change):
+    bike, wheel, tire, other, chain = _kept()
+    root = f"bike:{bike.id}"
+    data = {
+        "move_elsewhere": (f"/components/{wheel.id}/move", {"target": f"bike:{other.id}"}),
+        "move_within": ("/builder/move", {"root": root, "component_id": tire.id, "target": f"bike:{bike.id}"}),
+        "move_onto": (f"/components/{chain.id}/move", {"target": f"component:{wheel.id}"}),
+        "add_onto": ("/builder/add", {"root": root, "component_type": "chain", "target": f"bike:{bike.id}"}),
+        "add_into": ("/builder/add", {"root": root, "component_type": "tube", "target": f"component:{tire.id}"}),
+        "delete_inside": ("/builder/delete", {"root": root, "component_id": tire.id, "confirmed": "true"}),
+    }[change]
+    before = {c: _place(c) for c in (wheel.id, tire.id, chain.id)}
+    response = signed_in_client.post(data[0], data=data[1], headers={"HX-Request": "true"})
+    assert response.status_code == 409
+    assert "archived" in response.text
+    if data[0].startswith("/builder"):
+        assert 'id="builder"' in response.text
+    assert {c: _place(c) for c in before} == before
+    assert len(component_service.get_tree_for_bike(bike.id)) == 2
+
+
+# ------------------------------------------------ US2: Install History of a locked item (FR-006, FR-007)
+
+from app.services import component_history_service as history  # noqa: E402
+
+
+def _open(component_id):
+    return [p for p in history.list_history(component_id) if p.removed_at is None][0]
+
+
+def test_ending_a_still_installed_row_on_an_archived_bike_back_dates_the_removal(signed_in_client):
+    bike, wheel, tire, _, _ = _kept()
+    period = _open(wheel.id)
+    response = signed_in_client.post(f"/install-periods/{period.id}", data={
+        "bike_id": str(bike.id), "installed_date": "2026-01-01", "installed_time": "00:00",
+        "removed_date": "2026-03-01", "removed_time": "",
+    }, follow_redirects=False)
+    assert response.status_code == 303
+    assert _place(wheel.id) == (None, None) and _place(tire.id) == (None, wheel.id)
+    assert history.get_period(period.id).removed_at.startswith("2026-03-01")
+
+
+def test_other_period_changes_on_an_archived_bike_answer_409(signed_in_client):
+    bike, wheel, _, other, chain = _kept()
+    period = _open(wheel.id)
+    base = {"installed_date": "2026-01-01", "installed_time": "00:00", "removed_date": "", "removed_time": ""}
+    moved = signed_in_client.post(f"/install-periods/{period.id}", data={**base, "bike_id": str(other.id)})
+    redated = signed_in_client.post(f"/install-periods/{period.id}", data={**base, "bike_id": str(bike.id), "installed_date": "2025-06-01"})
+    logged = signed_in_client.post(f"/components/{chain.id}/install-history", data={
+        "bike_id": str(bike.id), "installed_date": "2025-01-01", "removed_date": "2025-02-01"})
+    assert (moved.status_code, redated.status_code, logged.status_code) == (409, 409, 409)
+    assert history.get_period(period.id) == period and _place(wheel.id) == (bike.id, None)
+    assert history.list_history(chain.id) == []
+
+
+def test_a_closed_period_on_an_archived_bike_cannot_be_edited_or_deleted(signed_in_client):
+    bike = bike_service.create_bike(name="Old")
+    chain = component_service.create_component(name="Chain", component_type="chain")
+    history.log_period(chain.id, bike_id=bike.id, installed_at="2025-01-01T00:00:00.000000Z", removed_at="2025-02-01T00:00:00.000000Z")
+    archive_service.archive_bike(bike.id, attached=None)
+    period = history.list_history(chain.id)[0]
+    edited = signed_in_client.post(f"/install-periods/{period.id}", data={
+        "bike_id": str(bike.id), "installed_date": "2025-01-02", "removed_date": "2025-02-01"})
+    deleted = signed_in_client.post(f"/install-periods/{period.id}/delete")
+    assert (edited.status_code, deleted.status_code) == (409, 409)
+    assert history.list_history(chain.id) == [period]
+    page = signed_in_client.get(f"/components/{chain.id}/install-history").text
+    assert f"/install-periods/{period.id}/edit" not in page and f"/install-periods/{period.id}/delete" not in page
+
+
+def test_the_archived_bikes_install_history_and_period_form(signed_in_client):
+    bike, wheel, _, _, _ = _kept()
+    period = _open(wheel.id)
+    page = signed_in_client.get(f"/bikes/{bike.id}/install-history").text
+    assert f"/bikes/{bike.id}/install-history/new" not in page
+    assert f"/install-periods/{period.id}/edit" in page and f"/install-periods/{period.id}/delete" not in page
+    form = signed_in_client.get(f"/install-periods/{period.id}/edit").text
+    assert 'name="removed_date"' in form and 'type="hidden" name="bike_id"' in form
+    assert '<select id="bike_id"' not in form and 'id="installed_date"' not in form
+
+
+def test_locked_items_are_not_offered_as_places(signed_in_client):
+    bike, wheel, tire, other, chain = _kept()
+    options = [o["value"] for o in history.parent_options(chain.id)]
+    assert str(wheel.id) not in options and str(tire.id) not in options
+    form = signed_in_client.get(f"/components/{chain.id}/install-history/new").text
+    assert f'value="{bike.id}"' not in form.split('name="bike_id"')[1].split("</select>")[0]
+
+
+def test_every_change_to_a_part_kept_on_an_archived_bike_answers_409(signed_in_client):
+    bike, wheel, tire, other, chain = _kept()
+    with connection.get_connection() as conn:  # a schedule left on (as a part moved to storage would keep)
+        schedules_db.create(conn, bike_id=None, component_id=wheel.id, name="Check", interval_miles=None, interval_days=30,
+                            baseline_mileage=0, baseline_date="2026-01-01")
+        schedule = schedules_db.list_active_for_component(conn, wheel.id)[0]
+    requests = [
+        ("/components", {"name": "Tube", "component_type": "tube", "parent_component_id": str(tire.id)}),
+        (f"/components/{wheel.id}", {"name": "Renamed", "component_type": "wheel", "manual_baseline_mileage": "0"}),
+        (f"/components/{wheel.id}/maintenance", {"service_type": "Check", "performed_at": "2026-09-04"}),
+        (f"/components/{wheel.id}/mileage/adjust", {"delta_miles": "5"}),
+        (f"/components/{wheel.id}/schedules", {"service_type": "Check", "interval_kind": "period", "interval_value": "1",
+                                               "interval_unit_period": "months", "interval_unit_usage": "miles"}),
+        (f"/schedules/{schedule.id}", {"service_type": "Check", "interval_kind": "period", "interval_value": "2",
+                                       "interval_unit_period": "months", "interval_unit_usage": "miles"}),
+        (f"/schedules/{schedule.id}/complete", {}),
+        (f"/schedules/{schedule.id}/delete", {}),
+        (f"/components/{wheel.id}/sync-rules", {"sync_rules": "1", "keywords": "x"}),
+        (f"/components/{tire.id}/delete", {"confirmed": "true"}),
+        (f"/bikes/{bike.id}/install-history", {"component_id": str(chain.id), "bike_id": str(bike.id),
+                                                "installed_date": "2025-01-01", "removed_date": "2025-02-01"}),
+        (f"/bikes/{bike.id}/strava-unpair", {}),
+    ]
+    for path, data in requests:
+        response = signed_in_client.post(path, data=data, follow_redirects=False)
+        assert response.status_code == 409, path
+        assert "archived" in response.text, path
+    assert component_service.get_component(wheel.id).name == "Wheel"
+    assert component_service.get_component(tire.id) is not None
+    with connection.get_connection() as conn:
+        assert len(schedules_db.list_active_for_component(conn, wheel.id)) == 1
+    assert [c.name for c in component_service.get_tree_for_bike(bike.id)] == ["Wheel", "Tire"]

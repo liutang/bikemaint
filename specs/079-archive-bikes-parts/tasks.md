@@ -101,22 +101,22 @@ description: "Task list for 079 archive bikes and parts"
 
 **Independent Test**: quickstart steps 5 and 6.
 
-- [ ] T020 [P] [US2] Tests first in `tests/services/test_component_service.py` and `tests/routers/test_builder.py`:
+- [x] T020 [P] [US2] Tests first (written as route tests in `tests/routers/test_archive.py`, which exercise the services):
   - On an archived bike, a part moves to storage (`/builder/move` target storage, and `/components/{id}/move` to storage) with its sub-parts inside, removed now.
   - Moving it elsewhere, adding a part onto or into it, reordering, and `/builder/delete` of a part in the tree all answer 409 and change nothing.
-- [ ] T021 [US2] Implement T020 in `component_service.move_component`, `builder_service` add and delete, and `app/routers/builder.py` and `components.py`.
-- [ ] T022 [P] [US2] Tests first in `tests/services/test_component_history_service.py` and `tests/routers/test_component_history.py`:
+- [x] T021 [US2] Implement T020 in `component_service.move_component`, `builder_service` add and delete, and `app/routers/builder.py` and `components.py`.
+- [x] T022 [P] [US2] Tests first (route tests in `tests/routers/test_archive.py`):
   - Ending a still-installed period whose place is locked moves the part to storage at the typed moment, sub-parts inside.
   - Changing that period's place or install moment is refused.
   - Logging, editing or deleting a closed period placed in a locked item is refused.
   - The Edit form of such a still-installed period shows only the removal fields.
   - The archived bike's Install History has no Log or Delete controls.
   - `parent_options` and the period Bike list leave out locked items.
-- [ ] T023 [US2] Implement T022 in `component_history_service`, `app/routers/component_history.py`, `components/install_period_form.html`, `components/install_history.html` and `bikes/install_history.html`.
-- [ ] T024 [P] [US2] Test first in new `tests/routers/test_archive_route_walk.py`:
+- [x] T023 [US2] Implement T022 in `component_history_service`, `app/routers/component_history.py`, `components/install_period_form.html`, `components/install_history.html` and `bikes/install_history.html`.
+- [x] T024 [P] [US2] Test first in new `tests/routers/test_archive_route_walk.py`:
   - Walk every router's `.router.routes`. Every POST must be on one of two lists: "checks the lock" (each one tested in T014, T020 and T022 with a locked item), or "not about one bike or part" (settings, auth, backup, sync, notifications).
   - A new POST fails the test until it's listed.
-- [ ] T025 [US2] Make T024 pass by listing the routes; add any guard it finds missing.
+- [x] T025 [US2] Make T024 pass by listing the routes; add any guard it finds missing.
 
 ## Phase 5: User Story 3 - Archive a part (P2)
 

@@ -223,6 +223,16 @@ def _baseline_for(conn, owner, *, bike_id, component_id, service_type: str, toda
     }
 
 
+def _owner_unlocked(conn, schedule) -> None:
+    """A schedule of an archived bike or part can't be edited, completed or deleted (specs/079)."""
+    from app.services import archive_service
+
+    if schedule.bike_id is not None:
+        archive_service.require_unlocked("bike", schedule.bike_id, conn)
+    if schedule.component_id is not None:
+        archive_service.require_unlocked("component", schedule.component_id, conn)
+
+
 def create_schedule(
     *,
     bike_id: int | None = None,
@@ -343,8 +353,10 @@ def update_schedule(
     elif interval_miles is None and interval_days is None:
         raise ValueError("A schedule needs a mileage interval, a time interval, or both.")
     with get_connection() as conn:
-        if schedules_db.get_by_id(conn, schedule_id) is None:
+        existing = schedules_db.get_by_id(conn, schedule_id)
+        if existing is None:
             raise LookupError(f"No schedule with id {schedule_id}")
+        _owner_unlocked(conn, existing)
         if service_type is not None:
             return schedules_db.update_typed(
                 conn, schedule_id, is_recurring=is_recurring, notify=notify, is_active=is_active, **fields
@@ -362,8 +374,10 @@ def update_schedule(
 def delete_schedule(schedule_id: int) -> None:
     """Stop projecting/notifying; completed-cycle history in the maintenance log is kept."""
     with get_connection() as conn:
-        if schedules_db.get_by_id(conn, schedule_id) is None:
+        existing = schedules_db.get_by_id(conn, schedule_id)
+        if existing is None:
             raise LookupError(f"No schedule with id {schedule_id}")
+        _owner_unlocked(conn, existing)
         schedules_db.deactivate(conn, schedule_id)
 
 
@@ -607,6 +621,7 @@ def complete_schedule(schedule_id: int, *, today: date | None = None) -> Mainten
         schedule = schedules_db.get_by_id(conn, schedule_id)
         if schedule is None:
             raise LookupError(f"No schedule with id {schedule_id}")
+        _owner_unlocked(conn, schedule)
         latest = maintenance_db.latest_for_schedule(conn, schedule_id)
     if latest is not None:
         logged = datetime.strptime(latest.created_at, "%Y-%m-%dT%H:%M:%S.%fZ").replace(

@@ -50,6 +50,15 @@ def _bike_history_url(bike) -> str:
     return f"/bikes/{bike.id}/install-history"
 
 
+def _locked_context(component, period) -> dict:
+    """A still-installed period in an archived item: only its removal can be entered (specs/079)."""
+    place = history.locked_period_place(period) if period is not None and period.removed_at is None else None
+    if place is None:
+        return {"locked": False}
+    return {"locked": True, "place_name": place,
+            "locked_bike_id": period.parent_bike_id or history.default_bike_id(component.id) or ""}
+
+
 def _form_context(component, period, extra: dict | None = None, from_bike=None) -> dict:
     suffix = f"?from_bike={from_bike.id}" if from_bike else ""
     base = f"/install-periods/{period.id}" if period else _list_url(component.id)
@@ -58,6 +67,7 @@ def _form_context(component, period, extra: dict | None = None, from_bike=None) 
         "period": period,
         "bike_options": [{"value": str(b.id), "label": b.name} for b in bike_service.list_bikes()],
         "default_bike_id": None if period else history.default_bike_id(component.id),
+        **_locked_context(component, period),
         "parent_options": history.parent_options(component.id, period.parent_component_id if period else None),
         "crumbs": _crumbs(component, "Edit period" if period else "Log a period"),
         "action": base + suffix,

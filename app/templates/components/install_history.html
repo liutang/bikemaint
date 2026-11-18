@@ -10,7 +10,7 @@
     <h1>Install history</h1>
     <p class="text-muted"><a href="/components/{{ component.id }}">{{ component.name }}</a> — {{ component.total_mileage|num1 }} mi in total</p>
   </div>
-  <a class="btn btn-primary" href="/components/{{ component.id }}/install-history/new">{{ ui_icons.plus() }}Log a period</a>
+  {% if not is_locked("component", component.id) %}<a class="btn btn-primary" href="/components/{{ component.id }}/install-history/new">{{ ui_icons.plus() }}Log a period</a>{% endif %}
 </div>
 <p class="text-muted">Back-fill where this part has been. Its mileage is the rides on each bike between install and removal, added together.</p>
 
@@ -36,8 +36,10 @@
         <td data-label="Actions">
           <div class="actions">
             <a class="btn btn-icon" href="/install-periods/{{ row.period.id }}/rides" aria-label="Rides" title="Rides">{{ ui_icons.route() }}</a>
+            {% if not (row.locked and row.period.removed_at) %}
             <a class="btn btn-icon" href="/install-periods/{{ row.period.id }}/edit" aria-label="Edit" title="Edit">{{ ui_icons.edit() }}</a>
-            {% if row.period.removed_at %}
+            {% endif %}
+            {% if row.period.removed_at and not row.locked %}
             <form method="post" action="/install-periods/{{ row.period.id }}/delete">
               <button class="btn btn-icon" type="submit" aria-label="Delete" title="Delete">{{ ui_icons.trash() }}</button>
             </form>
@@ -53,7 +55,7 @@
 <div class="empty-state">
   <p class="empty-title">No installs recorded yet</p>
   <p>Log the bikes this part has been on to include their past rides in its mileage.</p>
-  <a class="btn btn-primary" href="/components/{{ component.id }}/install-history/new">Log a period</a>
+  {% if not is_locked("component", component.id) %}<a class="btn btn-primary" href="/components/{{ component.id }}/install-history/new">Log a period</a>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

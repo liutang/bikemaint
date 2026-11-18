@@ -15,7 +15,7 @@ from pydantic import ValidationError
 
 from app.models.requests import BuilderAddRequest, BuilderDeleteRequest, BuilderMoveRequest
 from app.routers.screen import redirect_to, render_screen, screen_url
-from app.services import builder_service
+from app.services import archive_service, builder_service
 from app.services import component_history_service as history_service
 from app.services.auth_dependency import require_account
 from app.services.component_service import ComponentPlacementError
@@ -77,6 +77,8 @@ async def builder_add(request: Request, account=Depends(require_account)):
         )
     except ValidationError:
         return _refuse(request, root, NOT_UNDERSTOOD)
+    except archive_service.ArchivedError as exc:
+        return render_screen(request, payload.root, message=str(exc), status_code=409)
     except (ComponentPlacementError, ValueError) as exc:
         return _refuse(request, root, str(exc))
     return _done(request, payload.root)
@@ -100,6 +102,8 @@ async def builder_move(request: Request, account=Depends(require_account)):
         )
     except ValidationError:
         return _refuse(request, root, NOT_UNDERSTOOD)
+    except archive_service.ArchivedError as exc:
+        return render_screen(request, payload.root, message=str(exc), status_code=409)
     except (ComponentPlacementError, ValueError) as exc:
         return _refuse(request, root, str(exc))
     kind, root_id = builder_service.parse_root(payload.root)
@@ -135,6 +139,8 @@ async def builder_delete(request: Request, account=Depends(require_account)):
         )
     except ValidationError:
         return _refuse(request, root, NOT_UNDERSTOOD)
+    except archive_service.ArchivedError as exc:
+        return render_screen(request, payload.root, message=str(exc), status_code=409)
     except (ComponentPlacementError, ValueError) as exc:
         return _refuse(request, root, str(exc))
     kind, root_id = builder_service.parse_root(payload.root)

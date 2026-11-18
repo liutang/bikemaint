@@ -292,3 +292,48 @@ def test_sync_stores_moving_time_and_a_resync_fills_a_ride_that_had_none(db_path
     with connection.get_connection() as conn:
         rows = conn.execute("SELECT moving_time_seconds FROM ride_activity").fetchall()
     assert [r["moving_time_seconds"] for r in rows] == [5400]
+
+
+# ------------------------------------------------ Strava 64-bit ids (017 T020): ids above 2**53 stay exact
+
+BIG_ID = 2**62 + 12345  # beyond JavaScript's exact range (2**53), inside SQLite's signed 64-bit INTEGER
+
+
+def _ride_ids(bike_id):
+    with connection.get_connection() as conn:
+        return [
+            row["strava_activity_id"]
+            for row in conn.execute("SELECT strava_activity_id FROM ride_activity WHERE bike_id = ?", (bike_id,))
+        ]
+
+
+def test_sync_keeps_a_64_bit_activity_id_exact_and_a_resync_updates_it(db_path, monkeypatch):
+    account = _connected_account()
+    bike = bike_service.create_bike(name="Road Bike")
+    _pair_bike_to_gear(bike.id, "gear-64")
+    ride = {"id": BIG_ID, "gear_id": "gear-64", "distance": 16093.4, "start_date": "2027-06-02T08:00:00Z"}
+    monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: [ride])
+
+    sync_service.sync_incremental(account.id)
+    ride["distance"] = 32186.8  # the same activity, edited on Strava
+    sync_service.sync_incremental(account.id)
+
+    assert _ride_ids(bike.id) == [BIG_ID]
+    assert bike_service.get_bike(bike.id).total_mileage == pytest.approx(20.0)
+
+
+def test_reimport_keeps_a_64_bit_activity_id_exact_without_duplicates(db_path, monkeypatch):
+    _connected_account()
+    bike = bike_service.create_bike(name="Road Bike")
+    _pair_bike_to_gear(bike.id, "gear-64")
+    activities = [
+        {"id": BIG_ID, "gear_id": "gear-64", "distance": 16093.4, "start_date": "2027-06-02T08:00:00Z"},
+        {"id": BIG_ID + 1, "gear_id": "gear-64", "distance": 16093.4, "start_date": "2027-06-03T08:00:00Z"},
+    ]
+    monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: activities)
+
+    sync_service.backfill_bike(bike.id)
+    sync_service.backfill_bike(bike.id)
+
+    assert sorted(_ride_ids(bike.id)) == [BIG_ID, BIG_ID + 1]
+    assert bike_service.get_bike(bike.id).total_mileage == pytest.approx(20.0)

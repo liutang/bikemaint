@@ -44,6 +44,9 @@ def validate_rule(sports: list[str], ride_types: list[str], keywords: str) -> Sy
 
 def save_rule(kind: str, owner_id: int, *, sports: list[str], ride_types: list[str], keywords: str) -> SyncRule:
     """Validate and save a bike's or part's rule and re-apply it to every existing ride."""
+    from app.services import archive_service
+
+    archive_service.require_unlocked("bike" if kind == "bike" else "component", owner_id)  # specs/079
     rule = validate_rule(sports, ride_types, keywords)
     with get_connection() as conn:
         exists = bikes_db.get_by_id(conn, owner_id) if kind == "bike" else components_db.get_by_id(conn, owner_id)

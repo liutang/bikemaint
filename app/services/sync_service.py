@@ -139,6 +139,9 @@ def backfill_bike(bike_id: int) -> None:
 
 
 def adjust_bike_mileage(bike_id: int, *, delta_miles: float, reason: str | None = None) -> Bike:
+    from app.services import archive_service
+
+    archive_service.require_unlocked("bike", bike_id)  # specs/079
     with get_connection() as conn:
         bike = bikes_db.get_by_id(conn, bike_id)
         if bike is None:
@@ -155,6 +158,9 @@ def adjust_bike_mileage(bike_id: int, *, delta_miles: float, reason: str | None 
 def adjust_component_mileage(
     component_id: int, *, delta_miles: float, reason: str | None = None
 ) -> Component:
+    from app.services import archive_service
+
+    archive_service.require_unlocked("component", component_id)  # specs/079
     with get_connection() as conn:
         component = components_db.get_by_id(conn, component_id)
         if component is None:

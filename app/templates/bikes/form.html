@@ -1,7 +1,8 @@
 {% extends "layout.html" %}
 {% from "partials/forms.html" import field, select_field, error_summary, submit %}
 {% import "partials/icons.html" as ui_icons %}
-{% from "partials/sync_rules.html" import sync_rules_fields %}
+{% from "partials/sync_rules.html" import sync_rules_fields, sync_rules_readonly %}
+{% from "partials/archive_card.html" import archive_card, archived_notice, unarchive_card %}
 
 {% block title %}{{ "Edit" if bike else "New" }} Bike — Bike Maintenance Tracker{% endblock %}
 
@@ -9,6 +10,34 @@
 {% include "partials/breadcrumb.html" %}
 <h1>{{ "Edit" if bike else "Add" }} Bike</h1>
 {{ error_summary(errors) }}
+{% if bike and bike.archived_at %}
+{# specs/079: an archived bike is shown read-only, with Unarchive beside Delete. #}
+{{ archived_notice(bike, edit_screen=true) }}
+<div class="card-grid">
+  <section class="panel" aria-labelledby="details-heading">
+    <h2 id="details-heading">Details</h2>
+    <dl class="readonly-details">
+      <dt>Year</dt><dd>{{ bike.year or "—" }}</dd>
+      <dt>Make</dt><dd>{{ bike.make or "—" }}</dd>
+      <dt>Model</dt><dd>{{ bike.model or "—" }}</dd>
+      <dt>Category</dt><dd>{{ bike.bike_type or "—" }}</dd>
+      <dt>Baseline mileage</dt><dd>{{ bike.manual_baseline_mileage|num1 }} mi</dd>
+    </dl>
+  </section>
+  {% if sync %}
+  <section class="panel" aria-labelledby="sync-rules-heading">
+    <h2 id="sync-rules-heading">Sync rules</h2>
+    {{ sync_rules_readonly(sync) }}
+    <p class="text-muted">Not paired with Strava.</p>
+  </section>
+  {% endif %}
+</div>
+<div class="actions"><a class="btn" href="/bikes/{{ bike.id }}">Back to bike</a></div>
+<div class="card-grid">
+{{ unarchive_card("bike", bike) }}
+{% include "bikes/_delete_card.html" %}
+</div>
+{% else %}
 <form class="edit-form" method="post" action="{{ ('/bikes/' ~ bike.id) if bike else '/bikes' }}">
   <div class="card-grid">
     <section class="panel" aria-labelledby="details-heading">
@@ -57,16 +86,9 @@
 </section>
 {% endif %}
 
-{% if bike %}
-<section class="panel danger-zone" aria-labelledby="delete-heading">
-  <h2 id="delete-heading">Delete this bike</h2>
-  <p>Deleting <strong>{{ bike.name }}</strong> removes the bike. Its parts are kept and move to storage with their own sub-parts. This cannot be undone.</p>
-  <form class="form delete-confirm" method="post" action="/bikes/{{ bike.id }}/delete">
-    {{ field("confirm_name", "Type the bike's full name to confirm: " ~ bike.name, "", values, field_errors, required=true, pattern=bike.name|html_pattern, autocomplete="off", hint="The Delete button stays greyed out until the name matches exactly.") }}
-    <button class="btn btn-danger" type="submit">{{ ui_icons.trash() }}Delete bike</button>
-  </form>
-</section>
-{% endif %}
+{% include "bikes/_delete_card.html" %}
+{{ archive_card("bike", bike, archive) }}
 </div>
+{% endif %}
 {% endif %}
 {% endblock %}

@@ -376,3 +376,13 @@ class ClockSettingsRequest(BaseModel):
 
     clock_format: Literal["12", "24"]
 
+
+class ArchiveRequest(BaseModel):
+    """Archive a bike or part (specs/079): what to do with attached parts, when there are any."""
+
+    attached: Literal["keep", "move"] | None = None
+
+    @field_validator("attached", mode="before")
+    @classmethod
+    def _blank_is_none(cls, value):
+        return None if isinstance(value, str) and not value.strip() else value

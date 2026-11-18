@@ -39,14 +39,28 @@ def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
+def _unlocked(bike_id: int) -> None:
+    """An archived bike can't be changed (specs/079 FR-006)."""
+    from app.services import archive_service  # imported here: archive_service uses component_service
+
+    archive_service.require_unlocked("bike", bike_id)
+
+
 def get_bike(bike_id: int) -> Bike | None:
     with get_connection() as conn:
         return bikes_db.get_by_id(conn, bike_id)
 
 
 def list_bikes() -> list[Bike]:
+    """Active bikes: not deleted and not archived (specs/079 FR-008). The Garage grid and every Bike list."""
     with get_connection() as conn:
-        return bikes_db.list_active(conn)
+        return [b for b in bikes_db.list_active(conn) if b.archived_at is None]
+
+
+def list_archived_bikes() -> list[Bike]:
+    """Archived bikes, newest archived first (specs/079)."""
+    with get_connection() as conn:
+        return bikes_db.list_archived(conn)
 
 
 def create_bike(
@@ -101,6 +115,7 @@ def update_bike_from_details(
 ) -> Bike:
     """Edit a bike. A bike with a single legacy name may leave year, make and model all blank to
     keep that name; any other mix of blank and filled details is refused."""
+    _unlocked(bike_id)
     _check_category(category)
     given = [bool(year), bool(make), bool(model)]
     with get_connection() as conn:
@@ -135,6 +150,7 @@ def update_bike_from_details(
 def update_bike(
     bike_id: int, *, name: str, bike_type: str | None, manual_baseline_mileage: float
 ) -> Bike:
+    _unlocked(bike_id)
     with get_connection() as conn:
         bike = bikes_db.get_by_id(conn, bike_id)
         if bike is None:
@@ -159,6 +175,7 @@ def unpaired_gear(gear: list[dict]) -> list[dict]:
 
 def pair_to_strava_gear(bike_id: int, strava_gear_id: str) -> Bike:
     """Pair `bike_id` to a Strava gear entry and import its full ride history (FR-022)."""
+    _unlocked(bike_id)
     with get_connection() as conn:
         bike = bikes_db.get_by_id(conn, bike_id)
         if bike is None:
@@ -222,6 +239,7 @@ class NotPairedError(Exception):
 def reimport_strava_history(bike_id: int) -> None:
     """Re-fetch the paired gear's full history; rides already imported are updated in
     place by Strava activity id, so nothing is duplicated."""
+    _unlocked(bike_id)
     bike = get_bike(bike_id)
     if bike is None:
         raise LookupError(f"No bike with id {bike_id}")
@@ -236,6 +254,7 @@ def reimport_strava_history(bike_id: int) -> None:
 
 def unpair_from_strava(bike_id: int) -> Bike:
     """Detach the bike from its Strava gear. Imported rides and mileage are kept."""
+    _unlocked(bike_id)
     with get_connection() as conn:
         bike = bikes_db.get_by_id(conn, bike_id)
         if bike is None:

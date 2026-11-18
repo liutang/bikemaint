@@ -10,7 +10,7 @@
     <h1>Install history</h1>
     <p class="text-muted"><a href="/bikes/{{ bike.id }}">{{ bike.name }}</a> — every part that has been on this bike, newest first</p>
   </div>
-  <a class="btn btn-primary" href="/bikes/{{ bike.id }}/install-history/new">{{ ui_icons.plus() }}Log a period</a>
+  {% if not bike.archived_at %}<a class="btn btn-primary" href="/bikes/{{ bike.id }}/install-history/new">{{ ui_icons.plus() }}Log a period</a>{% endif %}
 </header>
 
 {% if rows %}
@@ -38,10 +38,10 @@
         <td data-label="Actions">
           <div class="actions">
             <a class="btn btn-icon" href="/install-periods/{{ row.period.id }}/rides?from_bike={{ bike.id }}" aria-label="Rides" title="Rides">{{ ui_icons.route() }}</a>
-            {% if row.linked %}
+            {% if row.linked and not (row.locked and row.period.removed_at) %}
             <a class="btn btn-icon" href="/install-periods/{{ row.period.id }}/edit?from_bike={{ bike.id }}" aria-label="Edit" title="Edit">{{ ui_icons.edit() }}</a>
             {% endif %}
-            {% if row.period.removed_at %}
+            {% if row.period.removed_at and not row.locked %}
             <form method="post" action="/install-periods/{{ row.period.id }}/delete?from_bike={{ bike.id }}">
               <button class="btn btn-icon" type="submit" aria-label="Delete" title="Delete">{{ ui_icons.trash() }}</button>
             </form>
@@ -57,7 +57,7 @@
 <div class="empty-state">
   <p class="empty-title">No parts have been installed yet</p>
   <p>Parts you add to this bike will be listed here, with when they were installed and removed. You can also record past installs by hand.</p>
-  <a class="btn btn-primary" href="/bikes/{{ bike.id }}/install-history/new">Log a period</a>
+  {% if not bike.archived_at %}<a class="btn btn-primary" href="/bikes/{{ bike.id }}/install-history/new">Log a period</a>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

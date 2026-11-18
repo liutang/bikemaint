@@ -33,3 +33,4 @@
 ## Amendments
 - Feature 068: the download name carries date and time (`bikemaint-backup-YYYY-MM-DD-HHMMSS.json`, saved zone); `BACKUP_DIR`/`BACKUP_KEEP`/`BACKUP_INTERVAL_HOURS` add rolling backups to a mounted folder, plus Back up now.
 - Feature 075: backups are format 2 (every time UTC, maintenance entries carry `performed_instant`). A format-1 file is still restored, and its typed times are converted with the zone saved in that file; see `specs/075-typed-times-utc/`.
+- **2026-11-18 (feature 079)**: `bike.archived_at` and `component.archived_at` are exported and restored like any column. A file without them restores everything as active.

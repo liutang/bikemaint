@@ -1,5 +1,5 @@
 {% import "partials/icons.html" as ui_icons %}
-<article class="card bike-card is-storage" id="component-{{ component.id }}">
+<article class="card bike-card is-storage{% if component.archived_at %} is-archived{% endif %}" id="component-{{ component.id }}">
   <header class="bike-card-head">
     <span class="bike-card-icon">{{ ui_icons.part(component.component_type, "icon part-icon") }}</span>
     <div>
@@ -8,4 +8,5 @@
     </div>
   </header>
   <p class="bike-card-figure"><span class="bike-card-stat"><strong>{{ component.total_mileage|num1 }} mi</strong><small>total mileage</small></span></p>
+  {% if component.archived_at %}<p class="archived-on">Archived {{ (component.archived_at|to_local)[:10] }}</p>{% endif %}
 </article>

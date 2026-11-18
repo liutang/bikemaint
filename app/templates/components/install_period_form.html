@@ -8,6 +8,16 @@
 <h1>{{ "Edit period" if period else "Log a past period" }}</h1>
 {{ error_summary(errors) }}
 <form class="panel form" method="post" action="{{ action }}">
+  {% if locked %}
+  {# specs/079: a still-installed period in an archived bike or part can only be ended. #}
+  <p class="text-muted">{{ place_name }} is archived. You can only enter when this part came off; it then goes to storage with any parts inside it.</p>
+  <input type="hidden" name="bike_id" value="{{ locked_bike_id }}">
+  <input type="hidden" name="parent_component_id" value="{{ period.parent_component_id or '' }}">
+  <input type="hidden" name="installed_date" value="{{ (period.installed_at|to_local)[:10] }}">
+  <input type="hidden" name="installed_time" value="{{ (period.installed_at|to_local)[11:16] }}">
+  {{ field("removed_date", "Removed on", "", values, field_errors, type="date", required=true) }}
+  {{ field("removed_time", "Time (optional)", "", values, field_errors, type="time", hint="Blank counts as midnight.") }}
+  {% else %}
   {{ select_field("bike_id", "Bike", bike_options, period.parent_bike_id if period else (default_bike_id or ""), values, field_errors, hint="The bike the part was on. Ignored when you pick an Inside part below: then the bike is whichever bike that part was on at the time.") }}
   {{ select_field("parent_component_id", "Inside part (optional)", parent_options, period.parent_component_id if period and period.parent_component_id else "", values, field_errors, hint="Pick the part it was mounted in, for example a wheel. Leave on None for the frame or bike.") }}
   {{ field("installed_date", "Installed on", (period.installed_at|to_local)[:10] if period else "", values, field_errors, type="date", required=true) }}
@@ -18,6 +28,7 @@
   {% else %}
   {{ field("removed_date", "Removed on", (period.removed_at|to_local)[:10] if period and period.removed_at else "", values, field_errors, type="date", required=true) }}
   {{ field("removed_time", "Time (optional)", (period.removed_at|to_local)[11:16] if period and period.removed_at else "", values, field_errors, type="time", hint="Blank counts as midnight.") }}
+  {% endif %}
   {% endif %}
   <div class="actions">
     {{ submit("Save") }}

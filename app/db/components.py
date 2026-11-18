@@ -425,3 +425,39 @@ def find_overlapping_period(
         (component_id, exclude_period_id, removed_at, installed_at),
     ).fetchone()
     return ComponentInstallationPeriod.from_row(row) if row else None
+
+
+def set_archived(conn: sqlite3.Connection, component_id: int, archived_at: str | None) -> None:
+    """Archive a part (a UTC instant) or make it active again (None) (specs/079)."""
+    conn.execute(
+        "UPDATE component SET archived_at = ?, updated_at = ? WHERE id = ?", (archived_at, _now(), component_id)
+    )
+
+
+def list_archived(conn: sqlite3.Connection) -> list[Component]:
+    """Archived parts, newest archived first (specs/079)."""
+    rows = conn.execute(
+        "SELECT * FROM component WHERE is_deleted = 0 AND archived_at IS NOT NULL ORDER BY archived_at DESC, id"
+    ).fetchall()
+    return [Component.from_row(row) for row in rows]
+
+
+def is_in_archived_tree(conn: sqlite3.Connection, component_id: int) -> bool:
+    """True when the part, a part above it, or the bike at the top of its chain is archived (specs/079 research §1)."""
+    row = conn.execute(
+        """
+        WITH RECURSIVE up(id, parent_component_id, parent_bike_id, archived_at, depth) AS (
+            SELECT id, parent_component_id, parent_bike_id, archived_at, 0 FROM component WHERE id = ?
+            UNION ALL
+            SELECT c.id, c.parent_component_id, c.parent_bike_id, c.archived_at, up.depth + 1
+            FROM component c JOIN up ON c.id = up.parent_component_id
+            WHERE up.depth < 8
+        )
+        SELECT EXISTS (SELECT 1 FROM up WHERE archived_at IS NOT NULL)
+            OR EXISTS (
+                SELECT 1 FROM up JOIN bike b ON b.id = up.parent_bike_id WHERE b.archived_at IS NOT NULL
+            )
+        """,
+        (component_id,),
+    ).fetchone()
+    return bool(row[0])

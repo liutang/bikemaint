@@ -1,0 +1,10 @@
+{% extends "layout.html" %}
+
+{% block title %}Archived — Bike Maintenance Tracker{% endblock %}
+
+{% block content %}
+{# specs/079: a change asked of an archived bike or part, or of something inside one. #}
+<h1>That can't be changed</h1>
+<p class="archived-notice" role="alert">{{ message }}</p>
+<div class="actions"><a class="btn" href="/">Go to the Garage</a></div>
+{% endblock %}

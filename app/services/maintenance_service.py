@@ -21,6 +21,25 @@ from app.models.rows import MaintenanceLogEntry
 from app.services import clock_service
 
 
+def _require_owner_unlocked(bike_id, component_id, conn=None) -> None:
+    """Maintenance of an archived bike or part can't be logged, edited or deleted (specs/079 FR-006)."""
+    from app.services import archive_service
+
+    if bike_id is not None:
+        archive_service.require_unlocked("bike", bike_id, conn)
+    if component_id is not None:
+        archive_service.require_unlocked("component", component_id, conn)
+
+
+def is_owner_locked(bike_id, component_id) -> bool:
+    """Whether an entry's owner is archived, so its history shows no Edit or Delete (specs/079)."""
+    from app.services import archive_service
+
+    return (bike_id is not None and archive_service.is_locked("bike", bike_id)) or (
+        component_id is not None and archive_service.is_locked("component", component_id)
+    )
+
+
 def get_entry(entry_id: int) -> MaintenanceLogEntry | None:
     with get_connection() as conn:
         return maintenance_db.get_by_id(conn, entry_id)
@@ -147,6 +166,7 @@ def log_maintenance(
     if (bike_id is None) == (component_id is None):
         raise ValueError("Maintenance must be logged against exactly one of a bike or a component.")
     at = instant_for(performed_at, performed_time)
+    _require_owner_unlocked(bike_id, component_id)
     with get_connection() as conn:
         if bike_id is not None:
             bike = bikes_db.get_by_id(conn, bike_id)
@@ -186,6 +206,7 @@ def update_entry(
         existing = maintenance_db.get_by_id(conn, entry_id)
         if existing is None:
             raise LookupError(f"No maintenance entry with id {entry_id}")
+        _require_owner_unlocked(existing.bike_id, existing.component_id, conn)
         entry = maintenance_db.update(
             conn,
             entry_id,
@@ -223,6 +244,8 @@ def follow_zone(zone: str) -> int:
 
 def delete_entry(entry_id: int) -> None:
     with get_connection() as conn:
-        if maintenance_db.get_by_id(conn, entry_id) is None:
+        existing = maintenance_db.get_by_id(conn, entry_id)
+        if existing is None:
             raise LookupError(f"No maintenance entry with id {entry_id}")
+        _require_owner_unlocked(existing.bike_id, existing.component_id, conn)
         maintenance_db.delete(conn, entry_id)

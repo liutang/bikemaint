@@ -94,3 +94,4 @@ As the rider, I want each bike to have a ride log that starts from its base mile
 ## Amendments
 
 - **2026-11-18 (feature 076, FR-011)**: a ride added or edited by hand can't be dated in the future. A date after today in the saved zone, or today with a typed time later than now, is refused with "The ride date cannot be in the future." beside the date. Today without a time is allowed. Strava rides are never checked.
+- **2026-11-18 (feature 079)**: an archived bike's rides are read-only: no Add, Edit or Delete, and the routes answer 409. Unarchiving makes them editable again. See `specs/079-archive-bikes-parts/`.

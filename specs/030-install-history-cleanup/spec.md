@@ -117,3 +117,7 @@ As the rider, I want deleting a part to remove its install history from everywhe
 - Mileage is recalculated with the existing rules (rides within each installation period).
 - The "Keep install history" default is unchecked, per the rider's wording.
 - Times typed here are wall-clock times as elsewhere; the future check uses the rider's chosen time zone (feature 023).
+
+## Amendments
+
+- **2026-11-18 (feature 079)**: ending a still-installed period in an archived bike or part is the way to back-date taking a part off it. The part goes to storage with its sub-parts inside, as in FR-001.

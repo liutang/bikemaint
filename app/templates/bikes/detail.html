@@ -15,6 +15,8 @@
   <div class="stat"><small>Total mileage</small><strong>{{ bike.total_mileage|num1 }} mi</strong></div>
 </div>
 
+{% from "partials/archive_card.html" import archived_notice, locked_notice %}
+{% if bike.archived_at %}{{ archived_notice(bike) }}{% elif is_locked("bike", bike.id) %}{{ locked_notice() }}{% endif %}
 {% include "partials/part_actions.html" %}
 {% include "partials/builder.html" %}
 

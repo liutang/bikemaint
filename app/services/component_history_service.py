@@ -117,7 +117,10 @@ def parent_options(component_id: int, current_parent_id: int | None = None) -> l
     from app.models.component_kinds import kind_name
 
     with get_connection() as conn:
-        parts = [p for p in components_db.list_active(conn) if p.id != component_id]
+        parts = [
+            p for p in components_db.list_active(conn)
+            if p.id != component_id and not components_db.is_in_archived_tree(conn, p.id)  # specs/079 FR-008
+        ]
         current = components_db.get_including_deleted(conn, current_parent_id) if current_parent_id else None
     labels = [f"{p.name} ({kind_name(p.component_type)})" for p in parts]
     options = [{"value": "", "label": "None (on the bike or frame)"}]
@@ -128,6 +131,47 @@ def parent_options(component_id: int, current_parent_id: int | None = None) -> l
     return options
 
 
+def period_locked(conn: sqlite3.Connection, period: ComponentInstallationPeriod) -> bool:
+    """Whether a period's place, or its part, is archived or inside something archived (specs/079).
+
+    Such a period can only be ended (a still-installed one); nothing else about it can change.
+    """
+    from app.services import archive_service
+
+    if period.parent_component_id is not None and archive_service.is_locked("component", period.parent_component_id, conn):
+        return True
+    if period.parent_bike_id is not None and archive_service.is_locked("bike", period.parent_bike_id, conn):
+        return True
+    return archive_service.is_locked("component", period.component_id, conn)
+
+
+def locked_period_place(period: ComponentInstallationPeriod) -> str | None:
+    """For an Edit form: the place's name when the period can only be ended (specs/079), else None."""
+    with get_connection() as conn:
+        return place_name(conn, period) if period_locked(conn, period) else None
+
+
+def _refuse_locked_period(conn: sqlite3.Connection, period: ComponentInstallationPeriod) -> None:
+    from app.services import archive_service
+
+    if period.parent_component_id is not None:
+        archive_service.require_unlocked("component", period.parent_component_id, conn)
+    if period.parent_bike_id is not None:
+        archive_service.require_unlocked("bike", period.parent_bike_id, conn)
+    archive_service.require_unlocked("component", period.component_id, conn)
+
+
+def _refuse_locked_place(conn: sqlite3.Connection, component_id: int, bike_id: int, parent_component_id: int | None) -> None:
+    """Nothing can be logged onto or into a locked item, nor for a locked part (specs/079 FR-006)."""
+    from app.services import archive_service
+
+    archive_service.require_unlocked("component", component_id, conn)
+    if parent_component_id is not None:
+        archive_service.require_unlocked("component", parent_component_id, conn)
+    else:
+        archive_service.require_unlocked("bike", bike_id, conn)
+
+
 def describe_history(component_id: int) -> list[dict]:
     """Periods, latest installed first, with a place label and the miles ridden in each."""
     with get_connection() as conn:
@@ -136,7 +180,8 @@ def describe_history(component_id: int) -> list[dict]:
         for period in reversed(components_db.list_periods(conn, component_id)):
             miles = sum(r.distance_miles for r in mileage_db.list_rides_for_period(conn, period))
             name, url = place(conn, period)
-            rows.append({"period": period, "place": name, "place_url": url, "miles": miles})
+            rows.append({"period": period, "place": name, "place_url": url, "miles": miles,
+                         "locked": period_locked(conn, period)})
         return rows
 
 
@@ -169,6 +214,7 @@ def describe_bike_history(bike_id: int) -> list[dict]:
                     "place": place_text,
                     "place_url": url,
                     "linked": not part.is_deleted,
+                    "locked": period_locked(conn, period),
                 }
             )
         return rows
@@ -228,6 +274,7 @@ def log_period(
     """
     still_installed = removed_at is None
     with get_connection() as conn:
+        _refuse_locked_place(conn, component_id, bike_id, parent_component_id)
         _validate(
             conn, component_id, bike_id=bike_id, parent_component_id=parent_component_id,
             installed_at=installed_at, removed_at=removed_at, exclude_period_id=None,
@@ -282,6 +329,15 @@ def update_period(
         removed_at = clock_service.keep_if_same(existing.removed_at, removed_at)
         is_open = existing.removed_at is None
         ending = is_open and removed_at is not None
+        if period_locked(conn, existing):
+            # Only ending a still-installed period is allowed, with its place and install moment as they are.
+            same_place = (existing.parent_component_id == parent_component_id) and (
+                parent_component_id is not None or existing.parent_bike_id == bike_id
+            )
+            if not (ending and same_place and installed_at == existing.installed_at):
+                _refuse_locked_period(conn, existing)
+        else:
+            _refuse_locked_place(conn, existing.component_id, bike_id, parent_component_id)
         _validate(
             conn, existing.component_id, bike_id=bike_id, parent_component_id=parent_component_id,
             installed_at=installed_at, removed_at=removed_at, exclude_period_id=period_id,
@@ -367,5 +423,6 @@ def delete_period(period_id: int) -> None:
             raise LookupError(f"No installation period with id {period_id}")
         if existing.removed_at is None:
             raise ValueError("This part is still installed; remove it from the bike instead.")
+        _refuse_locked_period(conn, existing)
         components_db.delete_period(conn, period_id)
         mileage_db.recompute_all_component_totals(conn)

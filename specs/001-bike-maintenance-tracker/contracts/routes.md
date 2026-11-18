@@ -84,6 +84,28 @@ Route handlers live only in `app/routers/`; they call into `app/services/` for a
 | `POST /settings/notifications` | Set `notification_lead_time_days`. |
 | `POST /settings/strava/reconnect` | Re-initiates the OAuth flow when the connection is stale/expired. |
 
+## Archiving (feature 079)
+
+| Route | Purpose |
+|---|---|
+| `POST /bikes/{bike_id}/archive` | Archives the bike. `attached` = `keep` or `move` is required when parts are attached. Answers 303 to `/`, 422 without a choice, or 409 if it's already archived. |
+| `POST /bikes/{bike_id}/unarchive` | Makes the bike active again; its schedules don't come back and it stays unpaired. Answers 303 to its Edit screen, or 409 if it isn't archived. |
+| `POST /components/{component_id}/archive` | Archives a part in storage (`attached` as above). Answers 303 to `/components`, or 422 if the part is installed. |
+| `POST /components/{component_id}/unarchive` | Makes the part active again. Answers 303 to its Edit screen. |
+
+**Locked items:** every route that would change an archived bike or part, or anything inside one, answers **409**:
+- the builder's HTMX actions re-render the screen with the message;
+- other forms show a refusal page.
+
+Still allowed on a locked item:
+- moving a part to storage;
+- ending its still-installed period;
+- deleting the archived item itself;
+- unarchiving;
+- every GET.
+
+`tests/routers/test_archive_route_walk.py` keeps every POST route classified. See `specs/079-archive-bikes-parts/contracts/routes.md`.
+
 ## Background jobs (not HTTP routes, listed for completeness)
 
 - **Strava sync job** — calls the same service function as `POST /sync/strava`, on an interval (research.md §7).

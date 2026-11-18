@@ -69,3 +69,7 @@ As the rider, I want deleting a bike to be tucked away on the Edit screen and to
 - The greyed-out behavior needs no script: the browser's own form checking compares the typed text with the name, and the page styles the button as unavailable until it matches. The server check is the authority.
 - The confirmation phrase is the bike's name exactly as displayed, case-sensitive.
 - Deleting a part, ride or history entry is out of scope.
+
+## Amendments
+
+- **2026-11-18 (feature 079)**: an archived bike can still be deleted from its Edit screen with the same typed-name confirmation. Its parts go to storage with their sub-parts inside, as for an active bike.

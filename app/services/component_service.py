@@ -19,7 +19,7 @@ from app.db import mileage as mileage_db
 from app.db import schedules as schedules_db
 from app.db.connection import get_connection
 from app.models import component_kinds
-from app.services import component_history_service as history_service
+from app.services import archive_service, component_history_service as history_service
 from app.models.component_kinds import BIKE
 from app.models.rows import Component
 
@@ -75,8 +75,15 @@ def list_all_parts() -> list[Component]:
 
 
 def list_in_storage() -> list[Component]:
+    """Active parts in storage; archived ones are left out (specs/079 FR-008)."""
     with get_connection() as conn:
-        return components_db.list_in_storage(conn)
+        return [c for c in components_db.list_in_storage(conn) if c.archived_at is None]
+
+
+def list_archived_parts() -> list[Component]:
+    """Archived parts, newest archived first (specs/079)."""
+    with get_connection() as conn:
+        return components_db.list_archived(conn)
 
 
 def get_tree_for_bike(bike_id: int) -> list[Component]:
@@ -105,6 +112,14 @@ def build_tree(roots: list[Component], all_components: list[Component]) -> list[
     return [_node(root) for root in roots]
 
 
+def _require_destination_unlocked(conn, parent_bike_id: int | None, parent_component_id: int | None) -> None:
+    """Nothing can be put onto an archived bike or into a locked part (specs/079 FR-006)."""
+    if parent_bike_id is not None:
+        archive_service.require_unlocked("bike", parent_bike_id, conn)
+    if parent_component_id is not None:
+        archive_service.require_unlocked("component", parent_component_id, conn)
+
+
 def create_component(
     *,
     name: str,
@@ -121,6 +136,7 @@ def create_component(
         _require_parent_exists(
             conn, parent_bike_id=parent_bike_id, parent_component_id=parent_component_id
         )
+        _require_destination_unlocked(conn, parent_bike_id, parent_component_id)
         component = components_db.create(
             conn,
             name=name,
@@ -150,6 +166,7 @@ def create_component(
 def update_component(
     component_id: int, *, name: str, component_type: str, manual_baseline_mileage: float
 ) -> Component:
+    archive_service.require_unlocked("component", component_id)  # specs/079
     with get_connection() as conn:
         component = components_db.get_by_id(conn, component_id)
         if component is None:
@@ -347,6 +364,10 @@ def move_component(
         component = components_db.get_by_id(conn, component_id)
         if component is None:
             raise LookupError(f"No component with id {component_id}")
+        if parent_bike_id is not None or parent_component_id is not None:
+            # A locked part can only go to storage; nothing goes onto or into a locked item (specs/079).
+            archive_service.require_unlocked("component", component_id, conn)
+            _require_destination_unlocked(conn, parent_bike_id, parent_component_id)
 
         _check_before(
             conn,
@@ -471,6 +492,8 @@ def delete_component(
         component = components_db.get_by_id(conn, component_id)
         if component is None:
             raise LookupError(f"No component with id {component_id}")
+        if component.archived_at is None:  # the archived part itself can be deleted; one inside it can't (specs/079)
+            archive_service.require_unlocked("component", component_id, conn)
         children = components_db.list_children(conn, parent_component_id=component_id)
         if children and not confirmed:
             raise ConfirmationRequiredError(

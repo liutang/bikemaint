@@ -42,3 +42,12 @@
   </form>
 </section>
 {%- endmacro %}
+
+{# Read-only rule, for an archived bike's or part's Edit screen (specs/079). #}
+{% macro sync_rules_readonly(sync) -%}
+<dl class="readonly-details">
+  <dt>Sport</dt><dd>{% set sports = sync.sports.items()|selectattr(0, "in", sync.chosen_sports)|map(attribute=1)|list %}{{ sports|join(", ") if sports else "Any" }}</dd>
+  <dt>Ride type</dt><dd>{% set types = sync.ride_types.items()|selectattr(0, "in", sync.chosen_types)|map(attribute=1)|list %}{{ types|join(", ") if types else "Any" }}</dd>
+  <dt>Keywords</dt><dd>{{ sync.keywords or "None" }}</dd>
+</dl>
+{%- endmacro %}

@@ -19,6 +19,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.db import mileage as mileage_db
 from app.db.connection import get_connection, run_migrations
 from app.routers import (
+    archive,
     auth,
     backup,
     bikes,
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
     app.include_router(settings.router)
     app.include_router(backup.router)
     app.include_router(sync_rules.router)
+    app.include_router(archive.router)
 
     return app
 

@@ -13,7 +13,7 @@ from pydantic import ValidationError
 
 from app.models.requests import BIKE_CATEGORIES, BikeDetailsRequest
 from app.models.form_errors import error_context, message_context
-from app.services import bike_service, component_service, strava_client
+from app.services import archive_service, bike_service, component_service, strava_client
 from app.routers.screen import render_screen
 from app.routers.sync_rules import check_new_rule, save_edit_rule, save_new_rule, sync_context
 from app.services.auth_dependency import require_account
@@ -39,6 +39,7 @@ def garage_overview(request: Request, account=Depends(require_account)):
         "bikes/list.html",
         {
             "bikes": bike_service.list_bikes(),
+            "archived_bikes": bike_service.list_archived_bikes(),
             "storage_count": len(component_service.list_in_storage()),
         },
     )
@@ -52,6 +53,7 @@ def _form_context(bike, extra: dict | None = None) -> dict:
         "crumbs": [("Garage", "/")]
         + ([(bike.name, f"/bikes/{bike.id}"), ("Edit", None)] if bike else [("Add a bike", None)]),
         "legacy": bike is not None and bike.make is None and bike.model is None and bike.year is None,
+        "archive": archive_service.summary("bike", bike.id) if bike is not None else None,
         "sync": sync_context("bike", bike.id if bike is not None else None),
         **(extra or {}),
     }
@@ -121,6 +123,7 @@ async def create_bike(request: Request, account=Depends(require_account)):
     if request.headers.get("hx-request") == "true":
         return _render(request, "bikes/list.html", {
             "bikes": bike_service.list_bikes(),
+            "archived_bikes": bike_service.list_archived_bikes(),
             "storage_count": len(component_service.list_in_storage()),
         })
     return RedirectResponse(url=f"/bikes/{bike.id}", status_code=303)

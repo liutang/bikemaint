@@ -20,7 +20,7 @@ from app.models.requests import (
     MoveTargetRequest,
 )
 from app.routers.screen import render_screen
-from app.services import builder_service, component_service
+from app.services import archive_service, builder_service, component_service
 from app.routers.sync_rules import check_new_rule, save_edit_rule, save_new_rule, sync_context
 from app.services.auth_dependency import require_account
 from app.services.component_service import ComponentPlacementError
@@ -57,6 +57,7 @@ def _form_context(component, parent_bike_id, parent_component_id, extra: dict | 
         trail = builder_service.breadcrumbs(f"component:{component.id}")
         crumbs = [*trail[:-1], (component.name, f"/components/{component.id}"), ("Edit", None)]
     return {
+        "archive": archive_service.summary("component", component.id) if component is not None else None,
         "crumbs": crumbs,
         "component": component,
         "component_types": types,
@@ -140,6 +141,16 @@ async def create_component(request: Request, account=Depends(require_account)):
 @router.get("/components/{component_id}", name="component_detail")
 def component_detail(request: Request, component_id: int, account=Depends(require_account)):
     return render_screen(request, f"component:{component_id}")
+
+
+def edit_form_response(request: Request, component, *, errors=None, status_code: int = 200):
+    """The part's Edit screen, optionally with errors (shared with `app/routers/archive.py`)."""
+    return _render(
+        request,
+        "components/form.html",
+        _form_context(component, component.parent_bike_id, component.parent_component_id, {"errors": errors or []}),
+        status_code=status_code,
+    )
 
 
 @router.get("/components/{component_id}/edit", name="edit_component_form")

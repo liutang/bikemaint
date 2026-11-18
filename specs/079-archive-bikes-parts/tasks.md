@@ -12,8 +12,8 @@ description: "Task list for 079 archive bikes and parts"
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirm the branch `079-archive-bikes-parts` (master merged in) and that `.specify/feature.json` points at `specs/079-archive-bikes-parts`. Run the full suite as the baseline.
-- [ ] T002 Check `app/static/builder.js`: drops land only on `.drop-target` elements, and a dragged node with no drop target other than storage can still be dropped on storage. Record the result here. If a change is needed, it must keep the file under 16 KB.
+- [x] T001 Confirm the branch `079-archive-bikes-parts` (master merged in) and that `.specify/feature.json` points at `specs/079-archive-bikes-parts`. Run the full suite as the baseline.
+- [x] T002 Check `app/static/builder.js`: drops land only on `.drop-target` elements, and a dragged node with no drop target other than storage can still be dropped on storage. Record the result here. If a change is needed, it must keep the file under 16 KB. *Result: drops are decided by `.node-row`, `.builder-root` and `.storage-drop`, not `.drop-target`, and a drag opens a gap at the part's own place. So a locked screen needs a small change: when `#builder` has `data-locked`, only `.storage-drop` accepts a drop, and no start gap opens. Done in T017.*
 - [ ] T003 Mock up for the rider and record their approval here:
   - the Garage with a closed and an open "Archived (N)" section;
   - Storage with an "Archived (N)" section;
@@ -23,24 +23,24 @@ description: "Task list for 079 archive bikes and parts"
 
 **Purpose**: the archived state, the lock rule and the refusal (research §1–§3).
 
-- [ ] T004 [P] Tests first in new `tests/db/test_archive_queries.py`:
+- [x] T004 [P] Tests first in new `tests/db/test_archive_queries.py`:
   - **Migration:** after `0021_archived_items.sql`, `bike.archived_at` and `component.archived_at` exist and are NULL by default.
   - **Writing:** `bikes_db.set_archived(conn, id, at)` and `components_db.set_archived` set and clear it.
   - **Listing:** `bikes_db.list_archived` lists only archived bikes, newest archived first.
   - **Tree check:** `components_db.is_in_archived_tree(conn, id)` is true for an archived part, for a part inside one (depth 3), and for a part whose top bike is archived. It is false otherwise, and false for a part in storage under nothing archived.
-- [ ] T005 Implement T004:
+- [x] T005 Implement T004:
   - new `app/db/migrations/0021_archived_items.sql`;
   - the queries in `app/db/bikes.py` and `app/db/components.py`, parameterized, with a recursive CTE capped at depth 8;
   - `archived_at` on `Bike` and `Component` in `app/models/rows.py`.
-- [ ] T006 [P] Tests first in new `tests/services/test_archive_service.py`:
+- [x] T006 [P] Tests first in new `tests/services/test_archive_service.py`:
   - **`is_locked("bike", id)`** and **`is_locked("component", id)`** follow T004.
   - **`require_unlocked`** raises `ArchivedError` with the wording of research §3:
     - "This bike is archived. Unarchive it to change it."
     - "This part is archived. …"
     - "This part is on an archived bike, NAME. Take it off to storage, or unarchive the bike."
-- [ ] T007 Implement T006 in new `app/services/archive_service.py`.
-- [ ] T008 [P] Tests first in new `tests/routers/test_screen.py` (mirrors `app/routers/screen.py`): `archived_response(request, exc, ...)` returns 409 with the message, for both a page form and an HTMX builder request.
-- [ ] T009 Implement T008 in `app/routers/screen.py`.
+- [x] T007 Implement T006 in new `app/services/archive_service.py`.
+- [x] T008 [P] Tests first in new `tests/routers/test_screen.py` (mirrors `app/routers/screen.py`): `archived_response(request, exc, ...)` returns 409 with the message, for both a page form and an HTMX builder request. *Done as `render_screen(..., status_code=409)` for the builder (tested through the builder routes in T020) and per-router re-renders for page forms (tested in T012, T014, T022); no separate helper was needed.*
+- [x] T009 Implement T008 in `app/routers/screen.py`.
 
 **Checkpoint**: nothing is archived yet, and behavior is unchanged.
 
@@ -50,7 +50,7 @@ description: "Task list for 079 archive bikes and parts"
 
 **Independent Test**: quickstart steps 1 to 4.
 
-- [ ] T010 [P] [US1] Tests first in `tests/services/test_archive_service.py`:
+- [x] T010 [P] [US1] Tests first in `tests/services/test_archive_service.py`:
   - **`archive_bike(id, attached="move")`**:
     - each part directly on the bike goes to storage now, with its sub-parts still inside;
     - every one of them keeps its active schedules;
@@ -61,8 +61,8 @@ description: "Task list for 079 archive bikes and parts"
   - **`attached=None`** with parts attached raises `ValueError`.
   - **Archiving an archived bike** raises `ArchivedError`.
   - **Logging:** one info line with the counts.
-- [ ] T011 [US1] Implement T010 in `app/services/archive_service.py`, reusing `component_service.detach_to_storage`, `schedules_db.deactivate` and `bikes_db.clear_strava_pairing`, in one transaction.
-- [ ] T012 [P] [US1] Route and template tests first in new `tests/routers/test_archive.py`:
+- [x] T011 [US1] Implement T010 in `app/services/archive_service.py`, reusing `component_service.detach_to_storage`, `schedules_db.deactivate` and `bikes_db.clear_strava_pairing`, in one transaction.
+- [x] T012 [P] [US1] Route and template tests first in new `tests/routers/test_archive.py`:
   - **`POST /bikes/{id}/archive`**:
     - with `attached=move`, answers 303 to `/`;
     - without `attached` when parts are attached, answers 422, re-renders the Edit screen, and changes nothing;
@@ -72,7 +72,7 @@ description: "Task list for 079 archive bikes and parts"
     - the active grid leaves the bike out;
     - `details.archived-section` (not `open`) has summary "Archived (1)", and the card reads "Archived YYYY-MM-DD";
     - with no archived bikes, there's no section.
-- [ ] T013 [US1] Implement T012:
+- [x] T013 [US1] Implement T012:
   - new `app/routers/archive.py` (registered in `app/main.py`) and `ArchiveRequest` in `app/models/requests.py`;
   - new `app/templates/partials/archive_card.html`;
   - `app/templates/bikes/form.html` and `bikes/list.html`, `partials/bike_row.html`;

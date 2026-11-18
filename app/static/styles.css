@@ -1795,3 +1795,16 @@ button[disabled],
 
 /* Everything-else row actions: one evenly spaced group of icon buttons (specs/072). */
 .other-actions form { display: contents; }
+
+/* ------------------------------------------------ specs/079: archiving */
+.archived-section { margin-top: var(--space-4); }
+.archived-section > summary { cursor: pointer; font-weight: 600; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); width: fit-content; }
+.archived-section[open] > summary { margin-bottom: var(--space-3); }
+.archived-section .bike-card.is-archived, .bike-card.is-archived { background: var(--surface-2); }
+.archived-on { color: var(--text-muted); font-size: 0.875rem; margin: 0; }
+.archived-notice { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--primary); border-radius: var(--radius-sm); background: var(--surface-2); }
+.archive-effects { margin: 0; padding-left: 1.25rem; }
+.archive-choice { border: 0; padding: 0; margin: 0; display: grid; gap: var(--space-2); }
+.readonly-details { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: 0; }
+.readonly-details dt { color: var(--text-muted); }
+.readonly-details dd { margin: 0; }

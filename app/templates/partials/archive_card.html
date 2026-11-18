@@ -1,0 +1,66 @@
+{# Archive and Unarchive cards on a bike's or part's Edit screen (specs/079 ui-contract.md, mock-ups of 2026-11-18). #}
+{% macro _count(n, one, many) -%}{{ n }} {{ one if n == 1 else many }}{%- endmacro %}
+
+{% macro archive_card(kind, item, s, mounted=false) -%}
+{% set noun = "bike" if kind == "bike" else "part" %}
+<section class="panel archive-card{% if kind == 'bike' and s.paired %} wide{% endif %}" aria-labelledby="archive-heading">
+  <h2 id="archive-heading">Archive this {{ noun }}</h2>
+  {% if mounted %}
+  <p>Take this part off to storage before archiving it.</p>
+  {% else %}
+  <p>Archive <strong>{{ item.name }}</strong> when you've {{ "sold or retired it" if kind == "bike" else "worn it out or retired it" }}. It moves to the Archived section of {{ "the Garage" if kind == "bike" else "Storage" }}, and its history is kept.</p>
+  <ul class="archive-effects">
+    {% if s.schedules %}
+    <li>Its {{ _count(s.schedules, "schedule is", "schedules are") }} deleted. {{ "It doesn't" if s.schedules == 1 else "They don't" }} come back if you unarchive it.</li>
+    {% else %}
+    <li>It has no schedules, and none can be added while it's archived.</li>
+    {% endif %}
+    {% if kind == "bike" %}<li>Its rides become read-only.</li>{% endif %}
+    {% if s.paired %}<li>It's unpaired from Strava. Imported rides are kept.</li>{% endif %}
+    <li>Details, sync rules, maintenance and parts are locked. You can still take parts off to storage.</li>
+    <li>You can unarchive it from this Edit screen.</li>
+  </ul>
+  <form class="form archive-form" method="post" action="/{{ kind }}s/{{ item.id }}/archive">
+    {% if s.parts %}
+    <fieldset class="archive-choice">
+      <legend>Its {{ _count(s.parts, "part", "parts") }}</legend>
+      <span class="field-check">
+        <input id="attached-keep" type="radio" name="attached" value="keep" required>
+        <label for="attached-keep">Keep them on the {{ noun }}. {% if s.part_schedules %}Their {{ _count(s.part_schedules, "schedule is", "schedules are") }} deleted too.{% else %}They have no schedules.{% endif %}</label>
+      </span>
+      <span class="field-check">
+        <input id="attached-move" type="radio" name="attached" value="move" required>
+        <label for="attached-move">Move them to storage as of now, with any parts inside them. They keep their schedules.</label>
+      </span>
+    </fieldset>
+    {% endif %}
+    <button class="btn" type="submit">Archive {{ noun }}</button>
+  </form>
+  {% endif %}
+</section>
+{%- endmacro %}
+
+{% macro archived_notice(item, edit_screen=false) -%}
+<p class="archived-notice" role="status">{{ archived_icon() }}Archived {{ (item.archived_at|to_local)[:10] }}.
+  {%- if edit_screen %} Its details are locked. Unarchive it below to change them.{% else %} You can only take parts off to storage here. Unarchive it from its Edit screen.{% endif %}</p>
+{%- endmacro %}
+
+{% macro archived_icon() -%}
+<svg class="icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
+{%- endmacro %}
+
+{% macro unarchive_card(kind, item) -%}
+{% set noun = "bike" if kind == "bike" else "part" %}
+<section class="panel unarchive-card" aria-labelledby="unarchive-heading">
+  <h2 id="unarchive-heading">Unarchive this {{ noun }}</h2>
+  <p>Bring <strong>{{ item.name }}</strong> back to {{ "the Garage's active bikes" if kind == "bike" else "Storage's active parts" }}.</p>
+  <ul class="archive-effects">
+    <li>Its {{ "rides, " if kind == "bike" else "" }}details, sync rules, maintenance and parts can be changed again.</li>
+    <li>Its old schedules don't come back. Add new ones from its Schedules page.</li>
+    {% if kind == "bike" %}<li>It isn't paired with Strava. Pair it again to import its rides, including any from while it was archived.</li>{% endif %}
+  </ul>
+  <form method="post" action="/{{ kind }}s/{{ item.id }}/unarchive">
+    <button class="btn btn-primary" type="submit">Unarchive {{ noun }}</button>
+  </form>
+</section>
+{%- endmacro %}

@@ -11,7 +11,6 @@ from __future__ import annotations
 import logging
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
 from typing import Literal
 
 from app.db import bikes as bikes_db
@@ -91,7 +90,9 @@ Attached = Literal["keep", "move"]
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    from app.services import clock_service
+
+    return clock_service.now()
 
 
 def _turn_off_schedules(conn: sqlite3.Connection, *, bike_ids=(), component_ids=()) -> int:

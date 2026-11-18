@@ -27,4 +27,15 @@
   </div>
   {% endif %}
 </section>
+{% if archived_bikes %}
+{# specs/079: archived bikes, collapsed below the active ones (closed on load). #}
+<details class="archived-section">
+  <summary>Archived ({{ archived_bikes|length }})</summary>
+  <div class="card-grid">
+    {% for bike in archived_bikes %}
+    {% include "partials/bike_row.html" %}
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
 {% endblock %}

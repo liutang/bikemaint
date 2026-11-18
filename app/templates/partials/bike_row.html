@@ -1,5 +1,5 @@
 {% import "partials/icons.html" as ui_icons %}
-<article class="card bike-card" id="bike-{{ bike.id }}">
+<article class="card bike-card{% if bike.archived_at %} is-archived{% endif %}" id="bike-{{ bike.id }}">
   <header class="bike-card-head">
     <span class="bike-card-icon">{{ ui_icons.bike() }}</span>
     <div>
@@ -8,8 +8,9 @@
     </div>
   </header>
   <p class="bike-card-figure"><span class="bike-card-stat"><strong>{{ bike.total_mileage|num1 }} mi</strong><small>total mileage</small></span></p>
+  {% if bike.archived_at %}<p class="archived-on">Archived {{ (bike.archived_at|to_local)[:10] }}</p>{% endif %}
   <div class="bike-card-actions">
-    <a class="btn btn-primary" href="/bikes/{{ bike.id }}">View</a>
+    <a class="btn{% if not bike.archived_at %} btn-primary{% endif %}" href="/bikes/{{ bike.id }}">View</a>
     <a class="btn" href="/bikes/{{ bike.id }}/maintenance">Maintenance history</a>
   </div>
 </article>

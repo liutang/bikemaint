@@ -14,6 +14,8 @@
   <div class="stat"><small>Total mileage</small><strong>{{ component.total_mileage|num1 }} mi</strong></div>
 </div>
 
+{% from "partials/archive_card.html" import archived_notice, locked_notice %}
+{% if component.archived_at %}{{ archived_notice(component) }}{% elif is_locked("component", component.id) %}{{ locked_notice() }}{% endif %}
 {% include "partials/part_actions.html" %}
 {% include "partials/builder.html" %}
 {% endblock %}

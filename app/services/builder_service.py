@@ -15,7 +15,7 @@ from app.db.connection import get_connection
 from app.models import component_kinds
 from app.models.component_kinds import BIKE
 from app.models.rows import Bike, Component
-from app.services import component_service
+from app.services import archive_service, component_service
 from app.services.component_service import MoveTarget
 
 
@@ -65,6 +65,7 @@ class BuilderView:
     storage: list[StorageItem]
     palette: list[PaletteCategory]
     crumbs: list[tuple[str, str | None]]
+    locked: bool = False  # specs/079: archived, or inside something archived; only "take off to storage"
 
     @property
     def title(self) -> str:
@@ -198,6 +199,7 @@ def build_view(root: str | int) -> BuilderView | None:
         ],
         palette=palette,
         crumbs=breadcrumbs(root_ref),
+        locked=archive_service.is_locked("bike" if bike is not None else "component", (bike or component).id),
     )
 
 

@@ -12,7 +12,8 @@
   </div>
   <div class="actions">
     <div class="stat"><small>Total mileage</small><strong>{{ log.total|num1 }} mi</strong></div>
-    {% if log.owner_kind == "bike" %}
+    {% set locked = log.owner_kind == "bike" and is_locked("bike", log.owner_id) %}
+    {% if log.owner_kind == "bike" and not locked %}
     <a class="btn btn-primary" href="/bikes/{{ log.owner_id }}/rides/new">{{ ui_icons.plus() }}Add a ride</a>
     {% endif %}
   </div>
@@ -62,7 +63,7 @@
         <td data-label="Total">{{ row.running_total|num1 }}</td>
         {% if log.owner_kind == "bike" %}
         <td data-label="Actions">
-          {% if row.editable %}
+          {% if row.editable and not locked %}
           <div class="actions">
             <a class="btn btn-icon" href="/rides/{{ row.id }}/edit" aria-label="Edit" title="Edit">{{ ui_icons.edit() }}</a>
             <form method="post" action="/rides/{{ row.id }}/delete">

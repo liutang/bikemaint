@@ -258,6 +258,11 @@ def create_schedule(
         )
         if owner is None:
             raise LookupError("No such bike or component to schedule maintenance for.")
+        from app.services import archive_service
+
+        archive_service.require_unlocked(  # no schedules can be added to an archived item (specs/079)
+            "bike" if bike_id is not None else "component", bike_id if bike_id is not None else component_id, conn
+        )
         if typed:
             baseline = _baseline_for(
                 conn, owner, bike_id=bike_id, component_id=component_id,

@@ -9,7 +9,8 @@
     <h1>Maintenance history</h1>
     <p class="text-muted"><a href="/{{ item_kind }}s/{{ item.id }}">{{ item.name }}</a></p>
   </div>
-  <a class="btn btn-primary" href="/{{ item_kind }}s/{{ item.id }}/maintenance/new">{{ ui_icons.plus() }}Log maintenance</a>
+  {% set locked = is_locked("bike" if item_kind == "bike" else "component", item.id) %}
+  {% if not locked %}<a class="btn btn-primary" href="/{{ item_kind }}s/{{ item.id }}/maintenance/new">{{ ui_icons.plus() }}Log maintenance</a>{% endif %}
 </div>
 
 {% if rows %}
@@ -41,7 +42,7 @@
         <td data-label="Service type">{{ entry.description }}</td>
         <td data-label="Mileage at service">{{ entry.mileage_at_service|num1 }} mi</td>
         <td data-label="Actions">
-          {% if row.is_own %}
+          {% if row.is_own and not locked %}
           <div class="actions">
             <a class="btn btn-icon" href="/maintenance/{{ entry.id }}/edit" aria-label="Edit" title="Edit">{{ ui_icons.edit() }}</a>
             <form method="post" action="/maintenance/{{ entry.id }}/delete">
@@ -59,7 +60,7 @@
 <div class="empty-state">
   <p class="empty-title">No maintenance logged yet</p>
   <p>Record work you do so the history stays with this {{ item_kind }}.</p>
-  <a class="btn btn-primary" href="/{{ item_kind }}s/{{ item.id }}/maintenance/new">Log maintenance</a>
+  {% if not locked %}<a class="btn btn-primary" href="/{{ item_kind }}s/{{ item.id }}/maintenance/new">Log maintenance</a>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

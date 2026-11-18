@@ -7,13 +7,13 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.models import component_kinds
-from app.services import asset_service, clock_service, confirmation_service, format_service, ride_service
+from app.services import archive_service, asset_service, clock_service, confirmation_service, format_service, ride_service
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.db import mileage as mileage_db
@@ -76,6 +76,7 @@ def create_app() -> FastAPI:
     app.state.templates.env.globals["sync_state"] = sync_status_service.sync_state
     app.state.templates.env.filters["kind_name"] = component_kinds.kind_name
     app.state.templates.env.globals["static_url"] = asset_service.static_url
+    app.state.templates.env.globals["is_locked"] = archive_service.is_locked  # specs/079: hide change controls
     app.state.templates.env.filters["local_time"] = clock_service.format_utc
     app.state.templates.env.filters["to_local"] = clock_service.to_local
     app.state.templates.env.filters["duration"] = ride_service.format_duration
@@ -87,6 +88,14 @@ def create_app() -> FastAPI:
     @app.exception_handler(AuthRequiredError)
     async def _auth_required_handler(request, exc: AuthRequiredError):
         return RedirectResponse(url="/login", status_code=303)
+
+    @app.exception_handler(archive_service.ArchivedError)
+    async def _archived(request: Request, exc: archive_service.ArchivedError):
+        """A change to a locked bike or part (specs/079 research §3): 409 with what is archived and what to do."""
+        logging.getLogger(__name__).info("refused change to an archived item path=%s", request.url.path)
+        return app.state.templates.TemplateResponse(
+            request, "archived_refusal.html", {"message": str(exc)}, status_code=409
+        )
 
     app.include_router(auth.router)
     app.include_router(bikes.router)

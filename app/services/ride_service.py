@@ -168,6 +168,14 @@ def get_ride(ride_id: int) -> RideActivity | None:
     return None if ride is None or ride.deleted_by_user else ride
 
 
+def _unlocked(conn, bike_id: int | None) -> None:
+    """Rides of an archived bike are read-only (specs/079 FR-006)."""
+    from app.services import archive_service
+
+    if bike_id is not None:
+        archive_service.require_unlocked("bike", bike_id, conn)
+
+
 def check_not_future(day: date, time: str | None) -> None:
     """A ride typed by hand can't be in the future (specs/076 FR-011).
 
@@ -190,6 +198,7 @@ def create_ride(
     check_not_future(day, time)
     with get_connection() as conn:
         _require_bike(conn, bike_id)
+        _unlocked(conn, bike_id)
         ride = mileage_db.create_manual_ride(
             conn, bike_id=bike_id, distance_miles=miles, occurred_at=_occurred_at(day, time), note=note,
             moving_time_seconds=moving_seconds,
@@ -211,6 +220,8 @@ def update_ride(
         if existing is None or existing.deleted_by_user:
             raise LookupError(f"No ride with id {ride_id}")
         _require_bike(conn, bike_id)
+        _unlocked(conn, existing.bike_id)
+        _unlocked(conn, bike_id)
         ride = mileage_db.update_ride(
             conn, ride_id, bike_id=bike_id, distance_miles=miles,
             occurred_at=_occurred_at(day, time, existing.occurred_at), note=note,
@@ -227,6 +238,7 @@ def delete_ride(ride_id: int) -> None:
         existing = mileage_db.get_ride(conn, ride_id)
         if existing is None or existing.deleted_by_user:
             raise LookupError(f"No ride with id {ride_id}")
+        _unlocked(conn, existing.bike_id)
         mileage_db.delete_ride(conn, ride_id)
         if existing.bike_id is not None:
             _recompute(conn, {existing.bike_id})

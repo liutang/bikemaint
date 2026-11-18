@@ -15,6 +15,7 @@
   let spring = null;
 
   const builder = () => document.getElementById("builder");
+  const locked = () => builder() && builder().hasAttribute("data-locked");
   const rowFor = (ref) => Array.from(builder().querySelectorAll(".node-row")).find((el) => el.dataset.ref === ref);
   const skip = (li) => li === slot || (drag && li === drag.li);
   const subList = (li) => li.querySelector(":scope > ul.builder-nodes");
@@ -198,7 +199,7 @@
     if (drag.source !== "storage") builder().querySelector(".storage-drop").classList.add("is-valid");
     // Lift the part after the browser has taken its drag picture; its gap opens in its place.
     requestAnimationFrame(() => {
-      if (!drag || !drag.li) return;
+      if (!drag || !drag.li || locked()) return;
       const next = nextItem(drag.li);
       show({ key: "start", target: drag.parentRef, before: next ? idOf(next) : "",
              place: () => { drag.li.classList.add("is-lifted"); drag.li.before(slot); } });
@@ -209,7 +210,9 @@
     if (!drag || !event.target.closest || !builder() || !builder().contains(event.target)) return;
     const t = event.target;
     let next;
-    if (t.closest(".drop-slot")) {
+    if (locked() && !t.closest(".storage-drop")) {
+      return; // specs/079: an archived screen only takes parts off to storage
+    } else if (t.closest(".drop-slot")) {
       next = drop;
     } else if (t.closest(".storage-drop")) {
       next = drag.source !== "storage" ? { key: "storage", target: "storage", before: "" } : null;

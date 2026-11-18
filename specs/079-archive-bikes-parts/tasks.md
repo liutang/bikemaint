@@ -14,10 +14,10 @@ description: "Task list for 079 archive bikes and parts"
 
 - [x] T001 Confirm the branch `079-archive-bikes-parts` (master merged in) and that `.specify/feature.json` points at `specs/079-archive-bikes-parts`. Run the full suite as the baseline.
 - [x] T002 Check `app/static/builder.js`: drops land only on `.drop-target` elements, and a dragged node with no drop target other than storage can still be dropped on storage. Record the result here. If a change is needed, it must keep the file under 16 KB. *Result: drops are decided by `.node-row`, `.builder-root` and `.storage-drop`, not `.drop-target`, and a drag opens a gap at the part's own place. So a locked screen needs a small change: when `#builder` has `data-locked`, only `.storage-drop` accepts a drop, and no start gap opens. Done in T017.*
-- [ ] T003 Mock up for the rider and record their approval here:
+- [x] T003 Mock up for the rider and record their approval here:
   - the Garage with a closed and an open "Archived (N)" section;
   - Storage with an "Archived (N)" section;
-  - an archived bike's main screen (the archived notice, its part tree, and the "Add a part" panel showing only "In storage").
+  - an archived bike's main screen (the archived notice, its part tree, and the "Add a part" panel showing only "In storage"). *Approved by the rider on 2026-11-18 ("Approve and build").*
 
 ## Phase 2: Foundational (blocks every story)
 
@@ -78,20 +78,20 @@ description: "Task list for 079 archive bikes and parts"
   - `app/templates/bikes/form.html` and `bikes/list.html`, `partials/bike_row.html`;
   - `bike_service.list_bikes()` (active only) and `list_archived_bikes()`;
   - `.archive-card` (`grid-column: 1 / -1`) and `.archived-section` in `app/static/styles.css`, per T003.
-- [ ] T014 [P] [US1] Tests first, guards for an archived bike (409, nothing changed):
+- [x] T014 [P] [US1] Tests first, guards for an archived bike (409, nothing changed):
   - `tests/services/test_ride_service.py` and `tests/routers/test_rides.py`: add, edit and delete a ride; moving a ride onto an archived bike; the Rides list shows no Add, Edit or Delete.
   - `tests/services/test_bike_service.py`: update details, pair, re-import.
   - `tests/services/test_sync_rule_service.py`: save rule.
   - `tests/services/test_maintenance_service.py`: log, edit, delete.
   - `tests/services/test_schedule_service.py`: create.
   - Mileage adjust (`tests/routers/test_mileage.py`).
-- [ ] T015 [US1] Implement T014: call `archive_service.require_unlocked` in each service, and map `ArchivedError` to 409 in `rides.py`, `bikes.py`, `sync_rules.py`, `maintenance.py`, `schedules.py` and `mileage.py`. Hide the controls in `rides/log.html` and `maintenance/history_list.html` for locked owners.
-- [ ] T016 [P] [US1] Tests first:
+- [x] T015 [US1] Implement T014: call `archive_service.require_unlocked` in each service; one app-wide exception handler (`app/main.py`, `archived_refusal.html`) answers `ArchivedError` with 409, instead of a mapping in each of `rides.py`, `bikes.py`, `sync_rules.py`, `maintenance.py`, `schedules.py` and `mileage.py`. Hide the controls in `rides/log.html` and `maintenance/history_list.html` for locked owners.
+- [x] T016 [P] [US1] Tests first:
   - **Archived bike's Edit screen** (`tests/routers/test_archive.py`): `p.archived-notice`, `dl.readonly-details` with no Save and no sync-rules form, `section.unarchive-card`, and the Delete card. No Archive card and no Strava card.
   - **Archived bike's main screen** (`tests/routers/test_builder.py`): the archived notice; only the storage drop zone in the palette; no `drop-target` on nodes or the root; no Add or Delete controls.
-- [ ] T017 [US1] Implement T016 in `bikes/form.html`, `partials/builder.html`, `partials/archive_card.html` and `builder_service` (a `locked` flag on the view), per T003.
-- [ ] T018 [P] [US1] Test first in `tests/db/test_mileage.py` and `tests/services/test_sync_service.py`: re-importing the same Strava activity with another bike's gear doesn't move or change a ride on an archived bike; it still updates rides on active bikes.
-- [ ] T019 [US1] Implement T018 in `app/db/mileage.py` `upsert_ride_activity` (research §7).
+- [x] T017 [US1] Implement T016 in `bikes/form.html`, `partials/builder.html`, `partials/archive_card.html` and `builder_service` (a `locked` flag on the view), per T003.
+- [x] T018 [P] [US1] Test first in `tests/db/test_mileage.py` and `tests/services/test_sync_service.py`: re-importing the same Strava activity with another bike's gear doesn't move or change a ride on an archived bike; it still updates rides on active bikes.
+- [x] T019 [US1] Implement T018 in `app/db/mileage.py` `upsert_ride_activity` (research §7).
 
 **Checkpoint**: a bike can be archived end to end.
 

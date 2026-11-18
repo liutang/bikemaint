@@ -10,9 +10,10 @@
   <a class="btn" href="{{ base }}/edit">Edit</a>
   <a class="btn" href="{{ base }}/maintenance">Maintenance history</a>
   {% if bike %}<a class="btn" href="{{ base }}/install-history">Install history</a>{% endif %}
-  <a class="btn" href="{{ base }}/schedules">Schedules</a>
+  {% set locked = is_locked("bike", bike.id) if bike else is_locked("component", component.id) %}
+  {% if not locked %}<a class="btn" href="{{ base }}/schedules">Schedules</a>{% endif %}
   <a class="btn" href="{{ base }}/rides">Rides</a>
-  {% if bike and not bike.strava_gear_id %}<a class="btn" href="{{ base }}/strava-pairing">Pair with Strava</a>{% endif %}
+  {% if bike and not bike.strava_gear_id and not locked %}<a class="btn" href="{{ base }}/strava-pairing">Pair with Strava</a>{% endif %}
   {% if component %}
   <a class="btn" href="{{ base }}/install-history">Install history</a>
   {% endif %}
@@ -26,10 +27,12 @@
     <button class="btn" type="submit">{{ ui_icons.garage() }}Garage</button>
   </form>
   {% endif %}
+  {% if not locked or component.archived_at %}
   <form method="post" action="/builder/delete" hx-post="/builder/delete" hx-target="#builder" hx-swap="outerHTML">
     <input type="hidden" name="root" value="component:{{ component.id }}">
     <input type="hidden" name="component_id" value="{{ component.id }}">
     <button class="btn" type="submit">{{ ui_icons.trash() }}Trash</button>
   </form>
+  {% endif %}
   {% endif %}
 </div>

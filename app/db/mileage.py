@@ -46,6 +46,9 @@ def upsert_ride_activity(
             ride_type = COALESCE(excluded.ride_type, ride_activity.ride_type),
             activity_name = COALESCE(excluded.activity_name, ride_activity.activity_name)
         WHERE ride_activity.user_modified = 0 AND ride_activity.deleted_by_user = 0
+          AND NOT EXISTS (  -- an archived bike's rides are never changed or moved (specs/079 FR-010)
+              SELECT 1 FROM bike WHERE bike.id = ride_activity.bike_id AND bike.archived_at IS NOT NULL
+          )
         """,
         (strava_activity_id, strava_gear_id, bike_id, distance_miles, occurred_at, now, moving_time_seconds,
          sport_type, ride_type, activity_name),

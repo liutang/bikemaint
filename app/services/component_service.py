@@ -75,8 +75,15 @@ def list_all_parts() -> list[Component]:
 
 
 def list_in_storage() -> list[Component]:
+    """Active parts in storage; archived ones are left out (specs/079 FR-008)."""
     with get_connection() as conn:
-        return components_db.list_in_storage(conn)
+        return [c for c in components_db.list_in_storage(conn) if c.archived_at is None]
+
+
+def list_archived_parts() -> list[Component]:
+    """Archived parts, newest archived first (specs/079)."""
+    with get_connection() as conn:
+        return components_db.list_archived(conn)
 
 
 def get_tree_for_bike(bike_id: int) -> list[Component]:

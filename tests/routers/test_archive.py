@@ -1,5 +1,6 @@
 """Archive and unarchive screens and routes (specs/079 contracts/routes.md, ui-contract.md)."""
 
+import html
 import re
 
 import pytest
@@ -346,3 +347,73 @@ def test_every_change_to_a_part_kept_on_an_archived_bike_answers_409(signed_in_c
     with connection.get_connection() as conn:
         assert len(schedules_db.list_active_for_component(conn, wheel.id)) == 1
     assert [c.name for c in component_service.get_tree_for_bike(bike.id)] == ["Wheel", "Tire"]
+
+
+# ------------------------------------------------ US3: archive a part; US4: unarchive
+
+
+def test_an_installed_parts_edit_screen_says_to_take_it_off_first(signed_in_client):
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)
+    page = signed_in_client.get(f"/components/{chain.id}/edit").text
+    card = page[page.index("archive-card"):]
+    card = card[: card.index("</section>")]
+    assert "Take this part off to storage before archiving it." in card and "<button" not in card
+    refused = signed_in_client.post(f"/components/{chain.id}/archive", data={})
+    assert refused.status_code == 422 and component_service.get_component(chain.id).archived_at is None
+
+
+def test_archiving_a_stored_part_lists_it_under_storage_archived_and_hides_it_from_pickers(signed_in_client):
+    box = component_service.create_component(name="Spare wheel", component_type="wheel")
+    component_service.create_component(name="Tire", component_type="tire", parent_component_id=box.id)
+    page = signed_in_client.get(f"/components/{box.id}/edit").text
+    assert 'name="attached"' in page and "Archive part</button>" in page and "Its 1 part" in page
+
+    response = signed_in_client.post(f"/components/{box.id}/archive", data={"attached": "keep"}, follow_redirects=False)
+    assert (response.status_code, response.headers["location"]) == (303, "/components")
+
+    storage = signed_in_client.get("/components").text
+    section = re.search(r'<details class="archived-section">\s*<summary>Archived \(1\)</summary>(.*?)</details>', storage, re.S)
+    assert section and "Spare wheel" in section.group(1) and "Archived " in section.group(1)
+    assert "Spare wheel" not in storage[: storage.index("archived-section")]
+    assert "Storage (0)" in signed_in_client.get("/").text
+    bike = bike_service.create_bike(name="Road")
+    screen = signed_in_client.get(f"/bikes/{bike.id}").text
+    assert "In storage (0)" in screen and "Spare wheel" not in screen
+
+
+def test_the_archived_parts_edit_screen_is_read_only_with_unarchive_and_delete(signed_in_client):
+    spare = component_service.create_component(name="Spare", component_type="chain")
+    archive_service.archive_part(spare.id, attached=None)
+    page = signed_in_client.get(f"/components/{spare.id}/edit").text
+    assert 'class="readonly-details"' in page and ">Save</button>" not in page
+    assert "Unarchive part</button>" in page and f'action="/components/{spare.id}/delete"' in page
+
+
+def test_unarchive_returns_to_an_editable_edit_screen(signed_in_client):
+    bike = _bike_with_parts()
+    archive_service.archive_bike(bike.id, attached="move")
+    response = signed_in_client.post(f"/bikes/{bike.id}/unarchive", follow_redirects=False)
+    assert (response.status_code, response.headers["location"]) == (303, f"/bikes/{bike.id}/edit")
+    page = signed_in_client.get(f"/bikes/{bike.id}/edit").text
+    assert ">Save</button>" in page and "Archive bike</button>" in page
+    assert "2014 Trek Madone 2.1" in signed_in_client.get("/").text.split("archived-section")[0]
+    assert signed_in_client.post(f"/bikes/{bike.id}/unarchive").status_code == 409
+
+    spare = component_service.create_component(name="Spare", component_type="chain")
+    archive_service.archive_part(spare.id, attached=None)
+    part = signed_in_client.post(f"/components/{spare.id}/unarchive", follow_redirects=False)
+    assert (part.status_code, part.headers["location"]) == (303, f"/components/{spare.id}/edit")
+
+
+def test_the_unarchive_card_wording(signed_in_client):
+    bike = _bike_with_parts()
+    archive_service.archive_bike(bike.id, attached="keep")
+    page = signed_in_client.get(f"/bikes/{bike.id}/edit").text
+    card = page[page.index('class="panel unarchive-card"'):]
+    card = html.unescape(card[: card.index("</section>")])
+    for text in ("Bring <strong>2014 Trek Madone 2.1</strong> back to the Garage's active bikes.",
+                 "Its rides, details, sync rules, maintenance and parts can be changed again.",
+                 "Its old schedules don't come back. Add new ones from its Schedules page.",
+                 "It isn't paired with Strava. Pair it again to import its rides, including any from while it was archived."):
+        assert text in card

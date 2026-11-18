@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% from "partials/forms.html" import field, select_field, error_summary, submit %}
-{% from "partials/sync_rules.html" import sync_rules_fields %}
+{% from "partials/sync_rules.html" import sync_rules_fields, sync_rules_readonly %}
+{% from "partials/archive_card.html" import archive_card, archived_notice, unarchive_card %}
 
 {% block title %}{{ "Edit part" if component else "Add part" }} — Bike Maintenance Tracker{% endblock %}
 
@@ -8,6 +9,37 @@
 {% include "partials/breadcrumb.html" %}
 <h1>{{ "Edit part" if component else "Add part" }}</h1>
 {{ error_summary(errors) }}
+{% if component and component.archived_at %}
+{# specs/079: an archived part is shown read-only, with Unarchive beside Delete. #}
+{{ archived_notice(component, edit_screen=true) }}
+<div class="card-grid">
+  <section class="panel" aria-labelledby="details-heading">
+    <h2 id="details-heading">Details</h2>
+    <dl class="readonly-details">
+      <dt>Name</dt><dd>{{ component.name }}</dd>
+      <dt>Type</dt><dd>{{ component.component_type|kind_name }}</dd>
+      <dt>Baseline mileage</dt><dd>{{ component.manual_baseline_mileage|num1 }} mi</dd>
+    </dl>
+  </section>
+  {% if sync %}
+  <section class="panel" aria-labelledby="sync-rules-heading">
+    <h2 id="sync-rules-heading">Sync rules</h2>
+    {{ sync_rules_readonly(sync) }}
+  </section>
+  {% endif %}
+</div>
+<div class="actions"><a class="btn" href="/components/{{ component.id }}">Back to part</a></div>
+<div class="card-grid">
+{{ unarchive_card("component", component) }}
+<section class="panel danger-zone" aria-labelledby="delete-heading">
+  <h2 id="delete-heading">Delete this part</h2>
+  <p>Deleting <strong>{{ component.name }}</strong> asks first, and lets you keep its install history. Any parts inside it move to storage with their own sub-parts.</p>
+  <form method="post" action="/components/{{ component.id }}/delete">
+    <button class="btn btn-danger" type="submit">Delete part</button>
+  </form>
+</section>
+</div>
+{% else %}
 {# Details and sync rules are one form with one Save (specs/071). #}
 <form class="edit-form" method="post" action="{{ ('/components/' ~ component.id) if component else '/components' }}">
   <div class="card-grid">
@@ -32,4 +64,10 @@
     <a class="btn" href="{{ ('/components/' ~ component.id) if component else '/components' }}">Cancel</a>
   </div>
 </form>
+{% if component %}
+<div class="card-grid">
+{{ archive_card("component", component, archive, mounted=component.parent_bike_id is not none or component.parent_component_id is not none) }}
+</div>
+{% endif %}
+{% endif %}
 {% endblock %}

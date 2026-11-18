@@ -164,3 +164,51 @@ def summary(kind: Kind, item_id: int) -> dict:
             paired = False
         part_schedules = sum(len(schedules_db.list_active_for_component(conn, p.id)) for p in tree)
     return {"schedules": len(own), "parts": len(tree), "part_schedules": part_schedules, "paired": paired}
+
+
+def archive_part(component_id: int, attached: Attached | None) -> None:
+    """Archive a part in storage (FR-004): settle its sub-parts, turn off schedules, mark it archived."""
+    from app.db import mileage as mileage_db
+
+    with get_connection() as conn:
+        part = components_db.get_by_id(conn, component_id)
+        if part is None:
+            raise LookupError(f"No component with id {component_id}")
+        require_unlocked("component", component_id, conn)
+        if part.parent_bike_id is not None or part.parent_component_id is not None:
+            raise ValueError("Take this part off to storage before archiving it.")
+        now = _now()
+        children = components_db.list_children(conn, parent_component_id=component_id)
+        tree = components_db.get_descendants(conn, component_id)
+        off, moved = _settle(conn, attached, children, tree, now)
+        off += _turn_off_schedules(conn, component_ids=[component_id])
+        components_db.set_archived(conn, component_id, now)
+        mileage_db.recompute_all_component_totals(conn)
+    logger.info(
+        "part archived component_id=%s schedules_deleted=%s attached=%s parts_moved=%s",
+        component_id, off, attached or "none", moved,
+    )
+
+
+def unarchive_bike(bike_id: int) -> None:
+    """Make an archived bike active again; its schedules stay off and it stays unpaired (FR-009)."""
+    with get_connection() as conn:
+        bike = bikes_db.get_by_id(conn, bike_id)
+        if bike is None:
+            raise LookupError(f"No bike with id {bike_id}")
+        if bike.archived_at is None:
+            raise ValueError("This bike isn't archived.")
+        bikes_db.set_archived(conn, bike_id, None)
+    logger.info("bike unarchived bike_id=%s", bike_id)
+
+
+def unarchive_part(component_id: int) -> None:
+    """Make an archived part active again; its schedules stay off (FR-009)."""
+    with get_connection() as conn:
+        part = components_db.get_by_id(conn, component_id)
+        if part is None:
+            raise LookupError(f"No component with id {component_id}")
+        if part.archived_at is None:
+            raise ValueError("This part isn't archived.")
+        components_db.set_archived(conn, component_id, None)
+    logger.info("part unarchived component_id=%s", component_id)

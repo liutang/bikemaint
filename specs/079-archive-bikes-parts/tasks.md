@@ -124,14 +124,14 @@ description: "Task list for 079 archive bikes and parts"
 
 **Independent Test**: quickstart steps 7 and 8.
 
-- [ ] T026 [P] [US3] Tests first:
+- [x] T026 [P] [US3] Tests first:
   - **`archive_part` and its route:**
     - in storage, with keep or move, behaving as for bikes;
     - an installed part raises `ValueError("Take this part off to storage before archiving it.")`, answers 422, and nothing changes.
   - **Edit screens** (`components/form.html`): an installed part's Archive card shows that sentence and no button. An archived part shows read-only details, an Unarchive card and Delete.
   - **`GET /components`:** `details.archived-section` "Archived (N)".
   - **Left out of pickers and counts:** the builder's "In storage (N)", the Garage's Storage (N), and `parent_options`.
-- [ ] T027 [US3] Implement T026 in `archive_service`, `app/routers/archive.py`, `component_service.list_in_storage` and `list_archived_parts`, `components/form.html`, `components/list.html`, `partials/storage_card.html` and `builder_service`.
+- [x] T027 [US3] Implement T026 in `archive_service`, `app/routers/archive.py`, `component_service.list_in_storage` and `list_archived_parts`, `components/form.html`, `components/list.html`, `partials/storage_card.html` and `builder_service`.
 
 ## Phase 6: User Story 4 - Unarchive (P2)
 
@@ -139,12 +139,12 @@ description: "Task list for 079 archive bikes and parts"
 
 **Independent Test**: quickstart step 9.
 
-- [ ] T028 [P] [US4] Tests first:
+- [x] T028 [P] [US4] Tests first:
   - `unarchive_bike` and `unarchive_part` clear `archived_at`. Schedules stay off, and the bike stays unpaired.
   - `POST /bikes/{id}/unarchive` and `/components/{id}/unarchive` answer 303 to the Edit screen, which is editable again. On an active item, they answer 409.
   - After unarchiving, pairing runs the full backfill.
-- [ ] T029 [US4] Implement T028 in `archive_service` and `app/routers/archive.py`.
-- [ ] T030 [US4] Test first, then fix: the Unarchive card's wording matches the approved mock-up (effects list, "Unarchive bike" / "Unarchive part").
+- [x] T029 [US4] Implement T028 in `archive_service` and `app/routers/archive.py`.
+- [x] T030 [US4] Test first, then fix: the Unarchive card's wording matches the approved mock-up (effects list, "Unarchive bike" / "Unarchive part").
 
 ## Phase 7: Polish and cross-cutting
 

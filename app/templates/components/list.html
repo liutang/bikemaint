@@ -22,4 +22,15 @@
   <a class="btn btn-primary" href="/components/new">Add a part</a>
 </div>
 {% endif %}
+{% if archived_parts %}
+{# specs/079: archived parts, collapsed below the active ones (closed on load). #}
+<details class="archived-section">
+  <summary>Archived ({{ archived_parts|length }})</summary>
+  <div class="card-grid">
+    {% for component in archived_parts %}
+      {% include "partials/storage_card.html" %}
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
 {% endblock %}

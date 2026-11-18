@@ -80,6 +80,7 @@ def components_in_storage(request: Request, account=Depends(require_account)):
         "components/list.html",
         {
             "components": component_service.list_in_storage(),
+            "archived_parts": component_service.list_archived_parts(),
             "crumbs": [("Garage", "/"), ("Storage", None)],
         },
     )

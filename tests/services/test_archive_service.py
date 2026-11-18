@@ -140,3 +140,49 @@ def test_archiving_a_bike_with_parts_needs_a_choice_and_an_archived_bike_cannot_
     archive_service.archive_bike(lone.id, attached=None)
     with pytest.raises(archive_service.ArchivedError):
         archive_service.archive_bike(lone.id, attached=None)
+
+
+# ------------------------------------------------ US3: archive a part; US4: unarchive
+
+
+def test_a_part_in_storage_can_be_archived_and_an_installed_one_cannot(db_path):
+    box = component_service.create_component(name="Spare wheel", component_type="wheel")
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=box.id)
+    bike = bike_service.create_bike(name="Road")
+    chain = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)
+    _schedule(component_id=box.id)
+    _schedule(component_id=tire.id)
+
+    with pytest.raises(ValueError, match="^Take this part off to storage before archiving it.$"):
+        archive_service.archive_part(chain.id, attached=None)
+    with pytest.raises(ValueError, match="Choose"):
+        archive_service.archive_part(box.id, attached=None)
+
+    archive_service.archive_part(box.id, attached="move")
+
+    assert component_service.get_component(box.id).archived_at is not None
+    assert (component_service.get_component(tire.id).parent_component_id) is None
+    assert _active_schedules() == {(None, tire.id)}
+    assert [c.id for c in component_service.list_in_storage()] == [tire.id]
+    assert [c.id for c in component_service.list_archived_parts()] == [box.id]
+
+
+def test_unarchiving_brings_items_back_without_schedules_or_pairing(db_path):
+    bike, wheel, _ = _setup()
+    archive_service.archive_bike(bike.id, attached="keep")
+
+    archive_service.unarchive_bike(bike.id)
+
+    back = bike_service.get_bike(bike.id)
+    assert back.archived_at is None and back.strava_gear_id is None
+    assert _active_schedules() == set()
+    assert not archive_service.is_locked("component", wheel.id)
+    with pytest.raises(ValueError, match="isn't archived"):
+        archive_service.unarchive_bike(bike.id)
+
+    spare = component_service.create_component(name="Spare", component_type="chain")
+    archive_service.archive_part(spare.id, attached=None)
+    archive_service.unarchive_part(spare.id)
+    assert component_service.get_component(spare.id).archived_at is None
+    with pytest.raises(ValueError, match="isn't archived"):
+        archive_service.unarchive_part(spare.id)

@@ -155,7 +155,10 @@ def build_view(root: str | int) -> BuilderView | None:
                 return None
             tree = components_db.get_descendants(conn, root_id)
             top = components_db.list_children(conn, parent_component_id=root_id)
-        storage = [c for c in components_db.list_in_storage(conn) if c.id != root_id or kind == BIKE]
+        storage = [
+            c for c in components_db.list_in_storage(conn)
+            if (c.id != root_id or kind == BIKE) and c.archived_at is None  # specs/079 FR-008
+        ]
 
     children_of: dict[int | None, list[Component]] = {}
     for c in tree:

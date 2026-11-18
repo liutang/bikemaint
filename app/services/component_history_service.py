@@ -270,7 +270,8 @@ def update_period(
 
     A still-installed (open) period given a removal moment is ended: the part is moved to storage
     at that moment (with its sub-parts) and its mileage is recalculated (specs/030). With no
-    removal moment it stays installed and only the install moment and place change.
+    removal moment it stays installed: the install moment changes, and a new place moves the part
+    there as of that moment, with its sub-parts (015 FR-014).
     """
     with get_connection() as conn:
         existing = components_db.get_period(conn, period_id)
@@ -286,6 +287,12 @@ def update_period(
             installed_at=installed_at, removed_at=removed_at, exclude_period_id=period_id,
             open_period=is_open and not ending,
         )
+        if is_open and not ending:
+            period = _place_open_period(
+                conn, existing, bike_id=bike_id, parent_component_id=parent_component_id, installed_at=installed_at,
+            )
+            mileage_db.recompute_all_component_totals(conn)
+            return period
         period = components_db.update_period(
             conn, period_id, parent_bike_id=None if parent_component_id is not None and not is_open else bike_id,
             parent_component_id=parent_component_id,
@@ -308,6 +315,48 @@ def update_period(
         existing.component_id, period_id, removed_at,
     )
     return ended
+
+
+def _place_open_period(
+    conn: sqlite3.Connection,
+    existing: ComponentInstallationPeriod,
+    *,
+    bike_id: int,
+    parent_component_id: int | None,
+    installed_at: str,
+) -> ComponentInstallationPeriod:
+    """Save a still-installed period and put the part where it says (015 FR-014, branch 078).
+
+    The part moves as of the period's install moment, so no new period is added. The bike recorded
+    is the one the part is really on: the chosen bike, or the bike the chosen Inside part is on
+    (none if that part is in storage). Parts inside it keep their own install moments and follow
+    it to that bike.
+    """
+    component_id = existing.component_id
+    if parent_component_id is not None:
+        inside = {d.id for d in components_db.get_descendants(conn, component_id)}
+        if parent_component_id in inside:
+            raise ValueError("A component cannot be moved into its own installed sub-tree.")
+        top_bike_id = components_db.resolve_top_bike_id(conn, parent_component_id)
+    else:
+        top_bike_id = bike_id
+    part = components_db.get_by_id(conn, component_id)
+    new_place = (None if parent_component_id is not None else bike_id, parent_component_id)
+    moved = part is not None and (part.parent_bike_id, part.parent_component_id) != new_place
+    if moved:
+        components_db.set_parent(conn, component_id, parent_bike_id=new_place[0], parent_component_id=new_place[1])
+    period = components_db.update_period(
+        conn, existing.id, parent_bike_id=top_bike_id, parent_component_id=parent_component_id,
+        installed_at=installed_at, removed_at=None,
+    )
+    for descendant in components_db.get_descendants(conn, component_id):
+        components_db.set_open_period_bike(conn, descendant.id, parent_bike_id=top_bike_id)
+    if moved:
+        logger.info(
+            "part moved by period edit component_id=%s period_id=%s bike_id=%s parent_component_id=%s",
+            component_id, existing.id, top_bike_id, parent_component_id,
+        )
+    return period
 
 
 def delete_period(period_id: int) -> None:

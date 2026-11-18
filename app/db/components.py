@@ -279,6 +279,18 @@ def close_open_installation_period(
     )
 
 
+def set_open_period_bike(conn: sqlite3.Connection, component_id: int, *, parent_bike_id: int | None) -> None:
+    """Point a component's still-installed period at another top bike, keeping its dates (015 FR-014)."""
+    conn.execute(
+        """
+        UPDATE component_installation_period
+        SET parent_bike_id = ?
+        WHERE component_id = ? AND removed_at IS NULL
+        """,
+        (parent_bike_id, component_id),
+    )
+
+
 def resolve_top_bike_id(conn: sqlite3.Connection, parent_component_id: int) -> int | None:
     """Walk up a chain of `parent_component_id`s to find the bike the chain terminates in.
 

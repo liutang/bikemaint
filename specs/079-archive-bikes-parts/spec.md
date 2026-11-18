@@ -10,7 +10,7 @@
   - All schedules are removed.
   - Rides become read-only.
   - Install history stays usable, "because I can take things off of the archived bike/part".
-- **Unarchiving:** an Unarchive button on the archived item's card puts it back in the active state.
+- **Unarchiving:** an Unarchive button on the archived item's card puts it back in the active state. (Moved to the Edit screen on 2026-11-18, see below.)
   - The rides become editable again.
   - The schedules don't come back.
 
@@ -26,6 +26,11 @@
   - dragging to storage records the removal as now;
   - Install History is the way to back-date a removal;
   - a part removed from an archived item has all its sub-parts split out to storage too, as with "Move to storage".
+
+**The rider's changes after the mock-ups, 2026-11-18:**
+- **Unarchive moves:** "The un-archive should be in the edit screen and not the main archive screen." Unarchive is a card on the archived item's Edit screen, not a button on its Garage or Storage card.
+- **Deleting keeps sub-parts:** "I don't want to split them out when deleting a bike (both active and archived)." Deleting a bike moves its parts to storage with their sub-parts still inside, as today.
+- **Archive card layout:** on the active Edit screen, the Archive card spans the Strava and Delete cards. Two layouts were mocked up (a tall card beside them, or a wide card below them), and the rider's choice is pending.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -49,7 +54,9 @@ The rider has sold or retired a bike. They want it, and its history, out of the 
    - its rides become read-only;
    - it is unpaired from Strava (only shown for a paired bike);
    - the only change left possible is taking parts off to storage;
-   - it can be unarchived from its card in the Garage, but its schedules will not come back.
+   - it can be unarchived from this Edit screen, but its schedules will not come back.
+   
+   The Archive card spans the Strava and Delete cards, in the layout the rider picks from the mock-ups.
 2. **Given** a bike with parts on it, **Then** the Archive section requires a choice between:
    - **"Keep the parts on the bike"**: their schedules are removed too.
    - **"Move all parts to storage"**: every part at every depth goes to storage separately, as of now, and keeps its schedules.
@@ -61,7 +68,7 @@ The rider has sold or retired a bike. They want it, and its history, out of the 
    - the rider lands on the Garage.
    
    Logged maintenance history is kept.
-4. **Given** archived bikes exist, **Then** the Garage lists them below the active bikes in a collapsed "Archived (N)" section, closed on load. Each card has View, Maintenance history and Unarchive buttons and reads "Archived <date>". With none archived, there is no section.
+4. **Given** archived bikes exist, **Then** the Garage lists them below the active bikes in a collapsed "Archived (N)" section, closed on load. Each card has View and Maintenance history buttons, as today, and reads "Archived <date>". With none archived, there is no section.
 5. **Given** an archived bike, **When** the rider opens its screen, **Then**:
    - it reads "Archived", with the date;
    - its part tree shows the parts still on it;
@@ -102,7 +109,7 @@ The rider retires a worn or spare part that sits in storage.
 
 1. **Given** a part in storage, **Then** its Edit screen has an "Archive part" section with the same explanation as for bikes. If it has parts inside it, the same keep-or-move choice is required.
 2. **Given** a part installed on a bike or inside another part, **Then** its Edit screen's Archive section reads "Take this part off to storage before archiving it", with no Archive button.
-3. **Given** archived parts exist, **Then** Storage lists them below the active parts in a collapsed "Archived (N)" section, closed on load. Each card has an Unarchive button and reads "Archived <date>".
+3. **Given** archived parts exist, **Then** Storage lists them below the active parts in a collapsed "Archived (N)" section, closed on load. Each card reads "Archived <date>".
 4. **Given** an archived part, **Then** it is not offered as something to install, and it is not counted in Storage counts:
    - the builder's "In storage (N)" list;
    - the Garage's "Storage (N)" button;
@@ -116,12 +123,16 @@ The rider brings a bike or part back into use.
 
 **Why this priority**: Archiving must be reversible, apart from the schedules.
 
-**Independent Test**: Unarchive an archived bike from its card. It is listed with the active bikes, rides can be added and edited again, it has no schedules, and it can be paired with Strava again.
+**Independent Test**: Unarchive an archived bike from its Edit screen. It is listed with the active bikes, rides can be added and edited again, it has no schedules, and it can be paired with Strava again.
 
 **Acceptance Scenarios**:
 
-1. **Given** an archived bike or part card, **When** the rider presses Unarchive, **Then** it is active again at once, with no confirmation. It returns to the active list, and everything archiving locked is unlocked.
-2. **Given** an unarchived bike, **Then**:
+1. **Given** an archived bike's or part's Edit screen, **Then** it has an "Unarchive this bike" (or part) card. The card explains, in plain words:
+   - what can be changed again;
+   - that the old schedules don't come back;
+   - for a bike, that it isn't paired and pairing again imports its rides, including any from while it was archived.
+2. **When** the rider presses Unarchive, **Then** the item is active again at once, with no confirmation. It returns to the active list, everything archiving locked is unlocked, and the rider stays on its Edit screen, now editable.
+3. **Given** an unarchived bike, **Then**:
    - it has no schedules, and neither do the parts kept on it at archiving;
    - it isn't paired with Strava;
    - pairing it again imports its full history, including rides from while it was archived.
@@ -129,13 +140,14 @@ The rider brings a bike or part back into use.
 ### Edge Cases
 
 - **Delete:** an archived bike or part can still be deleted from its Edit screen. A bike still needs its typed-name confirmation, and a part its existing confirmation.
+  - Deleting a bike, active or archived, moves its parts to storage with their sub-parts still inside them, as today. It doesn't split them out like archiving's "Move all parts to storage".
 - **Strava while archived:** the bike is unpaired, so sync brings nothing new. A re-import of the same Strava gear onto another bike could move rides away from it today. While a bike is archived, Strava never changes or moves its rides (the same protection edited rides already have).
 - **Maintenance:** no maintenance can be logged on an archived item. Existing entries can be viewed but not edited or deleted. A history that also lists attached parts follows the same rule for rows that belong to the archived item.
 - **Mileage:** an archived bike's rides still count toward every part that was on it during them. Taking parts off doesn't change past miles.
 - **The Edit screen of an archived item:**
   - it shows its details read-only, with no Save and no Sync rules form;
-  - it has no Archive section: it reads "Archived <date>. Unarchive it from its card in the Garage" (or Storage, for a part);
-  - it keeps Delete.
+  - it has no Archive section. A notice reads "Archived <date>. Its details are locked. Unarchive it below to change them.";
+  - it has the Unarchive card (US4) and keeps Delete.
 - **Backups** include each item's archived state, and restoring brings it back.
 - **Notifications:** an archived item has no schedules, so it sends nothing. Parts moved to storage at archiving keep notifying as before.
 
@@ -167,9 +179,9 @@ The rider brings a bike or part back into use.
   - by dragging, as now;
   - by ending its still-installed period on Install History, as the typed moment.
 - **FR-008**: Archived items MUST be left out of every place a bike or part is chosen as a destination, and out of every Storage count.
-- **FR-009**: Each archived card MUST have an Unarchive button that returns the item to active at once. Schedules MUST NOT come back, and the bike MUST stay unpaired.
+- **FR-009**: An archived item's Edit screen MUST have an Unarchive card whose button returns the item to active at once. The Garage and Storage cards MUST NOT have one. Schedules MUST NOT come back, and the bike MUST stay unpaired.
 - **FR-010**: Strava sync and re-import MUST NOT change or move the rides of an archived bike.
-- **FR-011**: Delete MUST remain available for archived items, with the existing confirmations.
+- **FR-011**: Delete MUST remain available for archived items, with the existing confirmations. Deleting a bike, active or archived, MUST keep moving its parts to storage with their sub-parts inside them.
 - **FR-012**: Backup and restore MUST carry the archived state.
 
 ### Key Entities
@@ -189,7 +201,7 @@ The rider brings a bike or part back into use.
 
 - **Wording:** the wording on the Archive section, cards and refusals is proposed in the plan and shown to the rider in a mock-up before building, per the rider's rule for visual changes.
 - **No confirmation step:** the Archive button needs none beyond its placement on the Edit screen and the required choice. Schedules are lost for good, so the explanation states their count.
-- **Unarchive** is only on the card, as asked, not on the item's own screen.
+- **Unarchive** is only on the Edit screen, as asked, not on the Garage or Storage card or on the item's main screen.
 - **Sub-parts on active bikes are unaffected:** a part taken off an active bike still keeps its sub-parts inside it, as today. Splitting applies only to removals from an archived item.
 - **Inside parts aren't archived:** parts kept on an archived item are not archived themselves. They stay active parts and can be taken off.
 - **Archived parts:** an archived part is always in storage. It may hold parts inside it, if they were kept.

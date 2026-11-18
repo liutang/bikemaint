@@ -499,3 +499,99 @@ def test_describe_history_miles_use_the_same_clock_as_mileage(tmp_path, monkeypa
         )
     rows = component_history_service.describe_history(part.id)
     assert rows[0]["miles"] == 0
+
+
+# ------------------------------------------------ 015 FR-014 (branch 078): a still-installed period's place moves the part
+
+T0 = "2020-08-30T14:21:00.000000Z"
+
+
+def _open_period(component_id):
+    periods = [p for p in history.list_history(component_id) if p.removed_at is None]
+    assert len(periods) == 1
+    return periods[0]
+
+
+def test_changing_the_bike_of_a_still_installed_period_moves_the_part(db_path):
+    bike_a = bike_service.create_bike(name="Madone 2.1")
+    bike_b = bike_service.create_bike(name="Madone SLR7")
+    groupset = component_service.create_component(
+        name="Ultegra R8000", component_type="groupset", parent_bike_id=bike_a.id, installed_at=T0,
+    )
+    _ride(bike_a, 1, 10, "2021-05-01T08:00:00.000000Z")
+    _ride(bike_b, 2, 25, "2021-06-01T08:00:00.000000Z")
+
+    history.update_period(_open_period(groupset.id).id, bike_id=bike_b.id, installed_at=T0, removed_at=None)
+
+    moved = component_service.get_component(groupset.id)
+    assert (moved.parent_bike_id, moved.parent_component_id) == (bike_b.id, None)
+    assert [(p.parent_bike_id, p.installed_at, p.removed_at) for p in history.list_history(groupset.id)] == [
+        (bike_b.id, T0, None)
+    ]
+    assert _miles(groupset.id) == 25
+    assert [c.id for c in component_service.get_tree_for_bike(bike_b.id)] == [groupset.id]
+    assert component_service.get_tree_for_bike(bike_a.id) == []
+
+
+def test_parts_inside_a_moved_part_follow_it_with_their_own_install_dates(db_path):
+    bike_a = bike_service.create_bike(name="A")
+    bike_b = bike_service.create_bike(name="B")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike_a.id, installed_at=T0)
+    tire_at = "2022-01-10T12:00:00.000000Z"
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id, installed_at=tire_at)
+    _ride(bike_a, 1, 10, "2023-05-01T08:00:00.000000Z")
+    _ride(bike_b, 2, 25, "2023-06-01T08:00:00.000000Z")
+
+    history.update_period(_open_period(wheel.id).id, bike_id=bike_b.id, installed_at=T0, removed_at=None)
+
+    assert component_service.get_component(tire.id).parent_component_id == wheel.id
+    tire_period = _open_period(tire.id)
+    assert (tire_period.parent_bike_id, tire_period.parent_component_id, tire_period.installed_at) == (bike_b.id, wheel.id, tire_at)
+    assert len(history.list_history(tire.id)) == 1
+    assert _miles(tire.id) == 25 and _miles(wheel.id) == 25
+
+
+def test_choosing_an_inside_part_records_the_bike_that_part_is_on(db_path):
+    bike_a = bike_service.create_bike(name="A")
+    bike_b = bike_service.create_bike(name="B")
+    drivetrain = component_service.create_component(name="Drivetrain", component_type="drivetrain", parent_bike_id=bike_b.id, installed_at=T0)
+    chain = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike_a.id, installed_at=T0)
+    _ride(bike_b, 1, 25, "2023-06-01T08:00:00.000000Z")
+
+    history.update_period(
+        _open_period(chain.id).id, bike_id=bike_a.id, parent_component_id=drivetrain.id, installed_at=T0, removed_at=None,
+    )
+
+    moved = component_service.get_component(chain.id)
+    assert (moved.parent_bike_id, moved.parent_component_id) == (None, drivetrain.id)
+    period = _open_period(chain.id)
+    assert (period.parent_bike_id, period.parent_component_id) == (bike_b.id, drivetrain.id)
+    assert _miles(chain.id) == 25
+
+
+def test_an_inside_part_in_storage_records_no_bike(db_path):
+    bike_a = bike_service.create_bike(name="A")
+    box = component_service.create_component(name="Spare wheel", component_type="wheel")
+    chain = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike_a.id, installed_at=T0)
+    _ride(bike_a, 1, 10, "2023-06-01T08:00:00.000000Z")
+
+    history.update_period(
+        _open_period(chain.id).id, bike_id=bike_a.id, parent_component_id=box.id, installed_at=T0, removed_at=None,
+    )
+
+    assert component_service.get_component(chain.id).parent_component_id == box.id
+    assert _open_period(chain.id).parent_bike_id is None
+    assert _miles(chain.id) == 0
+
+
+def test_a_part_cannot_be_moved_into_its_own_inside_part_by_an_edit(db_path):
+    bike_a = bike_service.create_bike(name="A")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike_a.id, installed_at=T0)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id, installed_at=T0)
+    before = _open_period(wheel.id)
+
+    with pytest.raises(ValueError, match="sub-tree"):
+        history.update_period(before.id, bike_id=bike_a.id, parent_component_id=tire.id, installed_at=T0, removed_at=None)
+
+    assert component_service.get_component(wheel.id).parent_bike_id == bike_a.id
+    assert _open_period(wheel.id) == before

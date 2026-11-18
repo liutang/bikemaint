@@ -17,7 +17,7 @@
 **The rider's answers, 2026-11-17:**
 - **Attached parts:** when archiving, the rider chooses between:
   - keeping the attached parts on it, with their schedules removed;
-  - moving all of them to storage, keeping their schedules. "Move to storage should move all parts to storage": every part at every depth goes to storage separately.
+  - moving all of them to storage, keeping their schedules. "Move to storage should move all parts to storage": every part at every depth goes to storage separately. (Replaced 2026-11-18: sub-parts stay inside, see below.)
 - **Only from storage:** only a part in storage can be archived.
 - **Strava:** archiving a paired bike unpairs it.
 - **Locked:** everything except history.
@@ -25,12 +25,13 @@
 - **How a removal is recorded:**
   - dragging to storage records the removal as now;
   - Install History is the way to back-date a removal;
-  - a part removed from an archived item has all its sub-parts split out to storage too, as with "Move to storage".
+  - a part removed from an archived item has all its sub-parts split out to storage too, as with "Move to storage". (Replaced 2026-11-18, see below.)
 
 **The rider's changes after the mock-ups, 2026-11-18:**
 - **Unarchive moves:** "The un-archive should be in the edit screen and not the main archive screen." Unarchive is a card on the archived item's Edit screen, not a button on its Garage or Storage card.
 - **Deleting keeps sub-parts:** "I don't want to split them out when deleting a bike (both active and archived)." Deleting a bike moves its parts to storage with their sub-parts still inside, as today.
-- **Archive card layout:** on the active Edit screen, the Archive card spans the Strava and Delete cards. Two layouts were mocked up (a tall card beside them, or a wide card below them), and the rider's choice is pending.
+- **Archive card layout:** "Option B - horizontal". On the active Edit screen, Strava and Delete stay side by side as today, and the Archive card spans the full width below them.
+- **Never split sub-parts:** "Make everything consistent app wide - if a part with sub-parts gets placed into storage, the parts are not split out." This replaces the two splitting answers above. Archiving's "Move to storage" and taking a part off an archived item both move parts with their sub-parts still inside, the same as every other move to storage in the app.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -56,10 +57,10 @@ The rider has sold or retired a bike. They want it, and its history, out of the 
    - the only change left possible is taking parts off to storage;
    - it can be unarchived from this Edit screen, but its schedules will not come back.
    
-   The Archive card spans the Strava and Delete cards, in the layout the rider picks from the mock-ups.
+   The Archive card spans the full width below the Strava and Delete cards (mock-up Option B). Without a Strava card, it sits beside Delete.
 2. **Given** a bike with parts on it, **Then** the Archive section requires a choice between:
    - **"Keep the parts on the bike"**: their schedules are removed too.
-   - **"Move all parts to storage"**: every part at every depth goes to storage separately, as of now, and keeps its schedules.
+   - **"Move the parts to storage"**: each part directly on the bike goes to storage as of now, with any parts inside it still inside. Every one of them keeps its schedules.
    
    A bike with no parts shows no choice.
 3. **Given** the rider presses Archive, **Then** the bike is archived:
@@ -85,12 +86,12 @@ An archived bike still has parts on it that the rider later takes off, for a new
 
 **Why this priority**: The rider asked for it specifically. Without it, "Keep the parts on the bike" would trap parts on an archived bike.
 
-**Independent Test**: On an archived bike holding a wheelset with a tire inside, drag the wheelset to storage. Both the wheelset and the tire are in Storage as separate items, both removed now.
+**Independent Test**: On an archived bike holding a wheelset with a tire inside, drag the wheelset to storage. The wheelset is in Storage, removed now, with the tire still inside it.
 
 **Acceptance Scenarios**:
 
-1. **Given** a part on an archived bike or inside an archived part, **When** the rider drags it to storage, **Then** it and every part inside it, at every depth, are removed as of now and each goes to storage separately.
-2. **Given** an archived bike's Install History, **Then** its still-installed rows have only an Edit that offers the removal date and time. Saving it back-dates the removal for that part and every part inside it, at the same moment, and each goes to storage separately.
+1. **Given** a part on an archived bike or inside an archived part, **When** the rider drags it to storage, **Then** it is removed as of now and goes to storage with any parts inside it, as anywhere in the app.
+2. **Given** an archived bike's Install History, **Then** its still-installed rows have only an Edit that offers the removal date and time. Saving it back-dates the removal, and the part goes to storage with any parts inside it, as when ending a period today (030).
 3. **Given** an archived item's Install History, **Then** no period can be logged, and closed periods can't be edited or deleted.
 4. **The same limits apply anywhere else a period's place is an archived item**, such as a part's own Install History. Such periods can only be ended, and archived items are never offered in the Bike or Inside part lists of Log or Edit a period.
 5. **Given** removed parts that keep schedules, **Then** those schedules continue. Removed parts that were kept on the bike at archiving have none.
@@ -140,7 +141,7 @@ The rider brings a bike or part back into use.
 ### Edge Cases
 
 - **Delete:** an archived bike or part can still be deleted from its Edit screen. A bike still needs its typed-name confirmation, and a part its existing confirmation.
-  - Deleting a bike, active or archived, moves its parts to storage with their sub-parts still inside them, as today. It doesn't split them out like archiving's "Move all parts to storage".
+  - Deleting a bike, active or archived, moves its parts to storage with their sub-parts still inside them, as today.
 - **Strava while archived:** the bike is unpaired, so sync brings nothing new. A re-import of the same Strava gear onto another bike could move rides away from it today. While a bike is archived, Strava never changes or moves its rides (the same protection edited rides already have).
 - **Maintenance:** no maintenance can be logged on an archived item. Existing entries can be viewed but not edited or deleted. A history that also lists attached parts follows the same rule for rows that belong to the archived item.
 - **Mileage:** an archived bike's rides still count toward every part that was on it during them. Taking parts off doesn't change past miles.
@@ -158,7 +159,7 @@ The rider brings a bike or part back into use.
 - **FR-001**: A bike, or a part in storage, MUST be archivable only from its Edit screen, through an Archive section that explains the effects listed in US1 scenario 1.
 - **FR-002**: Archiving an item with attached parts MUST require the choice between:
   - keeping them, with their schedules removed;
-  - moving all of them, at every depth, to storage separately as of now, keeping their schedules.
+  - moving the parts directly on it to storage as of now, with their sub-parts inside, keeping all their schedules.
 - **FR-003**: Archiving MUST:
   - delete the item's schedules (and, with "keep", those of its attached parts);
   - record the archive date;
@@ -175,7 +176,7 @@ The rider brings a bike or part back into use.
   - periods whose place is the archived item (no log, edit or delete; a still-installed one may only be ended).
 
   Every route MUST refuse these changes server-side, including HTMX partial endpoints.
-- **FR-007**: Taking a part off an archived item MUST move it and every part inside it, at every depth, to storage separately at the same moment:
+- **FR-007**: Taking a part off an archived item MUST move it to storage with its sub-parts inside, as every move to storage does:
   - by dragging, as now;
   - by ending its still-installed period on Install History, as the typed moment.
 - **FR-008**: Archived items MUST be left out of every place a bike or part is chosen as a destination, and out of every Storage count.
@@ -202,7 +203,7 @@ The rider brings a bike or part back into use.
 - **Wording:** the wording on the Archive section, cards and refusals is proposed in the plan and shown to the rider in a mock-up before building, per the rider's rule for visual changes.
 - **No confirmation step:** the Archive button needs none beyond its placement on the Edit screen and the required choice. Schedules are lost for good, so the explanation states their count.
 - **Unarchive** is only on the Edit screen, as asked, not on the Garage or Storage card or on the item's main screen.
-- **Sub-parts on active bikes are unaffected:** a part taken off an active bike still keeps its sub-parts inside it, as today. Splitting applies only to removals from an archived item.
+- **Sub-parts are never split out:** every move to storage in the app (archiving, removal from an archived item, delete, and today's moves) keeps a part's sub-parts inside it.
 - **Inside parts aren't archived:** parts kept on an archived item are not archived themselves. They stay active parts and can be taken off.
 - **Archived parts:** an archived part is always in storage. It may hold parts inside it, if they were kept.
 - **Amends:** 001 (Garage), 020/033 (builder and palette), 015/030 (Install History), 006 (rides), 017 (Strava pairing), 029 (bike delete) and 067 (backup). Their own text is noted in the plan.

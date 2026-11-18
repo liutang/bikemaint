@@ -120,12 +120,12 @@ description: "Task list for 076 four-digit years, two-digit typing"
 
 ## Phase 6: Polish and cross-cutting
 
-- [ ] T022 [P] Amend `specs/075-typed-times-utc/spec.md`: an Amendments line for FR-001 (four-digit years; 0 to 99 mean 20yy, see 076).
-- [ ] T023 [P] Amend `specs/075-typed-times-utc/contracts/stored-times.md`: in Storage, the year is always four digits, zero-padded (link to 076's contract).
-- [ ] T024 [P] Amend `specs/006-feedback-round-2/spec.md`: an Amendments line saying a manual ride can't be dated in the future (076 FR-011).
-- [ ] T025 [P] `CLAUDE.md`: a "Four-digit years (feature 076)" paragraph naming `typed_dates.full_year`, `frames.stored`, data step `0020_four_digit_years`, the restore repair, and the future-ride rule.
-- [ ] T026 Run the full suite. Then run `quickstart.md` by hand on a local server with a copy of an old-style database, and record the result here.
-- [ ] T027 Run `/speckit-analyze` for 076 and resolve any CRITICAL or HIGH finding.
+- [x] T022 [P] Amend `specs/075-typed-times-utc/spec.md`: an Amendments line for FR-001 (four-digit years; 0 to 99 mean 20yy, see 076).
+- [x] T023 [P] Amend `specs/075-typed-times-utc/contracts/stored-times.md`: in Storage, the year is always four digits, zero-padded (link to 076's contract).
+- [x] T024 [P] Amend `specs/006-feedback-round-2/spec.md`: an Amendments line saying a manual ride can't be dated in the future (076 FR-011).
+- [x] T025 [P] `CLAUDE.md`: a "Four-digit years (feature 076)" paragraph naming `typed_dates.full_year`, `frames.stored`, data step `0020_four_digit_years`, the restore repair, and the future-ride rule.
+- [x] T026 Run the full suite. Then run `quickstart.md` by hand on a local server with a copy of an old-style database, and record the result here. *Result (2026-11-18): full suite 1,635 passed. Local server on a seeded database holding the live pads value `21-04-18T04:56:02.000000Z` (New York), with 0020 not yet run: at startup the step ran once, with no copy. The pads row reads `2021-04-18 12:00AM EDT`, 52.5 mi (the two rides after that date). In the browser, typing 07/17/26 sent `0026-07-17`; the ride saved and is listed as `2026-07-17 9:00AM EDT`. Typing 01/01/99 was refused (422) with "The ride date cannot be in the future." under Date, and the field shows `01/01/2099`. Model Year and restore are covered by route and service tests.*
+- [x] T027 Run `/speckit-analyze` for 076 and resolve any CRITICAL or HIGH finding. *Result: none. The one MEDIUM (SC-004 untested) was fixed in T018.*
 
 ## Dependencies
 

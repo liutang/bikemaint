@@ -28,7 +28,7 @@ No table or column changes.
 | `ride_activity` | `occurred_at` | `source = 'manual'` only |
 | `component_installation_period` | `installed_at`, `removed_at` | all |
 | `maintenance_log_entry` | `performed_at` (local date), `performed_instant` | all |
-| `maintenance_schedule` | `baseline_at` | all |
+| `maintenance_schedule` | `baseline_at`, `baseline_date` (local date) | all |
 
 - It returns counts per table, which are logged.
 - An unrepairable value stays unchanged and is logged as a warning with its table and id.

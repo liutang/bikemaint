@@ -4,7 +4,7 @@ This replaces the typed-vs-recorded rules of 015 FR-013, 023 FR-008, 049 and 051
 
 ## Storage
 
-- Every instant is UTC text `YYYY-MM-DDTHH:MM:SS.ffffffZ`.
+- Every instant is UTC text `YYYY-MM-DDTHH:MM:SS.ffffffZ`, with a four-digit, zero-padded year on every platform (amended by 076, see `specs/076-four-digit-years/contracts/stored-times.md`).
 - A time the rider types is read in the saved zone, using the offset on that date (`fold=0`: a nonexistent time uses the offset before the change; a repeated time is the first one), and stored as UTC.
 - Default times when the time field is blank:
 

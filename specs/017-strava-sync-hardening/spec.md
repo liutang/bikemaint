@@ -135,3 +135,4 @@ Full-history pages can take much longer than ordinary requests. The app waits lo
 
 ## Amendments
 - **2026-11-12 (branch `019-unpair-button-border`)**: user testing found the Unpair button had no border (it used the borderless quiet style). Added scenario US3-7 and FR-015.
+- **2026-11-18 (feature 079)**: archiving a paired bike unpairs it and keeps its rides. Strava sync and re-import never change or move an archived bike's rides (`mileage.upsert_ride_activity`). Pairing an archived bike is refused; after Unarchive, pairing runs the full backfill.

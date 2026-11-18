@@ -148,12 +148,16 @@ description: "Task list for 079 archive bikes and parts"
 
 ## Phase 7: Polish and cross-cutting
 
-- [ ] T031 [P] Tests first in `tests/services/test_backup_service.py`: `archived_at` round-trips through export and restore. A file without the column restores as active.
-- [ ] T032 [P] Test first: deleting an archived bike (typed name) and an archived part still works. Parts go to storage with their sub-parts inside.
-- [ ] T033 [P] Amend the specs named in plan.md (001 `contracts/routes.md`, 006, 015/030, 017, 020/033, 029, 067) with Amendments lines, and add the new routes to `specs/001-bike-maintenance-tracker/contracts/routes.md`.
-- [ ] T034 [P] `CLAUDE.md`: an "Archive (feature 079)" paragraph naming `archive_service.is_locked` and `require_unlocked`, the 409 refusal, `archived_at`, the routes, the Archived sections, and the route-walk test.
-- [ ] T035 Run the full suite. Then run `quickstart.md` by hand in the browser on a local server, and record the result here.
-- [ ] T036 Run `/speckit-analyze` for 079 and resolve any CRITICAL or HIGH finding.
+- [x] T031 [P] Tests first in `tests/services/test_backup_service.py`: `archived_at` round-trips through export and restore. A file without the column restores as active.
+- [x] T032 [P] Test first: deleting an archived bike (typed name) and an archived part still works. Parts go to storage with their sub-parts inside.
+- [x] T033 [P] Amend the specs named in plan.md (001 `contracts/routes.md`, 006, 015/030, 017, 020/033, 029, 067) with Amendments lines, and add the new routes to `specs/001-bike-maintenance-tracker/contracts/routes.md`.
+- [x] T034 [P] `CLAUDE.md`: an "Archive (feature 079)" paragraph naming `archive_service.is_locked` and `require_unlocked`, the 409 refusal, `archived_at`, the routes, the Archived sections, and the route-walk test.
+- [x] T035 Run the full suite. Then run `quickstart.md` by hand in the browser on a local server, and record the result here. *Result (2026-11-18): full suite 1,683 passed. Local server, seeded with a paired 2014 Madone (groupset with chain, wheelset with tires, three schedules), an active SLR7 and a spare saddle:*
+  - *The Edit screen showed the full-width Archive card below Strava and Delete, with 2 schedules, 4 parts and the two unchecked choices. "Keep them on the bike" archived it and landed on the Garage, where "Archived (1)" was closed and, opened, read "Archived 2026-11-18".*
+  - *Every schedule was off and the bike unpaired.*
+  - *The archived screen showed the notice, no Schedules or Pair button, and only "In storage". A real drag of the groupset to storage took it off with its chain still inside; a drag of the tires onto the bike did nothing.*
+  - *The archived Edit screen was read-only with Unarchive beside Delete. Unarchive returned to an editable Edit screen (Save, Archive bike).*
+- [x] T036 Run `/speckit-analyze` for 079 and resolve any CRITICAL or HIGH finding. *Result: none. MEDIUM, fixed: the spec now says parts kept on an archived item are locked until taken off (approved in the plan, research §1). LOW, noted: the part Edit screen gains a Delete card only when archived (FR-011 asks for Delete from Edit; active parts keep Trash on their screen).*
 
 ## Dependencies
 

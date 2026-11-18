@@ -113,3 +113,4 @@ As the rider, I want the "Add a new part" list grouped into categories that star
 
 ## Amendments
 - **2026-11-12 (branch `021-fix-palette-drag-and-style`)**: user testing found (a) dragging a palette part no longer worked and (b) category headers looked unstyled. Cause: the browser kept the previous release's `builder.js` and `styles.css`. Added scenarios US2-8 and US2-9 and FR-013/FR-014.
+- **2026-11-18 (feature 079)**: an archived bike or part, and everything inside it, accepts no new or moved parts. Its screen's builder offers only the storage drop (`#builder[data-locked]`), and parts taken off keep their sub-parts inside.

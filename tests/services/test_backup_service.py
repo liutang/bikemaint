@@ -223,3 +223,28 @@ def test_an_older_backup_with_a_two_digit_typed_year_is_converted_and_repaired(d
     with connection.get_connection() as conn:
         row = conn.execute("SELECT performed_at, performed_instant FROM maintenance_log_entry").fetchone()
     assert tuple(row) == ("2026-11-16", "2026-11-17T02:00:00.000000Z")
+
+
+# ------------------------------------------------ specs/079: backups carry the archived state
+
+
+def test_archived_state_survives_a_backup_and_an_older_file_restores_as_active(db_path):
+    from app.services import archive_service
+
+    bike = bike_service.create_bike(name="Old Road")
+    spare = component_service.create_component(name="Spare", component_type="chain")
+    archive_service.archive_bike(bike.id, attached=None)
+    archive_service.archive_part(spare.id, attached=None)
+    data = json.loads(json.dumps(backup_service.export_backup()))
+    archived_at = bike_service.get_bike(bike.id).archived_at
+
+    backup_service.restore_backup(data)
+    assert bike_service.get_bike(bike.id).archived_at == archived_at
+    assert component_service.get_component(spare.id).archived_at is not None
+
+    for table in ("bike", "component"):
+        for row in data["tables"][table]:
+            row.pop("archived_at")
+    backup_service.restore_backup(data)
+    assert bike_service.get_bike(bike.id).archived_at is None
+    assert component_service.get_component(spare.id).archived_at is None

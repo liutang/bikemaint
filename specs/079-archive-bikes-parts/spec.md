@@ -204,6 +204,6 @@ The rider brings a bike or part back into use.
 - **No confirmation step:** the Archive button needs none beyond its placement on the Edit screen and the required choice. Schedules are lost for good, so the explanation states their count.
 - **Unarchive** is only on the Edit screen, as asked, not on the Garage or Storage card or on the item's main screen.
 - **Sub-parts are never split out:** every move to storage in the app (archiving, removal from an archived item, delete, and today's moves) keeps a part's sub-parts inside it.
-- **Inside parts aren't archived:** parts kept on an archived item are not archived themselves. They stay active parts and can be taken off.
+- **Inside parts aren't archived, but they are locked:** parts kept on an archived item are not archived themselves. While they sit inside it, their details, maintenance and schedules are locked with it (plan research §1, approved 2026-11-18). Taking a part off to storage unlocks it.
 - **Archived parts:** an archived part is always in storage. It may hold parts inside it, if they were kept.
 - **Amends:** 001 (Garage), 020/033 (builder and palette), 015/030 (Install History), 006 (rides), 017 (Strava pairing), 029 (bike delete) and 067 (backup). Their own text is noted in the plan.

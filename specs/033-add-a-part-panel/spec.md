@@ -72,3 +72,4 @@ As the rider, I want one "Add a part" panel with the part categories and my stor
 
 ## Amendments
 - **2026-11-14 (branch `034-keep-sections-open`)**: user testing found every section collapsing after each add, move or removal, because the screen part is re-rendered closed. Added scenario 11 and FR-006.
+- **2026-11-18 (feature 079)**: the "In storage (N)" section and the Garage's Storage (N) count leave archived parts out. On an archived screen, the panel shows only "In storage".

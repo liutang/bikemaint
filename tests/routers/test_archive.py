@@ -417,3 +417,21 @@ def test_the_unarchive_card_wording(signed_in_client):
                  "Its old schedules don't come back. Add new ones from its Schedules page.",
                  "It isn't paired with Strava. Pair it again to import its rides, including any from while it was archived."):
         assert text in card
+
+
+# ------------------------------------------------ Polish: deleting archived items still works (FR-011)
+
+
+def test_an_archived_bike_and_an_archived_part_can_still_be_deleted(signed_in_client):
+    bike = bike_service.create_bike(name="Old Road")
+    wheel = component_service.create_component(name="Wheel", component_type="wheel", parent_bike_id=bike.id)
+    tire = component_service.create_component(name="Tire", component_type="tire", parent_component_id=wheel.id)
+    archive_service.archive_bike(bike.id, attached="keep")
+    response = signed_in_client.post(f"/bikes/{bike.id}/delete", data={"confirm_name": "Old Road"}, follow_redirects=False)
+    assert response.status_code == 303 and bike_service.get_bike(bike.id) is None
+    assert _place(wheel.id) == (None, None) and _place(tire.id) == (None, wheel.id)
+
+    archive_service.archive_part(wheel.id, attached="keep")
+    signed_in_client.post(f"/components/{wheel.id}/delete", data={"confirmed": "true"})
+    assert component_service.get_component(wheel.id) is None
+    assert _place(tire.id) == (None, None)

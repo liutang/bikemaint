@@ -190,3 +190,36 @@ def test_a_64_bit_activity_id_survives_a_backup_and_restore_exactly(db_path):
 
     with connection.get_connection() as conn:
         assert [r[0] for r in conn.execute("SELECT strava_activity_id FROM ride_activity")] == [big_id]
+
+
+# ------------------------------------------------ specs/076 US3: restore repairs short years
+
+
+def test_restoring_a_backup_with_the_old_pads_value_repairs_it(db_path):
+    bike = bike_service.create_bike(name="Madone")
+    pads = component_service.create_component(name="GRX pads", component_type="brake_pad")
+    with connection.get_connection() as conn:
+        mileage_db.upsert_ride_activity(conn, strava_activity_id=1, strava_gear_id="g", bike_id=bike.id,
+                                        distance_miles=30.0, occurred_at="2024-05-01T12:00:00.000000Z")
+    data = backup_service.export_backup()
+    data["tables"]["component_installation_period"] = [{
+        "id": 1, "component_id": pads.id, "parent_bike_id": bike.id, "parent_component_id": None,
+        "installed_at": "21-04-18T04:56:02.000000Z", "removed_at": None,
+    }]
+
+    backup_service.restore_backup(json.loads(json.dumps(data)))
+
+    with connection.get_connection() as conn:
+        assert conn.execute("SELECT installed_at FROM component_installation_period").fetchone()[0] == "2021-04-18T04:00:00.000000Z"
+    assert component_service.get_component(pads.id).total_mileage == 30.0
+
+
+def test_an_older_backup_with_a_two_digit_typed_year_is_converted_and_repaired(db_path):
+    data = _format_1_file()
+    data["tables"]["maintenance_log_entry"][0]["performed_at"] = "0026-11-16"
+
+    backup_service.restore_backup(data)
+
+    with connection.get_connection() as conn:
+        row = conn.execute("SELECT performed_at, performed_instant FROM maintenance_log_entry").fetchone()
+    assert tuple(row) == ("2026-11-16", "2026-11-17T02:00:00.000000Z")

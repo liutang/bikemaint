@@ -242,3 +242,13 @@ def test_an_unchanged_save_in_the_repeated_hour_keeps_the_second_one(account):
     second = "2026-11-01T06:30:00.000000Z"  # 1:30 AM EST, the second 1:30 that day
 
     assert clock_service.keep_or_convert(second, "2026-11-01", "01:30") == second
+
+
+def test_every_typed_time_writer_keeps_a_four_digit_year(db_path):
+    """specs/076 FR-004: the service writers go through frames.stored, whatever the platform."""
+    from app.services import component_history_service
+
+    assert clock_service.to_utc("0999-01-02", "03:04").startswith("0999-01-02T")
+    assert clock_service.keep_or_convert(None, "0999-01-02", "03:04").startswith("0999-")
+    assert clock_service.end_of_day("0999-01-02").startswith("0999-01-02T")
+    assert component_history_service.moment("0999-01-02", "03:04").startswith("0999-")

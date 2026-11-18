@@ -408,3 +408,24 @@ def test_changing_the_zone_shifts_every_time_shown(signed_in_client, new_york):
     history = signed_in_client.get(f"/bikes/{bike.id}/maintenance").text
     assert "2026-11-16 2:39PM PST" in rides and "2026-11-13 11:26AM PST" in rides
     assert "2026-11-16 6:00PM PST" in history
+
+
+# ------------------------------------------------ specs/076: two-digit years, no future rides
+
+
+def test_a_two_digit_year_saves_as_20yy(signed_in_client):
+    bike = _bike()
+    response = signed_in_client.post(f"/bikes/{bike.id}/rides", data=_form(ride_date="0026-07-17"), follow_redirects=False)
+    assert response.status_code == 303
+    page = signed_in_client.get(f"/bikes/{bike.id}/rides").text
+    assert "2026-07-17" in page
+
+
+def test_a_future_ride_is_refused_beside_its_date_and_shown_with_four_digits(signed_in_client):
+    bike = _bike()
+    response = signed_in_client.post(f"/bikes/{bike.id}/rides", data=_form(ride_date="0099-01-01"))
+    assert response.status_code == 422
+    assert "The ride date cannot be in the future." in response.text
+    assert 'value="2099-01-01"' in response.text
+    assert re.search(r'id="ride_date-error"[^>]*>\s*The ride date cannot be in the future', response.text)
+    assert _total(bike) == 100

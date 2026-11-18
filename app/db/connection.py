@@ -23,8 +23,12 @@ MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 # Python data steps, run once each after the `.sql` migrations and recorded in `schema_version`
 # under their name like a migration file (specs/075 research §6). Each runs in one transaction
 # with its record, so a failure leaves nothing changed and the step runs again at the next start.
-DATA_STEPS: list[tuple[str, Callable[[sqlite3.Connection], dict[str, int]]]] = [
-    ("0019_typed_times_utc", typed_times.convert_database),
+# (name, step, copy_first): copy_first saves a copy of the database beside it before the step,
+# when there is anything to change (specs/075 research §7). The 076 repair changes only broken
+# values and makes no copy (specs/076 Assumptions).
+DATA_STEPS: list[tuple[str, Callable[[sqlite3.Connection], dict[str, int]], bool]] = [
+    ("0019_typed_times_utc", typed_times.convert_database, True),
+    ("0020_four_digit_years", typed_times.repair_database, False),
 ]
 
 
@@ -87,10 +91,10 @@ def _copy_database(conn: sqlite3.Connection) -> None:
 
 
 def _run_data_steps(conn: sqlite3.Connection, applied: set[str]) -> None:
-    for name, step in DATA_STEPS:
+    for name, step, copy_first in DATA_STEPS:
         if name in applied:
             continue
-        if _database_path() != ":memory:" and typed_times.has_rows(conn):
+        if copy_first and _database_path() != ":memory:" and typed_times.has_rows(conn):
             _copy_database(conn)
         counts = step(conn)
         conn.execute("INSERT INTO schema_version (version) VALUES (?)", (name,))

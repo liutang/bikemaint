@@ -443,3 +443,12 @@ def test_a_timed_entry_shows_its_local_time_with_the_zone_and_an_untimed_one_its
     assert "2026-11-16 9:00PM EST" in html
     assert ">2026-11-17<" in html
     assert html.index("2026-11-17") < html.index("2026-11-16 9:00PM EST")  # latest first by local date
+
+
+def test_a_two_digit_maintenance_year_saves_as_20yy(signed_in_client):
+    """specs/076 US1."""
+    from app.services import maintenance_service
+
+    bike = bike_service.create_bike(name="Road")
+    signed_in_client.post(f"/bikes/{bike.id}/maintenance", data={"service_type": "Check", "performed_at": "0026-01-05"})
+    assert [e.performed_at for e in maintenance_service.list_for_bike(bike.id)] == ["2026-01-05"]

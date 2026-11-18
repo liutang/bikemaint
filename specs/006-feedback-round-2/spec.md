@@ -90,3 +90,7 @@ As the rider, I want each bike to have a ride log that starts from its base mile
 > **Superseded in part (2026-11-12)**: FR-008 and User Story 2 scenarios 1–3 (parts added/removed logged in maintenance history) were reversed by `specs/022-install-history-split`; installs and removals now live only in Install History, and migration 0010 deleted the old entries.
 
 > **Superseded in part (2026-11-12)**: the assumption that system times are shown in the browser's local time was replaced by the saved time zone in `specs/023-settings-sync-and-timezone`.
+
+## Amendments
+
+- **2026-11-18 (feature 076, FR-011)**: a ride added or edited by hand can't be dated in the future. A date after today in the saved zone, or today with a typed time later than now, is refused with "The ride date cannot be in the future." beside the date. Today without a time is allowed. Strava rides are never checked.

@@ -39,6 +39,11 @@ def _parse(form) -> RideRequest:
     )
 
 
+def _field_for(message: str) -> str:
+    """The field a service refusal belongs beside: the date for a future ride (specs/076), else miles."""
+    return "ride_date" if message.startswith("The ride date") else "miles"
+
+
 def _bike_crumbs(bike, last: str) -> list[tuple[str, str | None]]:
     return [("Garage", "/"), (bike.name, f"/bikes/{bike.id}"), (last, None)]
 
@@ -94,7 +99,7 @@ async def create_ride(request: Request, bike_id: int, account=Depends(require_ac
         return _render(request, "rides/form.html", _form_context(bike, None, error_context(form, exc)), status_code=422)
     except ValueError as exc:
         return _render(
-            request, "rides/form.html", _form_context(bike, None, message_context(form, str(exc), field="miles")),
+            request, "rides/form.html", _form_context(bike, None, message_context(form, str(exc), field=_field_for(str(exc)))),
             status_code=422,
         )
     return RedirectResponse(url=f"/bikes/{bike_id}/rides", status_code=303)
@@ -129,7 +134,7 @@ async def update_ride(request: Request, ride_id: int, account=Depends(require_ac
         return _render(request, "rides/form.html", _form_context(bike, ride, error_context(form, exc)), status_code=422)
     except (ValueError, LookupError) as exc:
         message = "Choose a bike from the list." if isinstance(exc, LookupError) else str(exc)
-        field = "bike_id" if isinstance(exc, LookupError) or message.startswith("Choose") else "miles"
+        field = "bike_id" if isinstance(exc, LookupError) or message.startswith("Choose") else _field_for(message)
         return _render(
             request, "rides/form.html", _form_context(bike, ride, message_context(form, message, field=field)),
             status_code=422,

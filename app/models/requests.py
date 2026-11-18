@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import date
+
+from app.models.typed_dates import full_year
 from typing import Literal
 from zoneinfo import available_timezones
 
@@ -76,6 +78,8 @@ class BikeDetailsRequest(BaseModel):
     @field_validator("year")
     @classmethod
     def _plausible_year(cls, value):
+        if value is not None and 0 <= value < 100:
+            value += 2000  # a two-digit year means 20yy (specs/076 FR-002)
         if value is not None and not 1900 <= value <= _next_year():
             raise ValueError(f"Year must be between 1900 and {_next_year()}.")
         return value
@@ -160,7 +164,8 @@ class BuilderAddRequest(BaseModel):
     @field_validator("installed_date", "installed_time", mode="before")
     @classmethod
     def _blank_is_none(cls, value):
-        return None if isinstance(value, str) and not value.strip() else value
+        value = None if isinstance(value, str) and not value.strip() else value
+        return full_year(value)  # specs/076: a two-digit year means 20yy
 
     @field_validator("component_type")
     @classmethod
@@ -204,6 +209,11 @@ class MaintenanceLogRequest(BaseModel):
     @classmethod
     def _blank_time(cls, value):
         return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("performed_at", mode="before")
+    @classmethod
+    def _full_year(cls, value):
+        return full_year(value)  # specs/076: a two-digit year means 20yy
 
 
 class ScheduleRequest(BaseModel):
@@ -332,6 +342,11 @@ class RideRequest(BaseModel):
     def _blank_is_none(cls, value):
         return None if isinstance(value, str) and not value.strip() else value
 
+    @field_validator("ride_date", mode="before")
+    @classmethod
+    def _full_year(cls, value):
+        return full_year(value)  # specs/076: a two-digit year means 20yy
+
 
 class InstallPeriodRequest(BaseModel):
     """Log or edit a past installation period (specs/015): where, and from when to when."""
@@ -349,6 +364,11 @@ class InstallPeriodRequest(BaseModel):
     @classmethod
     def _blank_is_none(cls, value):
         return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("installed_date", "removed_date", mode="before")
+    @classmethod
+    def _full_year(cls, value):
+        return full_year(value)  # specs/076: a two-digit year means 20yy
 
 
 class ClockSettingsRequest(BaseModel):

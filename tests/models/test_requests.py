@@ -95,3 +95,66 @@ def test_a_ride_moving_time_is_h_mm_or_blank(value, ok):
     else:
         with pytest.raises(ValidationError):
             build()
+
+
+# ------------------------------------------------ specs/076 US1: a two-digit year means 20yy
+
+from datetime import date  # noqa: E402
+
+from app.models.requests import (  # noqa: E402
+    BuilderAddRequest, InstallPeriodRequest, MaintenanceLogRequest, RideRequest,
+)
+
+
+def _ride(day):
+    return RideRequest(ride_date=day, miles=10)
+
+
+def _entry(day):
+    return MaintenanceLogRequest(service_type="Check", performed_at=day)
+
+
+def _period(**dates):
+    return InstallPeriodRequest(bike_id=1, **{"installed_date": "2025-01-01", **dates})
+
+
+def _add(day):
+    return BuilderAddRequest(root="bike:1", component_type="chain", target="bike:1", installed_date=day)
+
+
+def test_typed_short_years_are_read_as_20yy_on_every_date_field():
+    assert _ride("0026-07-17").ride_date == date(2026, 7, 17)
+    assert _ride("0000-07-17").ride_date == date(2000, 7, 17)
+    assert _entry("0026-07-17").performed_at == date(2026, 7, 17)
+    assert _period(installed_date="0026-07-17").installed_date == "2026-07-17"
+    assert _period(removed_date="0026-07-17").removed_date == "2026-07-17"
+    assert _add("0026-07-17").installed_date == "2026-07-17"
+
+
+def test_blank_optional_dates_stay_blank():
+    assert _period(removed_date="").removed_date is None
+    assert _add("").installed_date is None
+
+
+@pytest.mark.parametrize(
+    "build", [
+        lambda: _ride("0202-03-01"),
+        lambda: _entry("0202-03-01"),
+        lambda: _period(installed_date="0202-03-01"),
+        lambda: _period(removed_date="1899-12-31"),
+        lambda: _add("0202-03-01"),
+    ],
+)
+def test_years_from_100_to_1899_are_refused_with_enter_a_valid_date(build):
+    with pytest.raises(ValidationError) as exc:
+        build()
+    assert [e["msg"] for e in exc.value.errors()] == ["Enter a valid date"]
+
+
+def test_a_two_digit_model_year_means_20yy():
+    assert BikeDetailsRequest(year="23", category="road").year == 2023
+    assert BikeDetailsRequest(year="0", category="road").year == 2000
+    with pytest.raises(ValidationError, match="Year must be between 1900 and"):
+        BikeDetailsRequest(year="99", category="road")
+    with pytest.raises(ValidationError, match="Year must be between 1900 and"):
+        BikeDetailsRequest(year="202", category="road")

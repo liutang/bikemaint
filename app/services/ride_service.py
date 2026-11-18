@@ -168,12 +168,26 @@ def get_ride(ride_id: int) -> RideActivity | None:
     return None if ride is None or ride.deleted_by_user else ride
 
 
+def check_not_future(day: date, time: str | None) -> None:
+    """A ride typed by hand can't be in the future (specs/076 FR-011).
+
+    Refused: a date after today in the saved zone, or today with a typed time later than now.
+    Today without a time is allowed (it is stored as noon, specs/075).
+    """
+    today = clock_service.today()
+    if day > today or (
+        day == today and time and clock_service.to_utc(day.isoformat(), time) > clock_service.now()
+    ):
+        raise ValueError("The ride date cannot be in the future.")
+
+
 def create_ride(
     bike_id: int, *, day: date, time: str | None, miles: float, note: str | None,
     moving_seconds: int | None = None,
 ) -> RideActivity:
     """Add a ride that is not tracked on Strava."""
     _check_miles(miles)
+    check_not_future(day, time)
     with get_connection() as conn:
         _require_bike(conn, bike_id)
         ride = mileage_db.create_manual_ride(
@@ -191,6 +205,7 @@ def update_ride(
 ) -> RideActivity:
     """Edit a ride's miles, time, note, or re-assign it to another bike."""
     _check_miles(miles)
+    check_not_future(day, time)
     with get_connection() as conn:
         existing = mileage_db.get_ride(conn, ride_id)
         if existing is None or existing.deleted_by_user:

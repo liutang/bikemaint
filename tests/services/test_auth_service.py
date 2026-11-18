@@ -102,3 +102,21 @@ def test_failed_token_exchange_is_logged_and_reraised(db_path, monkeypatch, capl
 
     assert "Strava sign-in failed" in caplog.text
     assert "bad-code" not in caplog.text
+
+
+def test_sign_in_keeps_a_64_bit_athlete_id_exact_and_finds_the_same_account(db_path, monkeypatch):
+    """Strava 64-bit ids (017 T020): an athlete id above 2**53 is stored exactly and matched on the next sign-in."""
+    big_id = 2**62 + 12345
+    monkeypatch.setattr(
+        auth_service.strava_client,
+        "exchange_code_for_token",
+        lambda code: {"access_token": "a", "refresh_token": "r", "expires_at": 1893456000, "athlete": {"id": big_id}},
+    )
+
+    first = auth_service.complete_strava_login("code-1")
+    second = auth_service.complete_strava_login("code-2")
+
+    assert first.strava_athlete_id == big_id
+    assert second.id == first.id
+    with connection.get_connection() as conn:
+        assert conn.execute("SELECT strava_athlete_id FROM account").fetchone()[0] == big_id

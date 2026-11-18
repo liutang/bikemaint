@@ -39,27 +39,27 @@ description: "Task list for 076 four-digit years, two-digit typing"
 
 **Independent Test**: with New York saved, add a manual ride dated `0026-07-17` at 09:00. The Rides list shows `2026-07-17 9:00AM EDT`.
 
-- [ ] T006 [P] [US1] Tests first in `tests/models/test_requests.py`:
+- [x] T006 [P] [US1] Tests first in `tests/models/test_requests.py`:
   - `RideRequest(ride_date="0026-07-17", ...)` gives `date(2026, 7, 17)`.
   - The same for `MaintenanceLogRequest.performed_at`.
   - The same for `InstallPeriodRequest.installed_date` and `removed_date`, and `BuilderAddRequest.installed_date`, which give `"2026-07-17"`.
   - `"0202-03-01"` fails with the message "Enter a valid date" on each.
   - `BikeDetailsRequest(year="23", ...)` gives 2023, and `year="99"` fails with "Year must be between 1900 and …".
-- [ ] T007 [US1] Implement T006 in `app/models/requests.py`:
+- [x] T007 [US1] Implement T006 in `app/models/requests.py`:
   - a `mode="before"` validator calling `typed_dates.full_year` on those five fields (blank stays blank where it's optional);
   - in `BikeDetailsRequest._plausible_year`, a value from 0 to 99 gets 2000 added before the range check.
-- [ ] T008 [P] [US1] Tests first in `tests/models/test_form_errors.py`:
+- [x] T008 [P] [US1] Tests first in `tests/models/test_form_errors.py`:
   - `error_context` and `message_context` show `values["installed_date"] == "2026-03-01"` for a form that sent `"0026-03-01"`.
   - The same holds for `ride_date`, `performed_at` and `removed_date`.
   - A refused `"0202-03-01"` is shown as typed.
-- [ ] T009 [US1] Implement T008 in `app/models/form_errors.py`: normalize those date keys in `values` with `full_year`, leaving refused text as typed.
-- [ ] T010 [P] [US1] Tests first in `tests/services/test_ride_service.py`, with `_utc_now` pinned to `2026-11-18T15:00Z` and New York saved (10:00 AM EST):
+- [x] T009 [US1] Implement T008 in `app/models/form_errors.py`: normalize those date keys in `values` with `full_year`, leaving refused text as typed.
+- [x] T010 [P] [US1] Tests first in `tests/services/test_ride_service.py`, with `_utc_now` pinned to `2026-11-18T15:00Z` and New York saved (10:00 AM EST):
   - `create_ride` refuses `day=2026-11-19` with "The ride date cannot be in the future.".
   - It refuses today at `11:00`, and accepts today at `09:30` and today with no time.
   - `update_ride` refuses the same, and nothing is saved.
   - A Strava upsert with a future date is unaffected (call `mileage_db.upsert_ride_activity` directly).
-- [ ] T011 [US1] Implement T010 in `app/services/ride_service.py`: `check_not_future(day, time)` using `clock_service.today()` and `clock_service.to_utc`, called by `create_ride` and `update_ride` before saving.
-- [ ] T012 [P] [US1] Route tests first:
+- [x] T011 [US1] Implement T010 in `app/services/ride_service.py`: `check_not_future(day, time)` using `clock_service.today()` and `clock_service.to_utc`, called by `create_ride` and `update_ride` before saving.
+- [x] T012 [P] [US1] Route tests first:
   - `tests/routers/test_rides.py`:
     - posting `ride_date=0026-07-17` saves 2026-07-17;
     - a future date answers 422 with the message beside the date field;
@@ -69,7 +69,7 @@ description: "Task list for 076 four-digit years, two-digit typing"
   - `tests/routers/test_bikes.py`:
     - Edit bike with `year=23` saves 2023;
     - the Edit form's Year hint reads "For example 2022 or 22.".
-- [ ] T013 [US1] Make T012 pass:
+- [x] T013 [US1] Make T012 pass:
   - in `app/routers/rides.py`, show the future-date `ValueError` on `field="ride_date"` (create and update);
   - change the Year hint in `app/templates/bikes/form.html`.
 
@@ -81,8 +81,8 @@ description: "Task list for 076 four-digit years, two-digit typing"
 
 **Independent Test**: T004 passes on Linux.
 
-- [ ] T014 [US2] Test first in `tests/db/test_frames.py`: `clock_service.keep_or_convert` and `component_history_service.moment` called for year 999 (calling `frames` directly, since forms now refuse it) return a `"0999-"` value. It passes after T005; it guards the other writers.
-- [ ] T015 [US2] Audit every instant writer listed in plan.md (`grep -rn "strftime(" app`) and confirm each "now" writer uses the current year. Record the result in this task's note. No change is expected.
+- [x] T014 [US2] Test first in `tests/db/test_frames.py`: `clock_service.keep_or_convert` and `component_history_service.moment` called for year 999 (calling `frames` directly, since forms now refuse it) return a `"0999-"` value. It passes after T005; it guards the other writers.
+- [x] T015 [US2] Audit every instant writer listed in plan.md (`grep -rn "strftime(" app`) and confirm each "now" writer uses the current year. Record the result in this task's note. No change is expected. *Result (2026-11-18): every other writer formats `datetime.now(timezone.utc)` (always the current year), an epoch from Strava (`auth_service`, `strava_client`), or a backup file name from now; only `frames.to_utc`/`end_of_day_utc` take a typed year, and they now use `frames.stored`. The guard test is `tests/services/test_clock_service.py::test_every_typed_time_writer_keeps_a_four_digit_year`.*
 
 ## Phase 5: User Story 3 - Short years already stored are repaired (P2)
 

@@ -9,6 +9,23 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from pydantic import ValidationError
+from pydantic_core import PydanticCustomError
+
+from app.models.typed_dates import full_year
+
+# Typed date fields, shown back with the year read the way it is saved (specs/076 FR-005).
+_DATE_FIELDS = ("ride_date", "performed_at", "installed_date", "removed_date")
+
+
+def _values(form: Mapping[str, str]) -> dict:
+    values = dict(form)
+    for name in _DATE_FIELDS:
+        if name in values:
+            try:
+                values[name] = full_year(values[name])
+            except PydanticCustomError:
+                pass  # a refused year is shown as typed
+    return values
 
 
 def field_errors(exc: ValidationError) -> dict[str, str]:
@@ -31,7 +48,7 @@ def error_context(form: Mapping[str, str], exc: ValidationError) -> dict:
     return {
         "errors": [error["msg"] for error in exc.errors()],
         "field_errors": field_errors(exc),
-        "values": dict(form),
+        "values": _values(form),
     }
 
 
@@ -40,5 +57,5 @@ def message_context(form: Mapping[str, str], message: str, field: str | None = N
     return {
         "errors": [message],
         "field_errors": {field: message} if field else {},
-        "values": dict(form),
+        "values": _values(form),
     }

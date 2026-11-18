@@ -742,3 +742,18 @@ def test_install_histories_and_the_period_form_use_local_time_with_the_zone(sign
     assert 'value="2025-01-10"' in form and 'value="21:00"' in form
     assert 'value="2025-07-04"' in form and 'value="08:30"' in form
     assert "2025-01-10 9:00PM EST" in rides and "2025-07-04 8:30AM EDT" in rides
+
+
+# ------------------------------------------------ specs/076: two-digit years on Install History
+
+
+def test_a_two_digit_install_year_saves_as_20yy_and_a_refusal_shows_four_digits(signed_in_client):
+    bike = bike_service.create_bike(name="Road A")
+    saddle = component_service.create_component(name="Saddle", component_type="saddle")
+    path = f"/components/{saddle.id}/install-history"
+    ok = signed_in_client.post(path, data=_form(bike, installed_date="0025-01-01", removed_date="0025-07-01"), follow_redirects=False)
+    assert ok.status_code == 303
+    assert history.list_history(saddle.id)[0].installed_at.startswith("2025-01-01")
+    clash = signed_in_client.post(path, data=_form(bike, installed_date="0025-03-01", removed_date="0025-09-01"))
+    assert clash.status_code == 422 and "overlaps" in clash.text
+    assert 'value="2025-03-01"' in clash.text and 'value="2025-09-01"' in clash.text

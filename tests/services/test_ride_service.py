@@ -273,3 +273,53 @@ def test_saving_a_ride_with_an_unchanged_date_and_time_keeps_its_instant(db_path
 
     assert kept.occurred_at == "2026-11-13T19:26:41.000000Z"
     assert moved.occurred_at == "2026-11-13T20:00:00.000000Z"
+
+
+# ------------------------------------------------ specs/076 FR-011: a ride can't be dated in the future
+
+from datetime import datetime, timezone  # noqa: E402
+
+from app.db import accounts  # noqa: E402
+from app.services import clock_service  # noqa: E402
+
+FUTURE = "The ride date cannot be in the future."
+
+
+@pytest.fixture
+def ten_am_in_new_york(db_path, monkeypatch):
+    with connection.get_connection() as conn:
+        account = accounts.upsert_from_strava(conn, strava_athlete_id=1, access_token="a", refresh_token="r",
+                                              expires_at="2099-01-01T00:00:00Z")
+        accounts.update_timezone(conn, account.id, "America/New_York")
+    monkeypatch.setattr(clock_service, "_utc_now", lambda: datetime(2026, 11, 18, 15, 0, tzinfo=timezone.utc))
+
+
+def test_a_ride_dated_tomorrow_or_later_today_is_refused(ten_am_in_new_york):
+    bike = _bike()
+    with pytest.raises(ValueError, match=FUTURE):
+        ride_service.create_ride(bike.id, day=date(2026, 11, 19), time=None, miles=5, note=None)
+    with pytest.raises(ValueError, match=FUTURE):
+        ride_service.create_ride(bike.id, day=date(2026, 11, 18), time="11:00", miles=5, note=None)
+    with connection.get_connection() as conn:
+        assert mileage_db.list_rides_for_bike(conn, bike.id) == []
+
+
+def test_a_ride_earlier_today_or_today_without_a_time_is_accepted(ten_am_in_new_york):
+    bike = _bike()
+    ride_service.create_ride(bike.id, day=date(2026, 11, 18), time="09:30", miles=5, note=None)
+    ride_service.create_ride(bike.id, day=date(2026, 11, 18), time=None, miles=6, note=None)
+    assert _total(bike) == 111
+
+
+def test_editing_a_ride_into_the_future_is_refused_and_changes_nothing(ten_am_in_new_york):
+    bike = _bike()
+    ride = ride_service.create_ride(bike.id, day=date(2026, 11, 17), time="08:00", miles=5, note=None)
+    with pytest.raises(ValueError, match=FUTURE):
+        ride_service.update_ride(ride.id, bike_id=bike.id, day=date(2026, 12, 1), time=None, miles=5, note=None)
+    assert ride_service.get_ride(ride.id).occurred_at == ride.occurred_at
+
+
+def test_strava_rides_are_never_checked(ten_am_in_new_york):
+    bike = _bike()
+    _strava(bike, 1, 10, "2026-12-01T08:00:00.000000Z")
+    assert _total(bike) == 110

@@ -133,6 +133,11 @@ def today() -> date:
     return _utc_now().astimezone(_zone()).date()
 
 
+def now() -> str:
+    """The current moment as stored UTC text (specs/076)."""
+    return frames.stored(_utc_now())
+
+
 # The time zone picker: one representative zone per common UTC offset; daylight saving follows
 # the real region, and the labels show the offset in force when the page is shown (specs/074).
 # Not a list of countries and cities. Order does not matter here; choices are sorted by offset.

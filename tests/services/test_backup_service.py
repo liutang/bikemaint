@@ -173,3 +173,20 @@ def test_restoring_a_format_2_backup_converts_nothing(db_path):
     backup_service.restore_backup(json.loads(json.dumps(backup_service.export_backup())))
 
     assert _snapshot() == before
+
+
+def test_a_64_bit_activity_id_survives_a_backup_and_restore_exactly(db_path):
+    """Strava 64-bit ids (017 T020): the JSON file and the restore keep an id above 2**53 exact."""
+    big_id = 2**62 + 12345
+    bike = bike_service.create_bike(name="Road")
+    with connection.get_connection() as conn:
+        mileage_db.upsert_ride_activity(conn, strava_activity_id=big_id, strava_gear_id="g", bike_id=bike.id,
+                                        distance_miles=10.0, occurred_at="2027-06-02T08:00:00.000000Z")
+    data = json.loads(json.dumps(backup_service.export_backup()))
+    with connection.get_connection() as conn:
+        conn.execute("DELETE FROM ride_activity")
+
+    backup_service.restore_backup(data)
+
+    with connection.get_connection() as conn:
+        assert [r[0] for r in conn.execute("SELECT strava_activity_id FROM ride_activity")] == [big_id]

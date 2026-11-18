@@ -55,6 +55,7 @@ Format: `- [ ] ID [P] [Story] Description (file paths)`. `[x]` = shipped in PRs 
 ## Phase 4: Amendment from user testing (branch 019)
 
 - [x] T019 [US3] Failing test, then fix: the Unpair button is a bordered `btn` like its neighbours (`app/templates/partials/part_actions.html`; `tests/routers/test_strava_pairing.py::test_unpair_button_is_bordered_like_its_neighbours`)
+- [x] T020 Chore (branch 077, no behavior change): regression tests for Strava's 64-bit Activity and Athlete ids (Strava API notice, effective 2027-06-01). An id above 2**53 (`2**62 + 12345`) stays exact through sync and a re-sync of the same activity (`tests/services/test_sync_service.py`), Re-import twice with no duplicate, sign-in and the next sign-in finding the same account (`tests/services/test_auth_service.py`), and a backup export and restore (`tests/services/test_backup_service.py`). No code change: Python reads the JSON ints exactly, the SQLite `INTEGER` columns hold signed 64-bit values, no Strava id reaches the browser, and `id_str` is not used.
 
 ## Dependencies
 

@@ -9,6 +9,7 @@
 
 Answers from the review on 2026-11-18:
 - The bike's model Year also reads a two-digit year as 20yy.
+- Ride dates in the future are refused, "since that shouldn't exist" (added 2026-11-18).
 - Stored times that already have a short year are repaired at startup and on every backup restore.
 
 ## Background
@@ -41,9 +42,14 @@ The rider types a date with a two-digit year, for example 7/17/26. The app reads
    - maintenance entries (Log and Edit).
 3. **Given** a form saved with a two-digit year, **When** it is shown again (after saving, or refused for another reason such as an overlapping period), **Then** the year reads as the four-digit year, for example 2026.
 4. **Given** the bike's model Year on Add or Edit bike, **When** the rider types 23, **Then** it is saved as 2023. The usual range, 1900 to next year, is then checked: 99 means 2099 and is refused with the existing "Year must be between 1900 and …" message.
-5. **Given** a two-digit year that lands in the future, **Then** the existing rules apply unchanged:
-   - Install and removal dates are refused with "… cannot be in the future."
-   - Ride and maintenance dates are accepted, as they are today for any future date.
+5. **Given** a two-digit year that lands in the future, **Then**:
+   - Install and removal dates are refused with "… cannot be in the future.", as today.
+   - Ride dates are refused too (US1 scenario 6).
+   - Maintenance dates are accepted, as they are today for any future date.
+6. **Given** the Add ride or Edit ride form, **When** the date is after today (in the saved zone), or it is today with a typed time later than now, **Then** the form is refused with "The ride date cannot be in the future." and nothing is saved.
+   - This is new: until now any future ride date was accepted.
+   - A ride for today with no time is accepted at any hour (it is still stored as noon, 075).
+   - Strava rides are never checked.
 
 ---
 
@@ -107,6 +113,7 @@ Any stored time with a year below 100, whether written as `21-…` or `0021-…`
 - **FR-008**: A repair MUST keep the local date and time the rider typed, change only the year to 20yy, and re-convert with that date's real offset in the saved zone.
 - **FR-009**: Strava rides MUST NOT be changed.
 - **FR-010**: A value that can't be repaired MUST be left unchanged and logged as a warning with its table and id.
+- **FR-011**: Adding or editing a ride MUST refuse a date after today, or today with a typed time later than now, with "The ride date cannot be in the future.", with nothing saved. Rides already stored with a future date are left as they are, and editing one is refused until its date is corrected.
 
 ### Key Entities
 
@@ -125,7 +132,8 @@ Any stored time with a year below 100, whether written as `21-…` or `0021-…`
 ## Assumptions
 
 - **Why 20yy:** the rider chose 20yy for every short year ("20xx is fine"). A 19yy pivot for years that land in the future was not used.
-- **Unchanged:** future ride and maintenance dates stay accepted.
+- **Future dates:** maintenance dates may still be in the future; ride dates may not (FR-011). This amends 006 (manual rides).
+- **A ride typed for today with no time:** it is accepted at any hour, so a morning entry isn't refused for its default noon time.
 - **Which values get repaired:** the same columns 075 converted, plus the maintenance entry's local date, which could hold `0021-…` from before 075.
 - **Data steps:** the repair runs as a data step after the SQL migrations, like 075's conversion, recorded in `schema_version`.
   - Unlike 075, it makes no database copy first. It changes only values already broken, and the rider's daily backups exist.

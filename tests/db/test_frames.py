@@ -42,3 +42,26 @@ def test_from_utc_gives_the_local_moment():
 def test_end_of_day_utc_is_the_last_moment_of_the_local_day():
     assert frames.end_of_day_utc("2026-11-16", NY) == "2026-11-17T04:59:59.999999Z"
     assert frames.end_of_day_utc("2026-07-04", NY) == "2026-07-05T03:59:59.999999Z"
+
+
+# ------------------------------------------------ specs/076 FR-004: four-digit years on every platform
+
+
+def test_stored_writes_a_four_digit_year():
+    assert frames.stored(datetime(999, 1, 2, 3, 4, 5, tzinfo=timezone.utc)) == "0999-01-02T03:04:05.000000Z"
+    assert frames.stored(datetime(2026, 11, 18, 9, 0, tzinfo=timezone.utc)) == "2026-11-18T09:00:00.000000Z"
+
+
+def test_to_utc_and_end_of_day_keep_four_digit_years():
+    # glibc's strftime("%Y") writes "21" here; macOS writes "0021" (specs/076 Background).
+    assert frames.to_utc("0021-04-18", "00:00", "UTC").startswith("0021-04-18T")
+    assert frames.end_of_day_utc("0021-04-18", "UTC") == "0021-04-18T23:59:59.999999Z"
+
+
+def test_the_writers_use_stored_rather_than_strftime_year(monkeypatch):
+    calls = []
+    real = frames.stored
+    monkeypatch.setattr(frames, "stored", lambda dt: calls.append(dt) or real(dt))
+    frames.to_utc("2026-11-16", "17:39", NY)
+    frames.end_of_day_utc("2026-11-16", NY)
+    assert len(calls) == 2

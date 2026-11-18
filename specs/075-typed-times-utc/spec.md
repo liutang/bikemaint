@@ -175,3 +175,7 @@ A maintenance entry logged at 9:00 PM on November 16 in New York is 02:00 UTC on
 - The date pickers stay the browser's own. Only what is stored and shown changes.
 - The rider has not edited any Strava ride, so every Strava ride holds Strava's own UTC time (confirmed by the rider 2026-11-17).
 - Schedule usage counts that change (US3 scenario 3) are not reported one by one. The corrected values simply appear (confirmed by the rider 2026-11-17: not worth a report).
+
+## Amendments
+
+- **2026-11-18 (feature 076)**: FR-001's stored instants always have a four-digit, zero-padded year, on every platform. A typed year from 0 to 99 means 2000 to 2099, and years 100 to 1899 are refused. Stored short years are repaired once by the data step `0020_four_digit_years` and on every restore. See `specs/076-four-digit-years/`.

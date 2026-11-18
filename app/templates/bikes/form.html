@@ -17,7 +17,7 @@
         {% if legacy %}
         <p class="text-muted">This bike has a single name, “{{ bike.name }}”. Leave year, make and model blank to keep it, or fill in all three to replace it.</p>
         {% endif %}
-        {{ field("year", "Year", bike.year if bike and bike.year else "", values, field_errors, type="text", required=not legacy, hint="Four digits, for example 2022.") }}
+        {{ field("year", "Year", bike.year if bike and bike.year else "", values, field_errors, type="text", required=not legacy, hint="For example 2022 or 22.") }}
         <div class="field-row">
           {{ field("make", "Make", bike.make if bike and bike.make else "", values, field_errors, required=not legacy, hint="For example Trek or Specialized.") }}
           {{ field("model", "Model", bike.model if bike and bike.model else "", values, field_errors, required=not legacy, hint="For example Domane or Tarmac.") }}

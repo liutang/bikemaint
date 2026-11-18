@@ -280,3 +280,11 @@ def test_the_add_and_edit_pages_show_a_breadcrumb(signed_in_client):
 
     assert '<nav class="breadcrumb" aria-label="Breadcrumb">' in add and '<a href="/">Garage</a>' in add
     assert '<a href="/bikes/1">2022 Trek Domane</a>' in edit and 'aria-current="page"><span>Edit</span>' in edit
+
+
+def test_a_two_digit_model_year_saves_as_20yy_and_the_hint_says_so(signed_in_client):
+    """specs/076 FR-002."""
+    bike = bike_service.create_bike_from_details(year=2022, make="Trek", model="Domane", category="road")
+    signed_in_client.post(f"/bikes/{bike.id}", data={**DOMANE, "year": "23"})
+    assert bike_service.get_bike(bike.id).year == 2023
+    assert "For example 2022 or 22." in signed_in_client.get(f"/bikes/{bike.id}/edit").text

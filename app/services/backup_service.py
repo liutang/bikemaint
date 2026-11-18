@@ -141,6 +141,9 @@ def restore_backup(data: dict) -> dict[str, int]:
                 "converted an older backup's typed times %s",
                 " ".join(f"{table}={n}" for table, n in counts_converted.items()),
             )
+        repaired = typed_times.repair_short_years(conn, typed_times.saved_zone(conn))  # specs/076 FR-007
+        if any(repaired.values()):
+            logger.info("repaired short years in a backup %s", " ".join(f"{table}={n}" for table, n in repaired.items()))
         for (bike_id,) in conn.execute("SELECT id FROM bike").fetchall():
             mileage_db.recompute_bike_total_mileage(conn, bike_id)
         mileage_db.recompute_all_component_totals(conn)

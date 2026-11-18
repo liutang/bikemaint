@@ -61,3 +61,24 @@ def test_message_context_for_non_pydantic_errors():
         "values": {"delta_miles": "abc"},
     }
     assert message_context({"a": "1"}, "Oops")["field_errors"] == {}
+
+
+# ------------------------------------------------ specs/076 FR-005: refused forms show four-digit years
+
+from app.models.form_errors import message_context  # noqa: E402
+
+
+def test_refused_forms_show_two_digit_years_as_four_digits():
+    form = {"installed_date": "0026-03-01", "removed_date": "0026-04-01", "ride_date": "0026-07-17",
+            "performed_at": "0000-01-05", "note": "0026-01-01"}
+    values = message_context(form, "That overlaps another period.")["values"]
+    assert values["installed_date"] == "2026-03-01"
+    assert values["removed_date"] == "2026-04-01"
+    assert values["ride_date"] == "2026-07-17"
+    assert values["performed_at"] == "2000-01-05"
+    assert values["note"] == "0026-01-01"  # not a date field
+
+
+def test_a_refused_year_is_shown_as_typed():
+    values = message_context({"ride_date": "0202-03-01"}, "Enter a valid date")["values"]
+    assert values["ride_date"] == "0202-03-01"

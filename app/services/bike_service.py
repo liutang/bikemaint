@@ -45,8 +45,15 @@ def get_bike(bike_id: int) -> Bike | None:
 
 
 def list_bikes() -> list[Bike]:
+    """Active bikes: not deleted and not archived (specs/079 FR-008). The Garage grid and every Bike list."""
     with get_connection() as conn:
-        return bikes_db.list_active(conn)
+        return [b for b in bikes_db.list_active(conn) if b.archived_at is None]
+
+
+def list_archived_bikes() -> list[Bike]:
+    """Archived bikes, newest archived first (specs/079)."""
+    with get_connection() as conn:
+        return bikes_db.list_archived(conn)
 
 
 def create_bike(

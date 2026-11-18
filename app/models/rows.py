@@ -68,6 +68,7 @@ class Bike:
     year: int | None = None
     make: str | None = None
     model: str | None = None
+    archived_at: str | None = None  # specs/079: set while archived
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Bike:
@@ -85,6 +86,7 @@ class Bike:
             year=row["year"],
             make=row["make"],
             model=row["model"],
+            archived_at=row["archived_at"] if "archived_at" in row.keys() else None,
         )
 
 
@@ -101,6 +103,7 @@ class Component:
     created_at: str
     updated_at: str
     position: int = 0
+    archived_at: str | None = None  # specs/079: set while archived
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Component:
@@ -116,6 +119,7 @@ class Component:
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             position=row["position"],
+            archived_at=row["archived_at"] if "archived_at" in row.keys() else None,
         )
 
 

@@ -118,3 +118,18 @@ def soft_delete(conn: sqlite3.Connection, bike_id: int) -> None:
     conn.execute(
         "UPDATE bike SET is_deleted = 1, updated_at = ? WHERE id = ?", (_now(), bike_id)
     )
+
+
+def set_archived(conn: sqlite3.Connection, bike_id: int, archived_at: str | None) -> None:
+    """Archive a bike (a UTC instant) or make it active again (None) (specs/079)."""
+    conn.execute(
+        "UPDATE bike SET archived_at = ?, updated_at = ? WHERE id = ?", (archived_at, _now(), bike_id)
+    )
+
+
+def list_archived(conn: sqlite3.Connection) -> list[Bike]:
+    """Archived bikes, newest archived first (specs/079)."""
+    rows = conn.execute(
+        "SELECT * FROM bike WHERE is_deleted = 0 AND archived_at IS NOT NULL ORDER BY archived_at DESC, id"
+    ).fetchall()
+    return [Bike.from_row(row) for row in rows]

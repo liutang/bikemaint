@@ -403,3 +403,53 @@ def test_a_database_with_no_short_years_is_unchanged_by_the_update(db_path):
 
     with connection.get_connection() as conn:
         assert _snapshot(conn) == before
+
+
+# ------------------------------------------------ specs/081: unedited Strava rides are rescaled once
+
+OLD, NEW = 1609.34, 1609.344
+
+
+def _ride_row(conn, n, *, source="strava", edited=0, deleted=0, upstream=0, filtered=0, meters=16093.44):
+    bike = conn.execute("SELECT id FROM bike LIMIT 1").fetchone()[0]
+    conn.execute(
+        "INSERT INTO ride_activity (source, strava_activity_id, bike_id, distance_miles, occurred_at, user_modified,"
+        " deleted_by_user, is_deleted_upstream, filtered_out) VALUES (?, ?, ?, ?, '2026-09-01T08:00:00.000000Z', ?, ?, ?, ?)",
+        (source, n if source == "strava" else None, bike, meters / OLD, edited, deleted, upstream, filtered),
+    )
+    return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+
+def test_exact_miles_rescales_only_unedited_strava_rides(db_path):
+    with connection.get_connection() as conn:
+        _account(conn)
+        bikes.create(conn, name="Road")
+        plain, deleted, upstream, filtered = (_ride_row(conn, n, **kw) for n, kw in (
+            (1, {}), (2, {"deleted": 1}), (3, {"upstream": 1}), (4, {"filtered": 1})))
+        edited = _ride_row(conn, 5, edited=1)
+        manual = _ride_row(conn, 0, source="manual", edited=1)
+        counts = typed_times.exact_miles(conn)
+        miles = dict(conn.execute("SELECT id, distance_miles FROM ride_activity").fetchall())
+    for rid in (plain, deleted, upstream, filtered):
+        assert miles[rid] == pytest.approx(16093.44 / NEW, abs=1e-12)
+    for rid in (edited, manual):
+        assert miles[rid] == 16093.44 / OLD
+    assert counts == {"ride_activity": 4}
+
+
+def test_exact_miles_runs_once_with_no_copy_and_leaves_typed_miles(db_path):
+    with connection.get_connection() as conn:
+        _account(conn)
+        bike = bikes.create(conn, name="Road")
+        rid = _ride_row(conn, 1)
+        conn.execute("UPDATE bike SET manual_baseline_mileage = 100 WHERE id = ?", (bike.id,))
+        conn.execute("DELETE FROM schema_version WHERE version = '0022_exact_miles'")
+
+    connection.run_migrations()
+    connection.run_migrations()
+
+    with connection.get_connection() as conn:
+        assert _value(conn, "SELECT distance_miles FROM ride_activity WHERE id = ?", rid) == pytest.approx(16093.44 / NEW, abs=1e-12)
+        assert _value(conn, "SELECT COUNT(*) FROM schema_version WHERE version = '0022_exact_miles'") == 1
+        assert _value(conn, "SELECT manual_baseline_mileage FROM bike WHERE id = ?", bike.id) == 100
+    assert list(db_path.parent.glob("*-before-*")) == []

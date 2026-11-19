@@ -17,3 +17,7 @@
 
 ## Assumptions
 - Display only.
+
+## Amendments
+
+- **2026-11-18 (feature 084)**: the wrench link's label is "Maintenance" (was "Maintenance due"); the icon is unchanged. See `specs/084-quiet-top-bar/`.

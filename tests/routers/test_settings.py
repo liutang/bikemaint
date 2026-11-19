@@ -316,3 +316,13 @@ def test_the_time_zone_card_says_every_time_is_recorded_in_utc_and_shown_in_this
     assert "shown exactly as typed" not in card
     assert "Every time is recorded in UTC and shown in this zone" in card
     assert "Times you type are read in this zone" in card
+
+
+def test_the_strava_card_shows_the_last_sync_line_and_the_mute_card_says_maintenance(signed_in_client):
+    """specs/084 US1 scenario 2 and US2 scenario 2."""
+    import re
+
+    page = signed_in_client.get("/settings").text
+    line = re.search(r'<p class="sync-line"><span class="sync-status sync-(ok|error|off|unknown)" aria-hidden="true"></span>(.*?)</p>', page, re.S)
+    assert line and line.group(2).strip()
+    assert "Schedules still appear under Maintenance." in page

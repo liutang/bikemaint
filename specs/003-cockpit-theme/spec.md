@@ -155,3 +155,4 @@ This feature changes presentation only. It reads existing schedule status (overd
 ## Amendments
 - **2026-11-13 (branch `026-last-sync-time`)**: FR-006a added; the indicator now reads a recorded last-successful-sync time on the account instead of the newest ride row.
 - **2026-11-14 (branch `032-sync-indicator-colors`)**: FR-006b added (dot colors and when sync counts as not working; the rider chose connection stale or no successful sync for two intervals).
+- **2026-11-18 (feature 084)**: FR-006a's label is no longer shown in the top bar. The dot alone shows FR-006b's state, and its hover text and accessible name give the state and the relative time, for example "Sync is working · 7 min ago". The full last-sync sentence moved to the Strava connection card in Settings. The rules for the time and the colours are unchanged. See `specs/084-quiet-top-bar/`.

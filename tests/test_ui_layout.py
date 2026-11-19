@@ -34,3 +34,9 @@ def test_card_grid_is_two_columns_on_wide_screens_and_one_on_narrow_ones():
     grid = _rule(".card-grid {")
     assert "auto-fit" in grid and "min(100%" in grid and "align-items: stretch" in grid
     assert "grid-column: 1 / -1" in _rule(".card-grid > .panel.wide")
+
+
+def test_checkboxes_and_radios_keep_their_size_when_their_label_wraps():
+    """specs/079 T037 (branch 080): a two-line label must not squeeze its bubble or box."""
+    assert "flex-shrink: 0" in _rule('input[type="radio"]')
+    assert "flex-shrink: 0" in _rule('input[type="checkbox"]')

@@ -1092,12 +1092,9 @@ input[type="radio"] {
   margin: 0;
 }
 
+/* 072 FR-002: Mark done is as wide as its text; Edit and Delete sit at the card's right edge. */
 .attention-actions .attention-done {
-  flex: 1 1 auto;
-}
-
-.attention-actions .attention-done .btn {
-  width: 100%;
+  margin-right: auto;
 }
 
 .ring-wrap {

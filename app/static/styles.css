@@ -1809,3 +1809,8 @@ button[disabled],
 
 /* ------------------------------------------------ specs/083: ride titles */
 .ride-note { display: block; color: var(--text-muted); font-size: var(--font-size-sm); }
+
+/* ------------------------------------------------ specs/086: usage leads */
+.lead-fields { border: 0; padding: 0; margin: 0; }
+.lead-fields legend { font-weight: 600; margin-bottom: var(--space-2); }
+

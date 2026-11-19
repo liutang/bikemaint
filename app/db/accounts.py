@@ -108,6 +108,14 @@ def update_webhook_url(conn: sqlite3.Connection, account_id: int, url: str | Non
     )
 
 
+def update_leads(conn: sqlite3.Connection, account_id: int, *, miles: float, rides: int, hours: float) -> None:
+    """Save the usage leads (specs/086)."""
+    conn.execute(
+        "UPDATE account SET lead_miles = ?, lead_rides = ?, lead_hours = ?, updated_at = ? WHERE id = ?",
+        (miles, rides, hours, _now(), account_id),
+    )
+
+
 def update_lead_time_days(conn: sqlite3.Connection, account_id: int, days: int) -> None:
     conn.execute(
         "UPDATE account SET notification_lead_time_days = ?, updated_at = ? WHERE id = ?",

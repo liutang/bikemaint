@@ -61,3 +61,4 @@ A "Mute notifications" switch on Settings stops all due-soon notifications and w
 ## Amendments
 
 - **2026-11-18 (feature 084)**: the Mute card reads "Schedules still appear under Maintenance." (the nav label was renamed). See `specs/084-quiet-top-bar/`.
+- **2026-11-18 (feature 086)**: muting still records and sends nothing, whichever lead triggered due soon. See `specs/086-usage-lead-time/`.

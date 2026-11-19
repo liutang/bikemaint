@@ -276,6 +276,10 @@ class WebhookSettingsRequest(BaseModel):
 
 class LeadTimeSettingsRequest(BaseModel):
     notification_lead_time_days: int = Field(ge=0, le=365)
+    # specs/086: how much left makes a usage schedule due soon; None = not sent, keep the saved value.
+    lead_miles: float | None = Field(default=None, ge=0, le=10000)
+    lead_rides: int | None = Field(default=None, ge=0, le=1000)
+    lead_hours: float | None = Field(default=None, ge=0, le=1000)
 
 
 MIN_SYNC_MINUTES = 5

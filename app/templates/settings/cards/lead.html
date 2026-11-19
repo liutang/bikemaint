@@ -2,9 +2,18 @@
 {% from "partials/forms.html" import field %}
 <section class="panel" aria-labelledby="lead-heading">
   {{ head("lead", "Lead time") }}
-  <p class="text-muted">Currently {{ account.notification_lead_time_days }} days.</p>
+  <p class="text-muted">Currently {{ account.notification_lead_time_days }} days, {{ account.lead_miles|num0 if account.lead_miles == account.lead_miles|int else account.lead_miles|num1 }} miles, {{ account.lead_rides }} rides or {{ account.lead_hours|num0 if account.lead_hours == account.lead_hours|int else account.lead_hours|num1 }} hours, whichever comes first.</p>
   <form class="form" {{ autosave("/settings/notifications") }}>
-    {{ field("notification_lead_time_days", "Notify this many days before something is due", account.notification_lead_time_days, values, field_errors, type="number", min=0, required=true) }}
+    <fieldset class="lead-fields">
+      <legend>Notify me when a schedule has this much left</legend>
+      <div class="field-row">
+        {{ field("notification_lead_time_days", "Days", account.notification_lead_time_days, values, field_errors, type="number", min=0, required=true) }}
+        {{ field("lead_miles", "Miles", account.lead_miles|round(1)|string|replace(".0", ""), values, field_errors, type="number", step="any", min=0, required=true) }}
+        {{ field("lead_rides", "Rides", account.lead_rides, values, field_errors, type="number", min=0, required=true) }}
+        {{ field("lead_hours", "Hours", account.lead_hours|round(1)|string|replace(".0", ""), values, field_errors, type="number", step="any", min=0, required=true) }}
+      </div>
+    </fieldset>
+    <small class="field-hint">A schedule turns due soon, and notifies you once, as soon as any one of these is reached. Days count toward its estimated date; miles, rides and hours count toward its interval, matching what it's measured in. 0 turns one off.</small>
     {{ fallback_save() }}
   </form>
 </section>

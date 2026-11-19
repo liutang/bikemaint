@@ -30,3 +30,7 @@ A rider whose chain is overdue gets a webhook message that says how late it is, 
 
 ## Assumptions
 - Notifications already sent are not changed.
+
+## Amendments
+
+- **2026-11-18 (feature 086)**: a due-soon notification may now be triggered by what's left; the webhook payload is unchanged, and `projected_due_at` is today when there's no estimated date. See `specs/086-usage-lead-time/`.

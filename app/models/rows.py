@@ -29,6 +29,9 @@ class Account:
     clock_format: str = "12"
     notifications_muted: bool = False
     strava_last_synced_at: str | None = None
+    lead_miles: float = 20.0  # specs/086: due soon at this much left, per usage unit
+    lead_rides: int = 2
+    lead_hours: float = 2.0
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Account:
@@ -50,6 +53,9 @@ class Account:
             clock_format=row["clock_format"],
             notifications_muted=bool(row["notifications_muted"]),
             strava_last_synced_at=row["strava_last_synced_at"],
+            lead_miles=float(row["lead_miles"]) if "lead_miles" in row.keys() else 20.0,
+            lead_rides=int(row["lead_rides"]) if "lead_rides" in row.keys() else 2,
+            lead_hours=float(row["lead_hours"]) if "lead_hours" in row.keys() else 2.0,
         )
 
 

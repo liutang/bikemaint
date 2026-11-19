@@ -68,7 +68,7 @@ def test_a_refused_change_says_not_saved_with_the_reason_and_keeps_the_stored_va
 def test_the_card_shows_the_new_value_in_its_description(signed_in_client):
     html = signed_in_client.post("/settings/notifications", data={"notification_lead_time_days": "12"}, headers=HX).text
 
-    assert "Currently 12 days." in html
+    assert "Currently 12 days, 20 miles, 2 rides or 2 hours, whichever comes first." in html  # specs/086
 
 
 def test_the_theme_change_reloads_the_page_so_the_theme_applies(signed_in_client):

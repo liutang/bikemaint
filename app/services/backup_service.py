@@ -34,7 +34,7 @@ TABLES = (
 # Account columns that are settings (not secrets).
 SETTINGS = (
     "strava_sync_enabled", "strava_sync_interval_minutes", "timezone", "clock_format",
-    "notifications_muted", "notification_lead_time_days",
+    "notifications_muted", "notification_lead_time_days", "lead_miles", "lead_rides", "lead_hours",
 )
 
 

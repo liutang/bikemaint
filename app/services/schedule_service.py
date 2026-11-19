@@ -44,6 +44,7 @@ class Projection:
     remaining: float | None = None  # usage left, in `remaining_unit` (specs/040)
     remaining_unit: str | None = None  # "miles" | "rides" | "hours"
     over: float | None = None  # how far past a usage interval, in `remaining_unit` (specs/040 FR-012)
+    on_bike: bool = False  # the schedule's bike, or its part's bike, exists (specs/086: usage leads apply)
 
 
 @dataclass(frozen=True)
@@ -57,22 +58,55 @@ class DueItem:
     days_until: int | None = None  # days to the projected date; negative = days late
     bike_name: str | None = None  # the bike a part schedule's part is on (None for bike schedules)
     ring: float = 0.0  # progress-ring fill, 0..1 (see `ring_fraction`)
+    trigger: str | None = None  # why it's due soon: "date", "miles", "rides" or "hours" (specs/086)
 
 
 DEFAULT_LEAD_TIME_DAYS = 7
 
 
-def due_status(projection: Projection, lead_time_days: int, today: date) -> str:
-    """Dashboard status for a projection: overdue, due_soon, on_track or no_estimate.
+@dataclass(frozen=True)
+class Leads:
+    """How close counts as due soon (specs/086): days to the estimated date, and amount left per unit."""
 
-    `due_soon` mirrors the notification rule: not overdue and due within `lead_time_days`.
+    days: int
+    miles: float = 0.0
+    rides: int = 0
+    hours: float = 0.0
+
+    def for_unit(self, unit: str | None) -> float:
+        return {"miles": self.miles, "rides": self.rides, "hours": self.hours}.get(unit or "", 0)
+
+
+def leads_for(account) -> Leads:
+    """The rider's Lead time card as `Leads`."""
+    return Leads(days=account.notification_lead_time_days, miles=account.lead_miles,
+                 rides=account.lead_rides, hours=account.lead_hours)
+
+
+def due_trigger(projection: Projection, leads: Leads, today: date) -> str | None:
+    """Why a schedule is due soon, or None (specs/086 FR-002), the one rule the board and notifications share.
+
+    Due soon when not overdue and either its amount left is at or under its unit's lead (above 0,
+    and only while it's on a bike), or its estimated date is within the days lead.
     """
     if projection.is_overdue:
+        return None
+    lead = leads.for_unit(projection.remaining_unit)
+    if projection.on_bike and lead > 0 and projection.remaining is not None and projection.remaining <= lead:
+        return projection.remaining_unit
+    if projection.due_at is not None and (projection.due_at - today).days <= leads.days:
+        return "date"
+    return None
+
+
+def due_status(projection: Projection, lead_time_days: int, today: date, *, leads: Leads | None = None) -> str:
+    """Dashboard status for a projection: overdue, due_soon, on_track or no_estimate (specs/086 for the usage leads)."""
+    if projection.is_overdue:
         return "overdue"
+    if due_trigger(projection, leads or Leads(days=lead_time_days), today):
+        return "due_soon"
     if projection.due_at is None:
         return "no_estimate"
-    if (projection.due_at - today).days <= lead_time_days:
-        return "due_soon"
     return "on_track"
 
 
@@ -81,12 +115,17 @@ MAX_URGENT_TILES = 6
 RING_FLOOR = 0.08  # a due-soon ring always shows at least a sliver of arc
 
 
-def ring_fraction(status: str, days_until: int | None, lead_time_days: int) -> float:
-    """How full a task's progress ring is: overdue is full, due soon grows as the date nears."""
+def ring_fraction(
+    status: str, days_until: int | None, lead_time_days: int, *, left: float | None = None, lead: float | None = None
+) -> float:
+    """How full a task's progress ring is: overdue is full, due soon grows as the date (or, for a
+    usage lead, the amount left: specs/086) nears."""
     if status == "overdue":
         return 1.0
     if status != "due_soon":
         return 0.0
+    if left is not None and lead:
+        return min(1.0, max(RING_FLOOR, 1 - left / lead))
     if days_until is None or days_until <= 0 or lead_time_days <= 0:
         return 1.0
     return min(1.0, max(RING_FLOOR, 1 - days_until / lead_time_days))
@@ -504,6 +543,7 @@ def _project(conn, schedule: MaintenanceSchedule, today: date) -> Projection:
         due_at, low_confidence = usage_due, True
 
     is_overdue = usage_exceeded or (time_due is not None and time_due < today)
+    on_bike = _top_bike_id(conn, schedule) is not None
     return Projection(
         due_at=due_at,
         remaining_miles=remaining if unit == "miles" else None,
@@ -512,6 +552,7 @@ def _project(conn, schedule: MaintenanceSchedule, today: date) -> Projection:
         remaining=remaining,
         remaining_unit=unit,
         over=over,
+        on_bike=on_bike,
     )
 
 
@@ -530,14 +571,17 @@ def _bike_name_for_part(conn, schedule: MaintenanceSchedule) -> str | None:
 
 
 def _due_item(
-    conn, schedule: MaintenanceSchedule, today: date, lead_time_days: int
+    conn, schedule: MaintenanceSchedule, today: date, lead_time_days: int, leads: Leads | None = None
 ) -> DueItem | None:
     owner = _owner(conn, schedule)
     if owner is None:
         return None  # the bike/component was deleted; nothing to project
     projection = _project(conn, schedule, today)
-    status = due_status(projection, lead_time_days, today)
+    leads = leads or Leads(days=lead_time_days)
+    status = due_status(projection, lead_time_days, today, leads=leads)
+    trigger = due_trigger(projection, leads, today)
     days_until = (projection.due_at - today).days if projection.due_at is not None else None
+    by_usage = trigger in ("miles", "rides", "hours")
     return DueItem(
         schedule=schedule,
         owner_type="bike" if schedule.bike_id is not None else "component",
@@ -547,7 +591,10 @@ def _due_item(
         status=status,
         days_until=days_until,
         bike_name=_bike_name_for_part(conn, schedule),
-        ring=ring_fraction(status, days_until, lead_time_days),
+        ring=ring_fraction(status, days_until, lead_time_days,
+                           left=projection.remaining if by_usage else None,
+                           lead=leads.for_unit(trigger) if by_usage else None),
+        trigger=trigger,
     )
 
 
@@ -596,7 +643,7 @@ def get_due_item(
 
 
 def list_due_overview(
-    *, today: date | None = None, lead_time_days: int = DEFAULT_LEAD_TIME_DAYS
+    *, today: date | None = None, lead_time_days: int = DEFAULT_LEAD_TIME_DAYS, leads: Leads | None = None
 ) -> list[DueItem]:
     """Every active schedule in the garage, most urgent first (FR-019)."""
     day = _today(today)
@@ -604,7 +651,7 @@ def list_due_overview(
         items = [
             item
             for schedule in schedules_db.list_all_active(conn)
-            if (item := _due_item(conn, schedule, day, lead_time_days)) is not None
+            if (item := _due_item(conn, schedule, day, leads.days if leads else lead_time_days, leads)) is not None
         ]
     return sorted(
         items,

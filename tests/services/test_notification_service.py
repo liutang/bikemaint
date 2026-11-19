@@ -337,3 +337,32 @@ def test_due_soon_checks_use_the_riders_date(db_path, new_york, monkeypatch):
     notification_service.check_due_schedules()
 
     assert seen == [date(2026, 11, 16)]
+
+
+# ------------------------------------------------ specs/086: notifications follow the same rule
+
+
+def _usage_due_soon_schedule(left=18):
+    bike = bike_service.create_bike(name="Road")
+    return schedule_service.create_schedule(bike_id=bike.id, name="Lube", interval_miles=left)
+
+
+def test_a_usage_due_soon_schedule_notifies_once_with_todays_date_when_there_is_no_estimate(db_path):
+    _account()
+    schedule = _usage_due_soon_schedule()
+    first = notification_service.check_due_schedules(today=TODAY)
+    second = notification_service.check_due_schedules(today=TODAY)
+    assert [n.schedule_id for n in first] == [schedule.id] and second == []
+    assert first[0].projected_due_at == TODAY.isoformat()
+
+
+def test_muted_or_switched_off_records_nothing_for_usage_due_soon(db_path):
+    account = _account()
+    schedule = _usage_due_soon_schedule()
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE maintenance_schedule SET notify = 0 WHERE id = ?", (schedule.id,))
+    assert notification_service.check_due_schedules(today=TODAY) == []
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE maintenance_schedule SET notify = 1 WHERE id = ?", (schedule.id,))
+        conn.execute("UPDATE account SET notifications_muted = 1 WHERE id = ?", (account.id,))
+    assert notification_service.check_due_schedules(today=TODAY) == []

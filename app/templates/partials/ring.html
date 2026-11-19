@@ -16,6 +16,15 @@
   {%- else -%}
     {%- set value, caption, label = (-d ~ "d"), "late", ("Overdue by " ~ (-d) ~ (" day" if d == -1 else " days")) -%}
   {%- endif -%}
+{%- elif item.trigger in ("miles", "rides", "hours") -%}
+  {#- Due soon by what's left (specs/086): say how much, like the late usage rings. -#}
+  {%- set unit = item.trigger -%}
+  {%- set left = item.projection.remaining -%}
+  {%- set n = (left|num1 if unit == "hours" else left|num0) -%}
+  {%- set one = (n == "1" or n == "1.0") -%}
+  {%- set short = {"miles": "mi", "rides": "r", "hours": "h"}[unit] -%}
+  {%- set word = {"miles": ("mile" if one else "miles"), "rides": ("ride" if one else "rides"), "hours": ("hour" if one else "hours")}[unit] -%}
+  {%- set value, caption, label = (n ~ short), "left", (n ~ " " ~ word ~ " left") -%}
 {%- elif d is none or d <= 0 -%}
   {%- set value, caption, label = "Today", "", "Due today" -%}
 {%- else -%}

@@ -40,3 +40,9 @@ def test_checkboxes_and_radios_keep_their_size_when_their_label_wraps():
     """specs/079 T037 (branch 080): a two-line label must not squeeze its bubble or box."""
     assert "flex-shrink: 0" in _rule('input[type="radio"]')
     assert "flex-shrink: 0" in _rule('input[type="checkbox"]')
+
+
+def test_the_sync_dot_no_longer_takes_its_own_row_on_phones():
+    """specs/084 US2 scenario 3."""
+    phone = re.search(r"@media \(max-width: 40rem\) \{(.*?)\n\}", CSS, re.S).group(1)
+    assert ".sync-status" not in phone

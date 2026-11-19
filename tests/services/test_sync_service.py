@@ -56,13 +56,13 @@ def test_sync_credits_bike_and_components_installed_at_ride_time(db_path, monkey
         {  # before the wheel was installed
             "id": 1001,
             "gear_id": "gear-1",
-            "distance": 16093.4,  # 10.0 mi
+            "distance": 16093.44,  # 10.0 mi
             "start_date": "2026-09-01T08:00:00Z",
         },
         {  # after the wheel was installed
             "id": 1002,
             "gear_id": "gear-1",
-            "distance": 32186.8,  # 20.0 mi
+            "distance": 32186.88,  # 20.0 mi
             "start_date": "2026-09-10T08:00:00Z",
         },
     ]
@@ -85,7 +85,7 @@ def test_sync_does_not_attribute_activity_for_unmapped_gear(db_path, monkeypatch
         {
             "id": 2001,
             "gear_id": "some-other-unmapped-gear",
-            "distance": 16093.4,
+            "distance": 16093.44,
             "start_date": "2026-09-10T08:00:00Z",
         }
     ]
@@ -103,8 +103,8 @@ def test_backfill_bike_imports_full_ride_history_on_pairing(db_path, monkeypatch
     _pair_bike_to_gear(bike.id, "gear-2")
 
     activities = [
-        {"id": 3001, "gear_id": "gear-2", "distance": 16093.4, "start_date": "2020-01-01T08:00:00Z"},
-        {"id": 3002, "gear_id": "gear-2", "distance": 16093.4, "start_date": "2026-09-01T08:00:00Z"},
+        {"id": 3001, "gear_id": "gear-2", "distance": 16093.44, "start_date": "2020-01-01T08:00:00Z"},
+        {"id": 3002, "gear_id": "gear-2", "distance": 16093.44, "start_date": "2026-09-01T08:00:00Z"},
     ]
     monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: activities)
 
@@ -156,7 +156,7 @@ def test_incremental_sync_logs_a_readable_summary(db_path, monkeypatch, caplog):
             {
                 "id": 1,
                 "gear_id": "gear-1",
-                "distance": 16093.4,
+                "distance": 16093.44,
                 "start_date": "2026-09-01T08:00:00Z",
             }
         ],
@@ -194,7 +194,7 @@ def test_backfill_twice_does_not_duplicate_rides(db_path, monkeypatch):
 
     bike = bike_service.create_bike_from_details(year=2023, make="Trek", model="Madone", category="road")
     monkeypatch.setattr(strava_client, "ensure_fresh_access_token", lambda account: "t")
-    activities = [{"id": 7, "gear_id": "b1", "distance": 16093.4, "start_date": "2024-01-01T10:00:00Z"}]
+    activities = [{"id": 7, "gear_id": "b1", "distance": 16093.44, "start_date": "2024-01-01T10:00:00Z"}]
     monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: activities)
     with connection.get_connection() as conn:
         from app.db import bikes as bikes_db
@@ -278,7 +278,7 @@ def test_sync_stores_moving_time_and_a_resync_fills_a_ride_that_had_none(db_path
     account = _connected_account()
     bike = bike_service.create_bike(name="Gravel")
     _pair_bike_to_gear(bike.id, "gear-1")
-    first = [{"id": 7, "gear_id": "gear-1", "distance": 16093.4, "start_date": "2026-09-01T08:00:00Z"}]
+    first = [{"id": 7, "gear_id": "gear-1", "distance": 16093.44, "start_date": "2026-09-01T08:00:00Z"}]
     monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: first)
     sync_service.sync_incremental(account.id)
     with connection.get_connection() as conn:
@@ -311,11 +311,11 @@ def test_sync_keeps_a_64_bit_activity_id_exact_and_a_resync_updates_it(db_path, 
     account = _connected_account()
     bike = bike_service.create_bike(name="Road Bike")
     _pair_bike_to_gear(bike.id, "gear-64")
-    ride = {"id": BIG_ID, "gear_id": "gear-64", "distance": 16093.4, "start_date": "2027-06-02T08:00:00Z"}
+    ride = {"id": BIG_ID, "gear_id": "gear-64", "distance": 16093.44, "start_date": "2027-06-02T08:00:00Z"}
     monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: [ride])
 
     sync_service.sync_incremental(account.id)
-    ride["distance"] = 32186.8  # the same activity, edited on Strava
+    ride["distance"] = 32186.88  # the same activity, edited on Strava
     sync_service.sync_incremental(account.id)
 
     assert _ride_ids(bike.id) == [BIG_ID]
@@ -327,8 +327,8 @@ def test_reimport_keeps_a_64_bit_activity_id_exact_without_duplicates(db_path, m
     bike = bike_service.create_bike(name="Road Bike")
     _pair_bike_to_gear(bike.id, "gear-64")
     activities = [
-        {"id": BIG_ID, "gear_id": "gear-64", "distance": 16093.4, "start_date": "2027-06-02T08:00:00Z"},
-        {"id": BIG_ID + 1, "gear_id": "gear-64", "distance": 16093.4, "start_date": "2027-06-03T08:00:00Z"},
+        {"id": BIG_ID, "gear_id": "gear-64", "distance": 16093.44, "start_date": "2027-06-02T08:00:00Z"},
+        {"id": BIG_ID + 1, "gear_id": "gear-64", "distance": 16093.44, "start_date": "2027-06-03T08:00:00Z"},
     ]
     monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: activities)
 
@@ -337,3 +337,19 @@ def test_reimport_keeps_a_64_bit_activity_id_exact_without_duplicates(db_path, m
 
     assert sorted(_ride_ids(bike.id)) == [BIG_ID, BIG_ID + 1]
     assert bike_service.get_bike(bike.id).total_mileage == pytest.approx(20.0)
+
+
+# ------------------------------------------------ specs/081: the exact mile
+
+
+def test_strava_meters_use_the_exact_mile(db_path, monkeypatch):
+    account = _connected_account()
+    bike = bike_service.create_bike(name="Road")
+    _pair_bike_to_gear(bike.id, "gear-x")
+    monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: [
+        {"id": 4242, "gear_id": "gear-x", "distance": 16093.44, "start_date": "2026-09-01T08:00:00Z"}])
+    sync_service.sync_incremental(account.id)
+    with connection.get_connection() as conn:
+        miles = conn.execute("SELECT distance_miles FROM ride_activity WHERE strava_activity_id = 4242").fetchone()[0]
+    assert miles == pytest.approx(10.0, abs=1e-9)
+    assert sync_service.METERS_PER_MILE == 1609.344

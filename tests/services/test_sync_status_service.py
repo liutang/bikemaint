@@ -164,3 +164,39 @@ def test_with_no_account_the_state_is_unknown(db_path):
     connection.run_migrations()
 
     assert sync_status_service.sync_state(now=NOW) == "unknown"
+
+
+# ------------------------------------------------ specs/084: hover text and the Settings line
+
+
+@pytest.mark.parametrize(
+    "state,delta,expected",
+    [
+        ("ok", timedelta(seconds=20), "Sync is working · just now"),
+        ("ok", timedelta(minutes=7), "Sync is working · 7 min ago"),
+        ("error", timedelta(hours=3), "Sync isn't working · 3 h ago"),
+        ("off", timedelta(days=2), "Automatic sync is off · 2 d ago"),
+        ("unknown", None, "Sync status unknown · Not synced yet"),
+    ],
+)
+def test_hover_text_gives_the_state_and_how_long_ago(state, delta, expected):
+    synced = _stamp(delta) if delta is not None else None
+    assert sync_status_service.hover_text(state, synced, now=NOW) == expected
+
+
+@pytest.mark.parametrize(
+    "state,delta,expected",
+    [
+        ("ok", timedelta(minutes=7), "Sync is working. Last synced 7 minutes ago (LOCAL)."),
+        ("ok", timedelta(minutes=1), "Sync is working. Last synced 1 minute ago (LOCAL)."),
+        ("ok", timedelta(seconds=10), "Sync is working. Last synced just now (LOCAL)."),
+        ("error", timedelta(hours=3), "Sync isn't working. Last successful sync 3 hours ago (LOCAL)."),
+        ("off", timedelta(days=2), "Automatic sync is off. Last synced 2 days ago (LOCAL)."),
+        ("off", None, "Automatic sync is off. Not synced yet."),
+        ("unknown", None, "Not synced yet."),
+    ],
+)
+def test_settings_line_for_each_state(state, delta, expected, monkeypatch):
+    synced = _stamp(delta) if delta is not None else None
+    monkeypatch.setattr(sync_status_service.clock_service, "format_utc", lambda value: "LOCAL")
+    assert sync_status_service.line_text(state, synced, now=NOW) == expected

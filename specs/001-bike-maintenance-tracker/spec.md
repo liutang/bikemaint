@@ -158,3 +158,7 @@ As a bike owner, I want to set up recurring or one-off maintenance tasks for a b
 - A bike's mileage baseline is established automatically from Strava's full ride history once paired (FR-022); components (which Strava has no concept of) and any bike never paired to Strava still need a manually entered starting mileage and, optionally, backdated maintenance history, so due-date projections are meaningful from day one.
 - Strava is the sole external data source for ride mileage in this feature; manual mileage adjustments are supported as a correction mechanism, not as a primary data entry method.
 - If Strava access is not connected or lapses, previously synced mileage and history remain intact and usable; only new automatic syncing is affected.
+
+## Amendments
+
+- **2026-11-18 (feature 081)**: Strava distances are converted with the exact 1,609.344 m per mile (was 1,609.34). Unedited Strava rides were rescaled once by the data step `0022_exact_miles`; manual and edited rides keep their typed miles. See `specs/081-exact-mile-conversion/`.

@@ -22,7 +22,7 @@ from app.services import strava_client
 
 logger = logging.getLogger(__name__)
 
-METERS_PER_MILE = 1609.34
+METERS_PER_MILE = 1609.344  # the exact international mile (specs/081)
 
 
 def _now() -> str:

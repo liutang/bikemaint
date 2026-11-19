@@ -84,10 +84,10 @@ def test_editing_miles_and_date_recalculates(db_path):
     bike = _bike(baseline=0)
     ride = ride_service.create_ride(bike.id, day=date(2026, 9, 2), time=None, miles=10, note=None)
 
-    ride_service.update_ride(ride.id, bike_id=bike.id, day=date(2026, 9, 5), time="18:15", miles=14, note="Hilly")
+    ride_service.update_ride(ride.id, bike_id=bike.id, day=date(2026, 9, 5), time="18:15", miles=14, title="Hilly")
 
     (row,) = [r for r in ride_service.get_log_for_bike(bike.id).rows if r.kind == "ride"]
-    assert (row.miles, row.occurred_at, row.note) == (14, "2026-09-05T18:15:00.000000Z", "Hilly")
+    assert (row.miles, row.occurred_at, row.title) == (14, "2026-09-05T18:15:00.000000Z", "Hilly")  # specs/083
     assert _total(bike) == 14
 
 
@@ -323,3 +323,32 @@ def test_strava_rides_are_never_checked(ten_am_in_new_york):
     bike = _bike()
     _strava(bike, 1, 10, "2026-12-01T08:00:00.000000Z")
     assert _total(bike) == 110
+
+
+# ------------------------------------------------ specs/083: titles; Strava titles and types are read-only
+
+
+def _row(ride_id):
+    with connection.get_connection() as conn:
+        return tuple(conn.execute("SELECT activity_name, sport_type, note FROM ride_activity WHERE id = ?", (ride_id,)).fetchone())
+
+
+def test_a_manual_ride_has_a_title_and_a_blank_title_saves_as_manual_ride(db_path):
+    bike = _bike()
+    trainer = ride_service.create_ride(bike.id, day=date(2026, 9, 2), time=None, miles=5, note=None, title="Trainer")
+    blank = ride_service.create_ride(bike.id, day=date(2026, 9, 3), time=None, miles=5, note=None, title="  ")
+    assert _row(trainer.id) == ("Trainer", None, None)
+    assert _row(blank.id) == ("Manual Ride", None, None)
+    ride_service.update_ride(trainer.id, bike_id=bike.id, day=date(2026, 9, 2), time=None, miles=5, note=None, title="Rollers")
+    assert _row(trainer.id) == ("Rollers", None, None)
+
+
+def test_editing_a_strava_ride_changes_its_note_but_never_its_title_or_type(db_path):
+    bike = _bike()
+    with connection.get_connection() as conn:
+        mileage_db.upsert_ride_activity(conn, strava_activity_id=77, strava_gear_id="g", bike_id=bike.id, distance_miles=10,
+                                        occurred_at="2026-09-01T08:00:00.000000Z", sport_type="GravelRide", activity_name="Gravel loop")
+        ride_id = conn.execute("SELECT id FROM ride_activity WHERE strava_activity_id = 77").fetchone()[0]
+    ride_service.update_ride(ride_id, bike_id=bike.id, day=date(2026, 9, 1), time="08:00", miles=10,
+                             note="Chain skipped", title="Renamed here")
+    assert _row(ride_id) == ("Gravel loop", "GravelRide", "Chain skipped")

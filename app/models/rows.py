@@ -159,6 +159,8 @@ class RideActivity:
     user_modified: bool
     synced_at: str | None
     moving_time_seconds: int | None = None
+    activity_name: str | None = None  # the Strava title, or a manual ride's title (specs/083)
+    sport_type: str | None = None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> RideActivity:
@@ -176,6 +178,8 @@ class RideActivity:
             user_modified=bool(row["user_modified"]),
             synced_at=row["synced_at"],
             moving_time_seconds=row["moving_time_seconds"],
+            activity_name=row["activity_name"] if "activity_name" in row.keys() else None,
+            sport_type=row["sport_type"] if "sport_type" in row.keys() else None,
         )
 
 

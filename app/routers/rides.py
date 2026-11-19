@@ -34,6 +34,7 @@ def _parse(form) -> RideRequest:
         ride_time=form.get("ride_time", ""),
         miles=_optional_float(form.get("miles")),
         note=form.get("note", ""),
+        title=form.get("title", ""),
         bike_id=form.get("bike_id", ""),
         moving_time=form.get("moving_time", ""),
     )
@@ -92,7 +93,7 @@ async def create_ride(request: Request, bike_id: int, account=Depends(require_ac
     try:
         payload = _parse(form)
         ride_service.create_ride(
-            bike_id, day=payload.ride_date, time=payload.ride_time, miles=payload.miles, note=payload.note,
+            bike_id, day=payload.ride_date, time=payload.ride_time, miles=payload.miles, title=payload.title,
             moving_seconds=ride_service.parse_duration(payload.moving_time),
         )
     except ValidationError as exc:
@@ -127,7 +128,7 @@ async def update_ride(request: Request, ride_id: int, account=Depends(require_ac
             raise ValueError("Choose a bike.")
         ride_service.update_ride(
             ride_id, bike_id=payload.bike_id, day=payload.ride_date, time=payload.ride_time,
-            miles=payload.miles, note=payload.note,
+            miles=payload.miles, note=payload.note, title=payload.title,
             moving_seconds=ride_service.parse_duration(payload.moving_time),
         )
     except ValidationError as exc:

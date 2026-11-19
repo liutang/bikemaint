@@ -30,10 +30,10 @@
     <thead>
       <tr>
         <th scope="col">Date &amp; time</th>
+        <th scope="col">Title</th>
         <th scope="col">Miles</th>
         <th scope="col">Moving time</th>
-        <th scope="col">Source</th>
-        <th scope="col">Note</th>
+        <th scope="col">Activity type</th>
         <th scope="col">Total</th>
         {% if log.owner_kind == "bike" %}<th scope="col">Actions</th>{% endif %}
       </tr>
@@ -43,23 +43,26 @@
       <tr{% if row.kind != "ride" %} class="ride-{{ row.kind }}"{% endif %}>
         {% if row.kind == "start" %}
         <td data-label="Date &amp; time">Starting mileage</td>
+        <td data-label="Title"></td>
         <td data-label="Miles">{{ row.miles|num1 }}</td>
         <td data-label="Moving time"></td>
-        <td data-label="Source">Baseline</td>
-        <td data-label="Note"></td>
+        <td data-label="Activity type"></td>
         <td data-label="Total">{{ row.running_total|num1 }}</td>
         {% if log.owner_kind == "bike" %}<td data-label="Actions"></td>{% endif %}
         {% else %}
         <td data-label="Date &amp; time">
           <time datetime="{{ row.occurred_at }}">{{ row.occurred_at|local_time }}</time>
         </td>
+        <td data-label="Title">
+          {%- if row.kind == "adjustment" %}{{ row.note or "Mileage adjustment" }}{% else %}{{ row.title or "" }}{% endif %}
+          {%- if row.kind == "ride" and row.source == "strava" and row.note %}<small class="ride-note">{{ row.note }}</small>{% endif %}
+          {%- if row.bike_name %}<small class="ride-note">on {{ row.bike_name }}</small>{% endif -%}
+        </td>
         <td data-label="Miles">{{ row.miles|num1 }}</td>
         <td data-label="Moving time">{{ row.moving_seconds|duration }}</td>
-        <td data-label="Source">
-          {%- if row.kind == "adjustment" %}Adjustment{% elif row.source == "strava" %}Strava{% else %}Manual{% endif %}
-          {%- if row.bike_name %} · {{ row.bike_name }}{% endif -%}
+        <td data-label="Activity type">
+          {%- if row.kind == "adjustment" %}Adjustment{% elif row.source == "manual" %}Manual{% else %}{{ row.sport_type|sport_label }}{% endif -%}
         </td>
-        <td data-label="Note">{{ row.note or "" }}</td>
         <td data-label="Total">{{ row.running_total|num1 }}</td>
         {% if log.owner_kind == "bike" %}
         <td data-label="Actions">

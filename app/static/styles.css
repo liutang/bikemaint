@@ -1806,3 +1806,6 @@ button[disabled],
 .readonly-details { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: 0; }
 .readonly-details dt { color: var(--text-muted); }
 .readonly-details dd { margin: 0; }
+
+/* ------------------------------------------------ specs/083: ride titles */
+.ride-note { display: block; color: var(--text-muted); font-size: var(--font-size-sm); }

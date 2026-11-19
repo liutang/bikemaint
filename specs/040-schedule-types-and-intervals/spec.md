@@ -107,3 +107,4 @@ On a new schedule form the rider picks a Service Type, chooses Usage or Period, 
 - **FR-013** *(same branch)*: On Maintenance due, the Edit and Delete buttons, and the Garage bike card's Maintenance history button, MUST have a visible border (the standard button, not the borderless quiet one).
 - **2026-11-17 (feature 075)**: "today" for due dates, days left and late, notifications and Mark done is the saved zone's date, not the server's; a schedule's starting point (`baseline_at`) is a UTC instant, and usage since it is counted against UTC ride times; see `specs/075-typed-times-utc/`.
 - **2026-11-18 (feature 085)**: usage projections (miles, rides, hours) use the blended pace. See `specs/085-blended-pace/`.
+- **2026-11-18 (feature 086)**: usage schedules also turn due soon by the amount left (`schedule_service.due_trigger`). See `specs/086-usage-lead-time/`.

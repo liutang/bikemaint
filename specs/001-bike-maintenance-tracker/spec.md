@@ -162,3 +162,4 @@ As a bike owner, I want to set up recurring or one-off maintenance tasks for a b
 ## Amendments
 
 - **2026-11-18 (feature 081)**: Strava distances are converted with the exact 1,609.344 m per mile (was 1,609.34). Unedited Strava rides were rescaled once by the data step `0022_exact_miles`; manual and edited rides keep their typed miles. See `specs/081-exact-mile-conversion/`.
+- **2026-11-18 (feature 086)**: a schedule is due soon (board and notification) when its date is within the days lead, or, for a usage schedule on a bike, when what's left is at or under the Miles, Rides or Hours lead (Settings, defaults 20 / 2 / 2; 0 = off), whichever comes first. See `specs/086-usage-lead-time/`.

@@ -42,3 +42,4 @@ overdue = red, due soon = gold (distinct hue from accent), on track = green, no 
 ## Amendments
 
 - **2026-11-18 (feature 084)**: `.sync-status` in the header is empty (`role="img"`, `title` = `aria-label` = hover text). The Strava card has `p.sync-line` with its own dot. The nav link reads "Maintenance". Sign out is `btn btn-icon` with `aria-label` and `title` "Sign out". See `specs/084-quiet-top-bar/`.
+- **2026-11-18 (feature 086)**: a usage-triggered due-soon ring shows what's left (`18mi` / `left`, `aria-label="18 miles left"`) and fills by `1 − left / lead`. See `specs/086-usage-lead-time/`.

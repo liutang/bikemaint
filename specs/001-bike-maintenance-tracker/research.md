@@ -57,3 +57,7 @@
 - **Alternatives considered**: Hitting a real Strava sandbox in tests (rejected: no such sandbox exists publicly; would make tests network-dependent and rate-limited).
 
 All NEEDS CLARIFICATION items from the Technical Context are resolved above; none remain outstanding.
+
+## Amendments
+
+- **2026-11-18 (feature 085)**: §4's pace is now the mean of the bike's 90-day pace and its whole-history pace (from its first counted ride; hours from its first timed ride), and "low confidence" means the bike has fewer than 5 rides or less than 30 days of history. Chosen from a backtest on the rider's data. See `specs/085-blended-pace/`.

@@ -429,11 +429,6 @@ ul {
     font-size: var(--font-size-sm);
   }
 
-  .sync-status {
-    flex-basis: 100%;
-    order: 9;
-    margin: 0;
-  }
 
   .container {
     padding: var(--space-4) var(--space-3) var(--space-5);
@@ -1806,3 +1801,9 @@ button[disabled],
 .readonly-details { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: 0; }
 .readonly-details dt { color: var(--text-muted); }
 .readonly-details dd { margin: 0; }
+
+/* ------------------------------------------------ specs/084: quiet top bar */
+.sync-status:empty { gap: 0; min-height: var(--tap-min); padding: 0 var(--space-2); }
+.sync-line { display: flex; align-items: center; gap: var(--space-2); }
+.sync-line .sync-status { margin: 0; padding: 0; min-height: 0; }
+

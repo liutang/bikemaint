@@ -11,6 +11,7 @@
   {% else %}
   <p><span class="badge badge-ok">{{ ui_icons.check() }}Connected</span> since {{ account.strava_connected_at|local_time }}.</p>
   {% endif %}
+  <p class="sync-line"><span class="sync-status sync-{{ sync_state() }}" aria-hidden="true"></span>{{ sync_line() }}</p>
   <h3 id="sync-heading">Automatic sync</h3>
   <p class="text-muted">{% if account.strava_sync_enabled %}Every {{ sync.interval_text }}.{% else %}Automatic sync is off. Use Sync now on the garage to fetch rides.{% endif %}</p>
   <form class="form" {{ autosave("/settings/strava/sync") }} aria-labelledby="sync-heading">

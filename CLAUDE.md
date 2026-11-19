@@ -83,9 +83,9 @@ A Codex CLI config was found at `~/.codex/config.toml`. If you want to import an
 
 Bike delete (feature 029): only on the bike's Edit screen, behind a typed-name confirmation: `POST /bikes/{id}/delete` needs `confirm_name` equal to the bike's name exactly (`bike_service.delete_bike_with_name`, `confirmation_service.phrase_matches`); the field's `pattern` comes from `confirmation_service.html_pattern` (escape syntax characters only) and `.delete-confirm:has(input:invalid)` greys the button, so there is no script.
 
-Sync dot (003 FR-006b): `sync_status_service.sync_state` (`ok` / `error` / `off` / `unknown`; error = stale connection or no successful sync for two intervals, using the saved interval else the server default) drives `.sync-status.sync-<state>` and its tooltip; neon green and bright red are the theme-independent tokens `--sync-ok` and `--sync-error`.
+Sync dot (003 FR-006b): `sync_status_service.sync_state` (`ok` / `error` / `off` / `unknown`; error = stale connection or no successful sync for two intervals, using the saved interval else the server default) drives `.sync-status.sync-<state>` and its tooltip; neon green and bright red are the theme-independent tokens `--sync-ok` and `--sync-error`. Since 084 the top bar shows only the dot: its `title` and `aria-label` are `sync_status_service.sync_hover()` ("Sync is working · 7 min ago"), and the Strava connection card shows `sync_line()` ("Sync is working. Last synced 7 minutes ago (...)." per state) beside its own dot. Sign out is an icon-only `btn btn-icon`, and the nav link reads "Maintenance".
 
-Last-sync indicator (003 FR-006a): the top-bar label reads `account.strava_last_synced_at`, set by every successful sync run (`accounts_db.mark_synced` in `sync_incremental` and `backfill_bike`; not on failure or a stale-connection skip), falling back to the newest ride sync time until one is recorded.
+Last-sync indicator (003 FR-006a): the top-bar label reads `account.strava_last_synced_at`, set by every successful sync run (`accounts_db.mark_synced` in `sync_incremental` and `backfill_bike`; not on failure or a stale-connection skip), falling back to the newest ride sync time until one is recorded. Since 084 it's shown in the dot's hover text and on the Settings Strava card, not as top-bar text.
 
 Ride log (feature 006 M3): rides live in `ride_activity` (source `strava`|`manual`, `user_modified`, `deleted_by_user`); Strava upserts never overwrite a user-modified or user-deleted ride; `ride_service` owns CRUD and recomputes bike and part mileage.
 
@@ -151,7 +151,7 @@ Rolling backups (feature 068): `BACKUP_DIR` (off when unset), `BACKUP_KEEP` (def
 
 Part icon pack (feature 069): `partials/icons.html` `part(type, class)` draws one approved icon per kind from a data table (styles line, thin, solid-N; markup in `specs/069-part-icon-pack/contracts/icons.md`); rim and spoke show the wheel, unknown kinds the wrench. Redesigns go through the rider first.
 
-Nav icons (feature 070): Maintenance due uses the specs/069 wrench (`wrench()`), Settings a 6-tooth outlined gear (`settings()`).
+Nav icons (feature 070): Maintenance (labelled "Maintenance due" until 084) uses the specs/069 wrench (`wrench()`), Settings a 6-tooth outlined gear (`settings()`).
 
 UI consistency (feature 071): shared layout rules in `styles.css` (section "specs/071": natural-width buttons, value-sized fields, `.card-grid` equal-height cards, `.field-row`, `.check-grid`). Settings is a grid of card templates (`settings/cards/*.html`, macros in `settings/_card.html`) that auto-save via HTMX: routes answer `HX-Request` with `settings/card.html` (one card, "Saved" or "Not saved", always 200), theme adds `HX-Refresh`; other forms keep Save buttons. Bike and part Edit/Add are one form (Details + Sync rules cards, one Save): `POST /bikes/{id}` and `/components/{id}` save the rule when the form carries the hidden `sync_rules` marker (`sync_rules.save_edit_rule`). Row Rides/Edit/Delete are icon buttons (`ui_icons.route/edit/trash`, `aria-label` + `title`).
 

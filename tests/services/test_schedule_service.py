@@ -38,9 +38,20 @@ def _ride_history(bike, *, ride_days: int, miles_per_ride: float):
 
 
 def _steady_bike(name="Road Bike", miles_per_day=1.0):
-    """A bike with 10 ride-days in the 90-day window and a pace of `miles_per_day`."""
+    """A bike ridden steadily for 90 days (10 rides, the first 89 days ago) at `miles_per_day`.
+
+    Its 90-day pace and its whole-history pace are equal, so the blended pace (specs/085) is
+    `miles_per_day`, and with 10 rides over 90 days the estimate is trusted.
+    """
     bike = bike_service.create_bike(name=name)
-    _ride_history(bike, ride_days=10, miles_per_ride=miles_per_day * 90 / 10)
+    with connection.get_connection() as conn:
+        for days_ago in range(89, 7, -9):  # 89, 80, ..., 8: ten rides
+            when = datetime.combine(TODAY - timedelta(days=days_ago), datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=12)
+            mileage_db.upsert_ride_activity(
+                conn, strava_activity_id=next(_activity_ids), strava_gear_id="g1", bike_id=bike.id,
+                distance_miles=miles_per_day * 90 / 10, occurred_at=when.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            )
+        mileage_db.recompute_bike_total_mileage(conn, bike.id)
     return bike_service.get_bike(bike.id)
 
 
@@ -384,6 +395,67 @@ def test_the_trailing_pace_window_starts_at_local_midnight(evening_in_new_york):
     with connection.get_connection() as conn:  # 11 PM EDT on Aug 17 is 03:00 UTC on Aug 18
         mileage_db.upsert_ride_activity(conn, strava_activity_id=1, strava_gear_id="g", bike_id=bike.id,
                                         distance_miles=90, occurred_at="2026-08-18T03:00:00.000000Z")
-        miles_per_day, _ = schedule_service._trailing_pace(conn, bike.id, date(2026, 11, 16))
+        pace, _ = schedule_service._pace(conn, bike.id, date(2026, 11, 16), "miles")
 
-    assert miles_per_day == 0  # the window starts at local midnight on Aug 18 (04:00 UTC); the ride was before it
+    # The 90-day window starts at local midnight on Aug 18 (04:00 UTC), so the ride isn't in it; the
+    # whole history starts on its local date, Aug 17, which is 92 days to Nov 16 inclusive (specs/085).
+    assert pace == pytest.approx((0 + 90 / 92) / 2)
+
+
+# ------------------------------------------------ specs/085: the blended pace
+
+
+def _ride_on(bike, days_ago, miles, seconds=None):
+    when = datetime.combine(TODAY - timedelta(days=days_ago), datetime.min.time(), tzinfo=timezone.utc) + timedelta(hours=12)
+    with connection.get_connection() as conn:
+        mileage_db.upsert_ride_activity(conn, strava_activity_id=next(_activity_ids), strava_gear_id="g1", bike_id=bike.id,
+                                        distance_miles=miles, occurred_at=when.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                                        moving_time_seconds=seconds)
+        mileage_db.recompute_bike_total_mileage(conn, bike.id)
+
+
+def test_the_specs_example_blends_90_days_and_the_whole_history(db_path):
+    """28.7 mi in 90 days, 1,353.5 mi over 2,040 days, 23.3 mi left: due in 48 days (spec SC-001)."""
+    bike = bike_service.create_bike(name="Revolt")
+    _ride_on(bike, 2039, 300.0)
+    _ride_on(bike, 2000, 300.0)
+    _ride_on(bike, 1000, 724.8)
+    _ride_on(bike, 30, 15.0)
+    _ride_on(bike, 10, 13.7)
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Lube", interval_miles=23.3)
+
+    projection = schedule_service.project_due_date(schedule, today=TODAY)
+
+    assert projection.due_at == TODAY + timedelta(days=48)
+    assert projection.is_low_confidence is False
+
+
+def test_no_rides_in_90_days_uses_half_the_whole_history_pace(db_path):
+    bike = bike_service.create_bike(name="Winter")
+    _ride_on(bike, 400, 100.0)
+    _ride_on(bike, 200, 100.0)  # 200 mi over 401 days, nothing in the last 90
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Lube", interval_miles=10)
+    pace = (200 / 401) / 2
+    assert schedule_service.project_due_date(schedule, today=TODAY).due_at == TODAY + timedelta(days=__import__("math").ceil(10 / pace - 1e-9))
+
+
+def test_hours_whole_history_starts_at_the_first_timed_ride(db_path):
+    bike = bike_service.create_bike(name="Road")
+    _ride_on(bike, 1000, 50.0)               # no moving time: before times were recorded
+    _ride_on(bike, 179, 10.0, seconds=36000)  # 10 h; the timed history is 180 days
+    schedule = schedule_service.create_schedule(bike_id=bike.id, service_type="Service", interval_kind="usage",
+                                                interval_value=5, interval_unit="hours")
+    hours_pace = (0 / 90 + 10 / 180) / 2  # nothing timed in 90 days
+    projection = schedule_service.project_due_date(schedule, today=TODAY)
+    left = projection.remaining
+    assert projection.due_at == TODAY + timedelta(days=__import__("math").ceil(left / hours_pace - 1e-9))
+
+
+@pytest.mark.parametrize("rides,first_days_ago,low", [(4, 200, True), (5, 200, False), (6, 28, True), (6, 29, False)])
+def test_low_confidence_means_too_little_history(db_path, rides, first_days_ago, low):
+    bike = bike_service.create_bike(name="New")
+    _ride_on(bike, first_days_ago, 10.0)
+    for i in range(rides - 1):
+        _ride_on(bike, i, 10.0)
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Lube", interval_miles=500)
+    assert schedule_service.project_due_date(schedule, today=TODAY).is_low_confidence is low

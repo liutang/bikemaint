@@ -87,7 +87,7 @@ Sync dot (003 FR-006b): `sync_status_service.sync_state` (`ok` / `error` / `off`
 
 Last-sync indicator (003 FR-006a): the top-bar label reads `account.strava_last_synced_at`, set by every successful sync run (`accounts_db.mark_synced` in `sync_incremental` and `backfill_bike`; not on failure or a stale-connection skip), falling back to the newest ride sync time until one is recorded. Since 084 it's shown in the dot's hover text and on the Settings Strava card, not as top-bar text.
 
-Ride log (feature 006 M3): rides live in `ride_activity` (source `strava`|`manual`, `user_modified`, `deleted_by_user`); Strava upserts never overwrite a user-modified or user-deleted ride; `ride_service` owns CRUD and recomputes bike and part mileage.
+Ride log (feature 006 M3): rides live in `ride_activity` (source `strava`|`manual`, `user_modified`, `deleted_by_user`); Strava upserts never overwrite a user-modified or user-deleted ride; `ride_service` owns CRUD and recomputes bike and part mileage. Since 083 the Rides lists show Title (`activity_name`: Strava's title, or a manual ride's, pre-filled "Manual Ride"; a Strava ride's note in `small.ride-note` under it) and Activity type (`sync_rules.sport_label`, Jinja filter `sport_label`; "Manual" for manual rides) instead of Source and Note. Strava titles and types are read-only in the app; migration 0023 moved manual notes into titles; Re-import fills a missing title or type on an edited ride.
 
 Strava pairing (feature 017): the sign-in scope is `profile:read_all,activity:read_all`; paired bikes offer re-import and unpair (`bike_service`); `strava_client` raises `StravaUnavailableError` and `StravaGearAccessError` so routers never see `httpx`.
 

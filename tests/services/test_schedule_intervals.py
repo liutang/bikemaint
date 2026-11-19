@@ -66,8 +66,9 @@ def test_a_rides_schedule_projects_from_the_rides_per_day(db_path):
 
     projection = schedule_service.project_due_date(schedule, today=TODAY)
 
-    # 10 rides in 90 days is 1/9 per day, so 20 rides take 180 days.
-    assert projection.due_at == TODAY + timedelta(days=180)
+    # Blended (specs/085): 10 rides in 90 days is 1/9 a day; the whole history is 10 rides over
+    # 11 days. (1/9 + 10/11) / 2 is about 0.51 a day, so 20 rides take 40 days.
+    assert projection.due_at == TODAY + timedelta(days=40)
     assert (projection.remaining, projection.remaining_unit) == (20, "rides")
     assert projection.remaining_miles is None
 
@@ -80,7 +81,7 @@ def test_an_hours_schedule_projects_from_moving_time(db_path):
 
     projection = schedule_service.project_due_date(schedule, today=TODAY)
 
-    assert projection.due_at == TODAY + timedelta(days=45)  # 10 h in 90 days, 5 h to go
+    assert projection.due_at == TODAY + timedelta(days=10)  # blended: (10 h / 90 + 10 h / 11) / 2 a day, 5 h to go
     assert (projection.remaining, projection.remaining_unit) == (5, "hours")
 
 

@@ -454,6 +454,30 @@ def recent_usage_for_bike(conn: sqlite3.Connection, bike_id: int, *, since: str)
 
 
 
+def lifetime_ride_stats_for_bike(conn: sqlite3.Connection, bike_id: int) -> tuple[str | None, int, float]:
+    """(first live ride instant, live ride count, live miles) for a bike: the whole-history pace inputs (specs/085)."""
+    row = conn.execute(
+        f"""
+        SELECT MIN(occurred_at) AS first, COUNT(*) AS rides, COALESCE(SUM(distance_miles), 0) AS miles
+        FROM ride_activity WHERE bike_id = ? AND {_LIVE_RIDE}
+        """,
+        (bike_id,),
+    ).fetchone()
+    return row["first"], row["rides"], float(row["miles"])
+
+
+def lifetime_usage_for_bike(conn: sqlite3.Connection, bike_id: int) -> tuple[str | None, int]:
+    """(first live ride with a moving time, total moving seconds) for a bike (specs/085: hours history)."""
+    row = conn.execute(
+        f"""
+        SELECT MIN(occurred_at) AS first, COALESCE(SUM(moving_time_seconds), 0) AS seconds
+        FROM ride_activity WHERE bike_id = ? AND moving_time_seconds IS NOT NULL AND {_LIVE_RIDE}
+        """,
+        (bike_id,),
+    ).fetchone()
+    return row["first"], row["seconds"]
+
+
 def recompute_all_component_totals(conn: sqlite3.Connection) -> int:
     """Recompute every live part's stored total; returns how many were checked (specs/015 FR-013)."""
     ids = [row["id"] for row in conn.execute("SELECT id FROM component WHERE is_deleted = 0").fetchall()]

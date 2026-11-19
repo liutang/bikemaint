@@ -45,3 +45,20 @@ def test_recent_usage_is_rides_seconds_and_ride_days(conn):
     _ride(conn, bike.id, 3, "2026-03-05T08:00:00.000000Z", 600)
 
     assert mileage.recent_usage_for_bike(conn, bike.id, since="2026-01-01T00:00:00.000000Z") == (3, 4800, 2)
+
+
+# ------------------------------------------------ specs/085: whole-history inputs
+
+
+def test_lifetime_stats_count_live_rides_from_the_first_one(conn):
+    bike = bikes.create(conn, name="Road")
+    assert mileage.lifetime_ride_stats_for_bike(conn, bike.id) == (None, 0, 0.0)
+    assert mileage.lifetime_usage_for_bike(conn, bike.id) == (None, 0)
+    _ride(conn, bike.id, 1, "2021-04-18T12:00:00.000000Z", None, miles=5)
+    _ride(conn, bike.id, 2, "2022-01-01T12:00:00.000000Z", 1800, miles=10)
+    _ride(conn, bike.id, 3, "2023-01-01T12:00:00.000000Z", 3600, miles=20)
+    _ride(conn, bike.id, 4, "2024-01-01T12:00:00.000000Z", 900, miles=40)
+    conn.execute("UPDATE ride_activity SET filtered_out = 1 WHERE strava_activity_id = 4")
+
+    assert mileage.lifetime_ride_stats_for_bike(conn, bike.id) == ("2021-04-18T12:00:00.000000Z", 3, 35.0)
+    assert mileage.lifetime_usage_for_bike(conn, bike.id) == ("2022-01-01T12:00:00.000000Z", 5400)

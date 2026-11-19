@@ -30,7 +30,9 @@ logger = logging.getLogger(__name__)
 PACE_WINDOW_DAYS = 90
 # Minimum number of distinct days with a ride inside the window before a mileage-based
 # projection is trusted (research.md §4's "configurable minimum of ride-days").
-MIN_RIDE_DAYS_FOR_CONFIDENCE = 5
+# A usage estimate is trusted once the bike has this much history (specs/085 FR-003).
+MIN_RIDES_FOR_CONFIDENCE = 5
+MIN_HISTORY_DAYS_FOR_CONFIDENCE = 30
 
 
 @dataclass(frozen=True)
@@ -381,13 +383,37 @@ def delete_schedule(schedule_id: int) -> None:
         schedules_db.deactivate(conn, schedule_id)
 
 
-def _trailing_pace(conn, bike_id: int | None, today: date) -> tuple[float, int]:
-    """(miles per day, distinct ride days) for a bike over the trailing window."""
+def _pace(conn, bike_id: int | None, today: date, unit: str) -> tuple[float, bool]:
+    """(pace per day, trusted) for a usage unit on a bike: the mean of its 90-day pace and its
+    whole-history pace (specs/085 FR-001, FR-002).
+
+    Whole history runs from the local date of the bike's first counted ride (for hours, its first
+    ride with a moving time) to today, inclusive. Trusted once the bike has at least 5 rides and 30
+    days of history (FR-003).
+    """
     if bike_id is None:
-        return 0.0, 0
+        return 0.0, False
     since = clock_service.to_utc((today - timedelta(days=PACE_WINDOW_DAYS)).isoformat(), "00:00")
-    miles, ride_days = mileage_db.recent_ride_stats_for_bike(conn, bike_id, since=since)
-    return miles / PACE_WINDOW_DAYS, ride_days
+    first, rides_ever, miles_ever = mileage_db.lifetime_ride_stats_for_bike(conn, bike_id)
+    if first is None:
+        return 0.0, False
+    if unit == "miles":
+        recent, _ = mileage_db.recent_ride_stats_for_bike(conn, bike_id, since=since)
+        start, lifetime = first, miles_ever
+    else:
+        rides, seconds, _ = mileage_db.recent_usage_for_bike(conn, bike_id, since=since)
+        if unit == "rides":
+            recent, start, lifetime = float(rides), first, float(rides_ever)
+        else:
+            timed_first, timed_seconds = mileage_db.lifetime_usage_for_bike(conn, bike_id)
+            recent, start, lifetime = seconds / 3600, timed_first, timed_seconds / 3600
+    history_days = (today - date.fromisoformat(clock_service.to_local(first)[:10])).days + 1
+    whole = 0.0
+    if start is not None:
+        whole = lifetime / max(1, (today - date.fromisoformat(clock_service.to_local(start)[:10])).days + 1)
+    pace = (recent / PACE_WINDOW_DAYS + whole) / 2
+    trusted = rides_ever >= MIN_RIDES_FOR_CONFIDENCE and history_days >= MIN_HISTORY_DAYS_FOR_CONFIDENCE
+    return pace, trusted
 
 
 def _usage(schedule: MaintenanceSchedule) -> tuple[str, float] | None:
@@ -416,16 +442,6 @@ def _used_since_baseline(conn, schedule: MaintenanceSchedule, unit: str) -> floa
         conn, bike_id=schedule.bike_id, component_id=schedule.component_id, since=since
     )
     return float(rides) if unit == "rides" else seconds / 3600
-
-
-def _trailing_usage_pace(conn, bike_id: int | None, today: date, unit: str) -> tuple[float, int]:
-    """(rides or hours per day, distinct ride days) for a bike over the trailing window."""
-    if bike_id is None:
-        return 0.0, 0
-    since = clock_service.to_utc((today - timedelta(days=PACE_WINDOW_DAYS)).isoformat(), "00:00")
-    rides, seconds, ride_days = mileage_db.recent_usage_for_bike(conn, bike_id, since=since)
-    amount = float(rides) if unit == "rides" else seconds / 3600
-    return amount / PACE_WINDOW_DAYS, ride_days
 
 
 def _with_latest_service(conn, schedule: MaintenanceSchedule) -> MaintenanceSchedule:
@@ -464,10 +480,10 @@ def _project(conn, schedule: MaintenanceSchedule, today: date) -> Projection:
         unit, interval = usage
         if unit == "miles":
             remaining = schedule.baseline_mileage + interval - current_mileage
-            pace, ride_days = _trailing_pace(conn, _top_bike_id(conn, schedule), today)
+            pace, trusted = _pace(conn, _top_bike_id(conn, schedule), today, unit)
         else:
             remaining = interval - _used_since_baseline(conn, schedule, unit)
-            pace, ride_days = _trailing_usage_pace(conn, _top_bike_id(conn, schedule), today, unit)
+            pace, trusted = _pace(conn, _top_bike_id(conn, schedule), today, unit)
         if remaining <= 0:
             over = -remaining
             usage_exceeded = True
@@ -475,7 +491,7 @@ def _project(conn, schedule: MaintenanceSchedule, today: date) -> Projection:
             usage_trusted = True  # already past the interval: no pace needed to know that
         elif pace > 0:
             usage_due = today + timedelta(days=math.ceil(remaining / pace - 1e-9))
-            usage_trusted = ride_days >= MIN_RIDE_DAYS_FOR_CONFIDENCE
+            usage_trusted = trusted
         remaining = max(remaining, 0.0)
 
     if usage_trusted:

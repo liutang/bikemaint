@@ -7,6 +7,8 @@ filter, so nothing disappears silently.
 
 from __future__ import annotations
 
+import re
+
 SPORTS: dict[str, str] = {
     "Ride": "Ride",
     "GravelRide": "Gravel ride",
@@ -18,6 +20,16 @@ SPORTS: dict[str, str] = {
     "Velomobile": "Velomobile",
 }
 RIDE_TYPES: dict[str, str] = {"default": "Default", "race": "Race", "workout": "Workout"}
+
+
+def sport_label(code: str | None) -> str:
+    """A Strava sport type as a readable label (specs/083): the known list, else split at capitals."""
+    if not code:
+        return ""
+    if code in SPORTS:
+        return SPORTS[code]
+    words = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", code).split()
+    return " ".join([words[0]] + [w.lower() for w in words[1:]]) if words else code
 
 MAX_KEYWORDS = 10
 MAX_KEYWORDS_LENGTH = 200

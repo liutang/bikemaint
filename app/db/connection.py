@@ -29,6 +29,7 @@ MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 DATA_STEPS: list[tuple[str, Callable[[sqlite3.Connection], dict[str, int]], bool]] = [
     ("0019_typed_times_utc", typed_times.convert_database, True),
     ("0020_four_digit_years", typed_times.repair_database, False),
+    ("0022_exact_miles", typed_times.exact_miles, False),
 ]
 
 

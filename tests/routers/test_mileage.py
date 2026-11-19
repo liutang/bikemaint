@@ -30,8 +30,8 @@ def test_the_top_bar_says_synced_just_now_after_a_sync_that_found_nothing(signed
     from app.services import strava_client
 
     monkeypatch.setattr(strava_client, "get_activities", lambda access_token, **kwargs: [])
-    assert "Not synced yet" in signed_in_client.get("/").text
+    assert "· Not synced yet" in signed_in_client.get("/").text  # the dot's hover text (specs/084)
 
     signed_in_client.post("/sync/strava", follow_redirects=False)
 
-    assert "Synced just now" in signed_in_client.get("/").text
+    assert "· just now" in signed_in_client.get("/").text

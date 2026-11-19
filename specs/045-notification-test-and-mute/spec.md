@@ -57,3 +57,7 @@ A "Mute notifications" switch on Settings stops all due-soon notifications and w
 
 - The test message is a Discord-compatible `{"content": ...}` like real alerts.
 - Muting is account-wide and independent of per-schedule switches.
+
+## Amendments
+
+- **2026-11-18 (feature 084)**: the Mute card reads "Schedules still appear under Maintenance." (the nav label was renamed). See `specs/084-quiet-top-bar/`.

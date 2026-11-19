@@ -37,3 +37,7 @@ A rider sets a bike's rules (for example Sport: Ride and Gravel ride, Keywords: 
 ## Assumptions
 - Applies to Strava rides only.
 - No automatic re-import; the rider uses Re-import to fill details of older rides.
+
+## Amendments
+
+- **2026-11-18 (feature 083)**: the stored Strava `activity_name` and `sport_type` are shown as the ride's title and type and are read-only in the app; Re-import fills them on edited rides when missing. Manual rides store their title in `activity_name` but still always match (they are user-modified). See `specs/083-rides-title-type/`.

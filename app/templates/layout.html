@@ -29,11 +29,11 @@
             <a class="brand" href="/">{{ ui_icons.bike() }}BikeMaint</a>
             <a href="/"{% if section == "garage" %} aria-current="page"{% endif %}>{{ ui_icons.bike() }}Garage</a>
             <a href="/components"{% if section == "storage" %} aria-current="page"{% endif %}>{{ ui_icons.garage() }}Storage</a>
-            <a href="/maintenance/due"{% if section == "due" %} aria-current="page"{% endif %}>{{ ui_icons.wrench() }}Maintenance due</a>
+            <a href="/maintenance/due"{% if section == "due" %} aria-current="page"{% endif %}>{{ ui_icons.wrench() }}Maintenance</a>
             <a href="/settings"{% if section == "settings" %} aria-current="page"{% endif %}>{{ ui_icons.settings() }}Settings</a>
-            {% set state = sync_state() %}<span class="sync-status sync-{{ state }}" title="{{ {"ok": "Sync is working", "error": "Sync is not working", "off": "Automatic sync is off"}.get(state, "Sync status unknown") }}">{{ last_sync_label() }}</span>
+            {% set state = sync_state() %}{% set hover = sync_hover() %}<span class="sync-status sync-{{ state }}" role="img" title="{{ hover }}" aria-label="{{ hover }}"></span>
             <form method="post" action="/logout">
-                <button class="btn" type="submit">{{ ui_icons.sign_out() }}Sign out</button>
+                <button class="btn btn-icon" type="submit" aria-label="Sign out" title="Sign out">{{ ui_icons.sign_out() }}</button>
             </form>
         </nav>
     </header>

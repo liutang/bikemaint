@@ -30,6 +30,19 @@ def set_lead_time_days(account_id: int, days: int) -> None:
         accounts_db.update_lead_time_days(conn, account_id, days)
 
 
+def set_leads(account_id: int, *, days: int, miles: float | None, rides: int | None, hours: float | None) -> None:
+    """Save the Lead time card (specs/086): days, and the usage leads that were sent."""
+    with get_connection() as conn:
+        accounts_db.update_lead_time_days(conn, account_id, days)
+        current = accounts_db.get_by_id(conn, account_id)
+        accounts_db.update_leads(
+            conn, account_id,
+            miles=current.lead_miles if miles is None else miles,
+            rides=current.lead_rides if rides is None else rides,
+            hours=current.lead_hours if hours is None else hours,
+        )
+
+
 def set_sync_settings(account_id: int, *, enabled: bool, interval_minutes: int) -> None:
     """Save the automatic Strava sync switch and interval and apply them to the running scheduler."""
     with get_connection() as conn:

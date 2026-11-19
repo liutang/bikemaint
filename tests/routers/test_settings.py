@@ -326,3 +326,23 @@ def test_the_strava_card_shows_the_last_sync_line_and_the_mute_card_says_mainten
     line = re.search(r'<p class="sync-line"><span class="sync-status sync-(ok|error|off|unknown)" aria-hidden="true"></span>(.*?)</p>', page, re.S)
     assert line and line.group(2).strip()
     assert "Schedules still appear under Maintenance." in page
+
+
+def test_the_lead_time_card_has_days_miles_rides_and_hours(client, monkeypatch):
+    """specs/086 US1."""
+    import re
+
+    _login(client, monkeypatch)
+    page = client.get("/settings").text
+    for name in ("notification_lead_time_days", "lead_miles", "lead_rides", "lead_hours"):
+        assert f'name="{name}"' in page
+    assert "Currently 7 days, 20 miles, 2 rides or 2 hours, whichever comes first." in page
+
+    saved = client.post("/settings/notifications", headers={"HX-Request": "true"}, data={
+        "notification_lead_time_days": "7", "lead_miles": "25", "lead_rides": "2", "lead_hours": "2"})
+    assert saved.status_code == 200 and "Saved" in saved.text and "25 miles" in saved.text
+
+    refused = client.post("/settings/notifications", headers={"HX-Request": "true"}, data={
+        "notification_lead_time_days": "7", "lead_miles": "-5", "lead_rides": "2", "lead_hours": "2"})
+    assert "Not saved" in refused.text
+    assert re.search(r"Currently 7 days, 25 miles", client.get("/settings").text)

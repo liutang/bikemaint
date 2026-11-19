@@ -50,3 +50,17 @@ def test_the_clock_setting_accepts_only_12_or_24():
     for bad in ("", "13", "am", "12 "):
         with pytest.raises(ValidationError):
             ClockSettingsRequest(clock_format=bad)
+
+
+# ------------------------------------------------ specs/086: usage leads
+
+from app.models.requests import LeadTimeSettingsRequest  # noqa: E402
+
+
+def test_usage_leads_are_validated_and_optional():
+    full = LeadTimeSettingsRequest(notification_lead_time_days=7, lead_miles="25.5", lead_rides="3", lead_hours="1.5")
+    assert (full.lead_miles, full.lead_rides, full.lead_hours) == (25.5, 3, 1.5)
+    assert LeadTimeSettingsRequest(notification_lead_time_days=7).lead_miles is None  # not sent: keep the saved one
+    for bad in ({"lead_miles": "-1"}, {"lead_miles": "10001"}, {"lead_rides": "1.5"}, {"lead_hours": "abc"}, {"lead_miles": ""}):
+        with pytest.raises(ValidationError):
+            LeadTimeSettingsRequest(notification_lead_time_days=7, **bad)

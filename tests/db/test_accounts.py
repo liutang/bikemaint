@@ -129,3 +129,14 @@ def test_notifications_are_not_muted_until_asked(db_path):
         assert account.notifications_muted is False
         accounts.update_notifications_muted(conn, account.id, True)
         assert accounts.get_singleton(conn).notifications_muted is True
+
+
+def test_usage_leads_default_to_20_miles_2_rides_2_hours_and_save(db_path):
+    """specs/086 FR-001."""
+    with connection.get_connection() as conn:
+        account = accounts.upsert_from_strava(conn, strava_athlete_id=1, access_token="a", refresh_token="r",
+                                              expires_at="2099-01-01T00:00:00Z")
+        assert (account.lead_miles, account.lead_rides, account.lead_hours) == (20.0, 2, 2.0)
+        accounts.update_leads(conn, account.id, miles=25.0, rides=3, hours=1.5)
+        saved = accounts.get_by_id(conn, account.id)
+    assert (saved.lead_miles, saved.lead_rides, saved.lead_hours) == (25.0, 3, 1.5)

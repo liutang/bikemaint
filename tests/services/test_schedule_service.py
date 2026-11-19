@@ -459,3 +459,64 @@ def test_low_confidence_means_too_little_history(db_path, rides, first_days_ago,
         _ride_on(bike, i, 10.0)
     schedule = schedule_service.create_schedule(bike_id=bike.id, name="Lube", interval_miles=500)
     assert schedule_service.project_due_date(schedule, today=TODAY).is_low_confidence is low
+
+
+# ------------------------------------------------ specs/086: due soon by what's left
+
+from app.services.schedule_service import Leads, Projection, due_status, due_trigger  # noqa: E402
+
+LEADS = Leads(days=7, miles=20, rides=2, hours=2)
+
+
+def _proj(remaining=None, unit=None, due_in=None, overdue=False, on_bike=True):
+    return Projection(due_at=None if due_in is None else TODAY + timedelta(days=due_in), remaining_miles=remaining if unit == "miles" else None,
+                      is_low_confidence=False, is_overdue=overdue, remaining=remaining, remaining_unit=unit, on_bike=on_bike)
+
+
+@pytest.mark.parametrize("remaining,unit,due_in,expected", [
+    (20, "miles", 60, "miles"), (20.1, "miles", 60, None), (18, "miles", None, "miles"),
+    (2, "rides", 60, "rides"), (3, "rides", 60, None), (1.5, "hours", 60, "hours"), (2.5, "hours", 60, None),
+    (100, "miles", 5, "date"), (None, None, 7, "date"), (None, None, 8, None),
+])
+def test_due_soon_by_whichever_lead_comes_first(remaining, unit, due_in, expected):
+    projection = _proj(remaining, unit, due_in)
+    assert due_trigger(projection, LEADS, TODAY) == expected
+    assert due_status(projection, 7, TODAY, leads=LEADS) == ("due_soon" if expected else ("on_track" if due_in is not None else "no_estimate"))
+
+
+def test_a_lead_of_zero_is_off_storage_is_ignored_and_overdue_is_not_due_soon():
+    assert due_trigger(_proj(10, "miles", 60), Leads(days=7, miles=0, rides=2, hours=2), TODAY) is None
+    assert due_trigger(_proj(10, "miles", None, on_bike=False), LEADS, TODAY) is None
+    assert due_trigger(_proj(0, "miles", 0, overdue=True), LEADS, TODAY) is None
+    assert due_status(_proj(0, "miles", 0, overdue=True), 7, TODAY, leads=LEADS) == "overdue"
+
+
+def test_the_board_marks_a_usage_due_soon_item_and_its_ring_shows_whats_left(db_path):
+    bike = _steady_bike(miles_per_day=0.1)  # slow: the date is far away
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Lube", interval_miles=18)
+    (item,) = [i for i in schedule_service.list_due_overview(today=TODAY, lead_time_days=7, leads=LEADS) if i.schedule.id == schedule.id]
+    assert (item.status, item.trigger) == ("due_soon", "miles")
+    assert item.ring == pytest.approx(1 - 18 / 20)
+
+
+def test_a_short_interval_is_due_soon_right_after_service(db_path):
+    bike = _steady_bike(miles_per_day=0.1)
+    schedule = schedule_service.create_schedule(bike_id=bike.id, name="Wipe", interval_miles=15)
+    (item,) = [i for i in schedule_service.list_due_overview(today=TODAY, leads=LEADS) if i.schedule.id == schedule.id]
+    assert item.status == "due_soon"
+
+
+def test_slr7_chain_3s_summer_turns_due_soon_at_166_miles(db_path):
+    """SC-001: 186 mi Lube/Wax; with a 20 mi lead it is due soon on the ride that reaches 166 mi."""
+    bike = _steady_bike(miles_per_day=0.01)
+    chain = component_service.create_component(name="Chain 3", component_type="chain", parent_bike_id=bike.id,
+                                               installed_at="2020-01-01T00:00:00.000000Z")
+    schedule = schedule_service.create_schedule(component_id=chain.id, name="Lube/Wax", interval_miles=186)
+    statuses = []
+    for n, miles in enumerate((60, 60, 45, 2, 10), start=1):  # running: 60, 120, 165, 167, 177
+        _ride_on(bike, 0, miles)
+        with connection.get_connection() as conn:
+            mileage_db.recompute_all_component_totals(conn)
+        (item,) = [i for i in schedule_service.list_due_overview(today=TODAY, leads=LEADS) if i.schedule.id == schedule.id]
+        statuses.append(item.status)
+    assert statuses == ["on_track", "on_track", "on_track", "due_soon", "due_soon"]

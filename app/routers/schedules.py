@@ -96,7 +96,7 @@ def _schedule_owner(schedule):
 
 def _board_context(account, show_all: bool, *, done_id: int | None = None) -> dict:
     """Board data; `done_id` names a just-completed schedule to confirm and highlight."""
-    items = schedule_service.list_due_overview(lead_time_days=account.notification_lead_time_days)
+    items = schedule_service.list_due_overview(leads=schedule_service.leads_for(account))  # specs/086
     done = next((i for i in items if i.schedule.id == done_id), None) if done_id else None
     return {
         "items": items,

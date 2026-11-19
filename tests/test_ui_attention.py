@@ -469,3 +469,12 @@ def test_urgent_mark_done_is_natural_width_with_edit_and_delete_at_the_right():
     assert "margin-right: auto" in done          # Mark done left, Edit/Delete pushed to the right edge
     assert "flex: 1" not in done                 # it no longer stretches across the card
     assert not any("width: 100%" in b for b in _blocks(".attention-actions .attention-done .btn"))
+
+
+def test_a_usage_due_soon_ring_shows_whats_left(signed_in_client):
+    """specs/086: the ring reads what's left, e.g. 18mi left."""
+    bike = _bike()
+    schedule_service.create_schedule(bike_id=bike.id, name="Lube", interval_miles=18)
+    html = signed_in_client.get("/maintenance/due").text
+    assert re.search(r'aria-label="18 miles left"', html)
+    assert re.search(r'<span class="ring-value[^"]*">18mi</span><span class="ring-caption">left</span>', html)

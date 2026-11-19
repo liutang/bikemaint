@@ -248,3 +248,21 @@ def test_archived_state_survives_a_backup_and_an_older_file_restores_as_active(d
     backup_service.restore_backup(data)
     assert bike_service.get_bike(bike.id).archived_at is None
     assert component_service.get_component(spare.id).archived_at is None
+
+
+def test_usage_leads_round_trip_and_an_older_file_keeps_the_defaults(db_path):
+    """specs/086 FR-001."""
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE account SET lead_miles = 30, lead_rides = 4, lead_hours = 3")
+    data = json.loads(json.dumps(backup_service.export_backup()))
+    assert (data["settings"]["lead_miles"], data["settings"]["lead_rides"], data["settings"]["lead_hours"]) == (30, 4, 3)
+    with connection.get_connection() as conn:
+        conn.execute("UPDATE account SET lead_miles = 20, lead_rides = 2, lead_hours = 2")
+    backup_service.restore_backup(data)
+    with connection.get_connection() as conn:
+        assert tuple(conn.execute("SELECT lead_miles, lead_rides, lead_hours FROM account").fetchone()) == (30, 4, 3)
+    for key in ("lead_miles", "lead_rides", "lead_hours"):
+        data["settings"].pop(key)
+    backup_service.restore_backup(data)
+    with connection.get_connection() as conn:
+        assert tuple(conn.execute("SELECT lead_miles, lead_rides, lead_hours FROM account").fetchone()) == (30, 4, 3)

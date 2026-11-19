@@ -135,12 +135,12 @@ def check_due_schedules(*, today: date | None = None) -> list[Notification]:
         return []  # nothing is recorded while muted, so unmuting notifies whatever is still due
 
     created: list[Notification] = []
-    for item in schedule_service.list_due_overview(today=day):
-        due_at = item.projection.due_at
+    for item in schedule_service.list_due_overview(today=day, leads=schedule_service.leads_for(account)):
         if not item.schedule.notify:
             continue  # the rider turned notifications off for this schedule (specs/040 FR-007)
-        if due_at is None or (due_at - day).days > account.notification_lead_time_days:
-            continue
+        if item.status not in ("due_soon", "overdue"):
+            continue  # one rule with the board: the days lead, or a usage lead (specs/086 FR-003)
+        due_at = item.projection.due_at or day
         with get_connection() as conn:
             notification = notifications_db.insert(
                 conn,
@@ -151,11 +151,12 @@ def check_due_schedules(*, today: date | None = None) -> list[Notification]:
         if notification is None:
             continue  # already notified for this cycle
         logger.info(
-            "recorded due-soon notification notification_id=%s schedule_id=%s cycle=%s due=%s",
+            "recorded due-soon notification notification_id=%s schedule_id=%s cycle=%s due=%s trigger=%s",
             notification.id,
             item.schedule.id,
             item.schedule.cycle_number,
             due_at.isoformat(),
+            item.trigger or "overdue",
         )
         if account.notification_webhook_url:
             delivered, error = deliver_webhook(

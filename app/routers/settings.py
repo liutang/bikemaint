@@ -190,11 +190,17 @@ async def update_notification_settings(request: Request, account=Depends(require
     form = await request.form()
     try:
         payload = LeadTimeSettingsRequest(
-            notification_lead_time_days=form.get("notification_lead_time_days", "")
+            notification_lead_time_days=form.get("notification_lead_time_days", ""),
+            lead_miles=form.get("lead_miles"),
+            lead_rides=form.get("lead_rides"),
+            lead_hours=form.get("lead_hours"),
         )
     except ValidationError as exc:
         return _refused(request, account.id, "lead", error_context(form, exc))
-    settings_service.set_lead_time_days(account.id, payload.notification_lead_time_days)
+    settings_service.set_leads(
+        account.id, days=payload.notification_lead_time_days,
+        miles=payload.lead_miles, rides=payload.lead_rides, hours=payload.lead_hours,
+    )
     return _done(request, account.id, "lead")
 
 

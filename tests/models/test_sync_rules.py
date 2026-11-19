@@ -42,3 +42,14 @@ def test_parse_and_clean_inputs():
         rules.clean_choices(["Swim"], rules.SPORTS)
     assert rules.ride_type_of(None) == "default" and rules.ride_type_of(10) == "default"
     assert rules.ride_type_of(11) == "race" and rules.ride_type_of(12) == "workout"
+
+
+# ------------------------------------------------ specs/083: readable activity types
+
+from app.models.sync_rules import sport_label  # noqa: E402
+
+
+@pytest.mark.parametrize("code,label", [("GravelRide", "Gravel ride"), ("Ride", "Ride"), ("EBikeRide", "E-bike ride"),
+                                        ("TrailRun", "Trail run"), ("Workout", "Workout"), (None, ""), ("", "")])
+def test_sport_label_reads_strava_types(code, label):
+    assert sport_label(code) == label

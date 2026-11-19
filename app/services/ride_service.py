@@ -38,6 +38,8 @@ class RideRow:
     editable: bool = False
     bike_name: str | None = None  # which bike a part's ride was on
     moving_seconds: int | None = None
+    title: str | None = None  # Strava's title, or a manual ride's (specs/083)
+    sport_type: str | None = None
 
 
 @dataclass(frozen=True)
@@ -112,7 +114,8 @@ def _build_rows(
             built.append(
                 RideRow("ride", entry_id, when, entry.distance_miles, total, source=entry.source,
                         note=entry.note, editable=editable, bike_name=bike_name,
-                        moving_seconds=entry.moving_time_seconds)
+                        moving_seconds=entry.moving_time_seconds, title=entry.activity_name,
+                        sport_type=entry.sport_type)
             )
         else:
             total += entry.delta_miles
@@ -189,9 +192,17 @@ def check_not_future(day: date, time: str | None) -> None:
         raise ValueError("The ride date cannot be in the future.")
 
 
+MANUAL_TITLE = "Manual Ride"
+
+
+def _manual_title(title: str | None, note: str | None) -> str:
+    """A manual ride's title; its old note stands in, and blank is "Manual Ride" (specs/083 FR-004)."""
+    return (title or note or "").strip() or MANUAL_TITLE
+
+
 def create_ride(
-    bike_id: int, *, day: date, time: str | None, miles: float, note: str | None,
-    moving_seconds: int | None = None,
+    bike_id: int, *, day: date, time: str | None, miles: float, note: str | None = None,
+    moving_seconds: int | None = None, title: str | None = None,
 ) -> RideActivity:
     """Add a ride that is not tracked on Strava."""
     _check_miles(miles)
@@ -200,8 +211,8 @@ def create_ride(
         _require_bike(conn, bike_id)
         _unlocked(conn, bike_id)
         ride = mileage_db.create_manual_ride(
-            conn, bike_id=bike_id, distance_miles=miles, occurred_at=_occurred_at(day, time), note=note,
-            moving_time_seconds=moving_seconds,
+            conn, bike_id=bike_id, distance_miles=miles, occurred_at=_occurred_at(day, time), note=None,
+            moving_time_seconds=moving_seconds, title=_manual_title(title, note),
         )
         _recompute(conn, {bike_id})
     logger.info("ride added ride_id=%s bike_id=%s miles=%s source=manual", ride.id, bike_id, miles)
@@ -209,8 +220,8 @@ def create_ride(
 
 
 def update_ride(
-    ride_id: int, *, bike_id: int, day: date, time: str | None, miles: float, note: str | None,
-    moving_seconds: int | None = None,
+    ride_id: int, *, bike_id: int, day: date, time: str | None, miles: float, note: str | None = None,
+    moving_seconds: int | None = None, title: str | None = None,
 ) -> RideActivity:
     """Edit a ride's miles, time, note, or re-assign it to another bike."""
     _check_miles(miles)
@@ -222,10 +233,14 @@ def update_ride(
         _require_bike(conn, bike_id)
         _unlocked(conn, existing.bike_id)
         _unlocked(conn, bike_id)
+        manual = existing.source == "manual"
         ride = mileage_db.update_ride(
             conn, ride_id, bike_id=bike_id, distance_miles=miles,
-            occurred_at=_occurred_at(day, time, existing.occurred_at), note=note,
+            occurred_at=_occurred_at(day, time, existing.occurred_at),
+            # A manual ride has a title and no note; a Strava ride keeps Strava's title and type (specs/083).
+            note=None if manual else note,
             moving_time_seconds=moving_seconds,
+            title=_manual_title(title, note) if manual else None,
         )
         affected = {bike_id} | ({existing.bike_id} if existing.bike_id is not None else set())
         _recompute(conn, affected)

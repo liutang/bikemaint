@@ -158,3 +158,11 @@ def test_a_two_digit_model_year_means_20yy():
         BikeDetailsRequest(year="99", category="road")
     with pytest.raises(ValidationError, match="Year must be between 1900 and"):
         BikeDetailsRequest(year="202", category="road")
+
+
+def test_a_ride_title_is_trimmed_limited_and_blank_is_none():
+    """specs/083."""
+    assert RideRequest(ride_date="2026-09-02", miles=5, title="  Trainer ").title == "Trainer"
+    assert RideRequest(ride_date="2026-09-02", miles=5, title="  ").title is None
+    with pytest.raises(ValidationError):
+        RideRequest(ride_date="2026-09-02", miles=5, title="x" * 201)

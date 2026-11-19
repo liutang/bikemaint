@@ -88,3 +88,22 @@ def test_strava_never_moves_or_changes_a_ride_of_an_archived_bike(tmp_path, monk
 
         rows = {r[0]: (r[1], r[2]) for r in conn.execute("SELECT strava_activity_id, bike_id, distance_miles FROM ride_activity")}
     assert rows == {1: (old.id, 10.0), 2: (new.id, 20.0)}
+
+
+def test_reimport_fills_a_missing_title_and_type_on_an_edited_ride_and_nothing_else(tmp_path, monkeypatch):
+    """specs/083 FR-005."""
+    from app.db import bikes as bikes_db, connection, mileage
+
+    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "t.sqlite3"))
+    connection.run_migrations()
+    with connection.get_connection() as conn:
+        bike = bikes_db.create(conn, name="Road")
+        kw = dict(strava_gear_id="g", bike_id=bike.id, occurred_at="2026-09-01T08:00:00.000000Z")
+        mileage.upsert_ride_activity(conn, strava_activity_id=1, distance_miles=10.0, **kw)
+        conn.execute("UPDATE ride_activity SET user_modified = 1, note = 'Mine', distance_miles = 12.0")
+
+        mileage.upsert_ride_activity(conn, strava_activity_id=1, distance_miles=99.0, sport_type="Ride", activity_name="Morning Ride", **kw)
+        mileage.upsert_ride_activity(conn, strava_activity_id=1, distance_miles=99.0, sport_type="GravelRide", activity_name="Renamed", **kw)
+
+        row = tuple(conn.execute("SELECT activity_name, sport_type, distance_miles, note FROM ride_activity").fetchone())
+    assert row == ("Morning Ride", "Ride", 12.0, "Mine")

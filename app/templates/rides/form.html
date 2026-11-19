@@ -15,9 +15,17 @@
   {{ field("ride_time", "Time (optional)", (ride.occurred_at|to_local)[11:16] if ride else "", values, field_errors, type="time", hint="Leave blank to count it as noon.") }}
   {{ field("miles", "Miles", ("%g"|format(ride.distance_miles)) if ride else "", values, field_errors, type="number", step="0.01", min=0, required=true) }}
   {{ field("moving_time", "Moving time (optional)", ride.moving_time_seconds|duration if ride else "", values, field_errors, pattern="[0-9]{1,2}:[0-5][0-9]", hint="Hours and minutes as h:mm, for example 1:30. Leave blank if unknown.") }}
-  {{ field("note", "Note (optional)", ride.note if ride and ride.note else "", values, field_errors, hint="For example “Commute” or “Group ride”.") }}
   {% if ride and ride.source == "strava" %}
+  {# specs/083: a Strava ride's title and type come from Strava and can't be changed here. #}
+  <dl class="readonly-details">
+    <dt>Title</dt><dd>{{ ride.activity_name or "" }}</dd>
+    <dt>Activity type</dt><dd>{{ ride.sport_type|sport_label }}</dd>
+  </dl>
+  <small class="field-hint">From Strava. Rename it there, then Re-import.</small>
+  {{ field("note", "Note (optional)", ride.note if ride.note else "", values, field_errors, hint="For example “Commute” or “Group ride”.") }}
   <p class="text-muted">This ride came from Strava. Your changes are kept when Strava syncs again.</p>
+  {% else %}
+  {{ field("title", "Title", ride.activity_name if ride and ride.activity_name else "Manual Ride", values, field_errors, hint="Shown in the Rides list.") }}
   {% endif %}
   <div class="actions">
     {{ submit("Save") }}

@@ -53,6 +53,16 @@ def upsert_ride_activity(
         (strava_activity_id, strava_gear_id, bike_id, distance_miles, occurred_at, now, moving_time_seconds,
          sport_type, ride_type, activity_name),
     )
+    # An edited ride keeps everything the rider set, but gets a missing title or type (specs/083 FR-005).
+    conn.execute(
+        """
+        UPDATE ride_activity
+        SET activity_name = COALESCE(activity_name, ?), sport_type = COALESCE(sport_type, ?)
+        WHERE strava_activity_id = ? AND user_modified = 1 AND deleted_by_user = 0
+          AND NOT EXISTS (SELECT 1 FROM bike WHERE bike.id = ride_activity.bike_id AND bike.archived_at IS NOT NULL)
+        """,
+        (activity_name, sport_type, strava_activity_id),
+    )
     row = conn.execute(
         "SELECT * FROM ride_activity WHERE strava_activity_id = ?", (strava_activity_id,)
     ).fetchone()
@@ -72,15 +82,16 @@ def create_manual_ride(
     occurred_at: str,
     note: str | None,
     moving_time_seconds: int | None = None,
+    title: str | None = None,
 ) -> RideActivity:
-    """A ride the rider added by hand (not tracked on Strava)."""
+    """A ride the rider added by hand (not tracked on Strava). Its title is `activity_name` (specs/083)."""
     cursor = conn.execute(
         """
         INSERT INTO ride_activity (source, bike_id, distance_miles, occurred_at, note, user_modified,
-                                   moving_time_seconds)
-        VALUES ('manual', ?, ?, ?, ?, 1, ?)
+                                   moving_time_seconds, activity_name)
+        VALUES ('manual', ?, ?, ?, ?, 1, ?, ?)
         """,
-        (bike_id, distance_miles, occurred_at, note, moving_time_seconds),
+        (bike_id, distance_miles, occurred_at, note, moving_time_seconds, title),
     )
     ride = get_ride(conn, cursor.lastrowid)
     assert ride is not None
@@ -96,16 +107,17 @@ def update_ride(
     occurred_at: str,
     note: str | None,
     moving_time_seconds: int | None = None,
+    title: str | None = None,
 ) -> RideActivity:
-    """Edit a ride (miles, time, bike, note). Marks it so Strava sync never overwrites it."""
+    """Edit a ride (miles, time, bike, note; a manual ride's title). Marks it so Strava sync never overwrites it."""
     conn.execute(
         """
         UPDATE ride_activity
         SET bike_id = ?, distance_miles = ?, occurred_at = ?, note = ?, moving_time_seconds = ?,
-            user_modified = 1
+            user_modified = 1, activity_name = COALESCE(?, activity_name)
         WHERE id = ?
         """,
-        (bike_id, distance_miles, occurred_at, note, moving_time_seconds, ride_id),
+        (bike_id, distance_miles, occurred_at, note, moving_time_seconds, title, ride_id),
     )
     ride = get_ride(conn, ride_id)
     assert ride is not None

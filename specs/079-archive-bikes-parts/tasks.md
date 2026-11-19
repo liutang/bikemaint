@@ -177,3 +177,4 @@ description: "Task list for 079 archive bikes and parts"
 ## Implementation strategy
 
 US1 first, which lets the rider archive a sold bike. Then US2, so kept parts can come off. Then US3 and US4. The route walk (T024) closes any guard a story missed.
+- [x] T037 Bug fix (branch 080, found on the Archive card): a checkbox or radio shrank when its label wrapped to two lines, because the input was a shrinking flex item in `.field-check`. `input[type="checkbox"], input[type="radio"]` now have `flex-shrink: 0`, everywhere in the app (`app/static/styles.css`; test `tests/test_ui_layout.py::test_checkboxes_and_radios_keep_their_size_when_their_label_wraps`). Size only: a bubble beside a wrapped label stays centred.

@@ -209,3 +209,23 @@ def repair_short_years(conn: sqlite3.Connection, zone: str) -> dict[str, int]:
 def repair_database(conn: sqlite3.Connection) -> dict[str, int]:
     """The data step `0020_four_digit_years`: repair with the zone saved in the database itself."""
     return repair_short_years(conn, saved_zone(conn))
+
+
+# ------------------------------------------------ specs/081: the exact mile
+
+OLD_METERS_PER_MILE = 1609.34
+EXACT_METERS_PER_MILE = 1609.344
+
+
+def exact_miles(conn: sqlite3.Connection) -> dict[str, int]:
+    """The data step `0022_exact_miles`: rescale unedited Strava rides to 1,609.344 m per mile, once.
+
+    Their miles were Strava's meters / 1,609.34, so multiplying by 1,609.34 / 1,609.344 gives
+    meters / 1,609.344 exactly. Manual and edited rides may hold typed miles and are left alone.
+    """
+    cursor = conn.execute(
+        "UPDATE ride_activity SET distance_miles = distance_miles * ? / ? WHERE source = 'strava' AND user_modified = 0",
+        (OLD_METERS_PER_MILE, EXACT_METERS_PER_MILE),
+    )
+    return {"ride_activity": cursor.rowcount}
+

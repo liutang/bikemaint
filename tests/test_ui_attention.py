@@ -450,3 +450,22 @@ def test_other_rows_have_mark_done_edit_and_delete_as_one_icon_group(signed_in_c
     assert labels == ["Mark done", "Edit", "Delete"]
     assert ">Mark done</button>" not in row and 'title="Mark done"' in row
     assert 'hx-post="/schedules/1/complete"' in group
+
+
+# ------------------------------------------------ 072 FR-002 (branch 082): natural-width Mark done on urgent cards
+
+import re as _re  # noqa: E402
+
+_CSS = _re.sub(r"/\*.*?\*/", "", open("app/static/styles.css").read(), flags=_re.S)
+
+
+def _blocks(selector):
+    return [body for sels, body in _re.findall(r"([^{}]+)\{([^{}]*)\}", _CSS)
+            if selector in [s.strip() for s in sels.split(",")]]
+
+
+def test_urgent_mark_done_is_natural_width_with_edit_and_delete_at_the_right():
+    done = " ".join(_blocks(".attention-actions .attention-done"))
+    assert "margin-right: auto" in done          # Mark done left, Edit/Delete pushed to the right edge
+    assert "flex: 1" not in done                 # it no longer stretches across the card
+    assert not any("width: 100%" in b for b in _blocks(".attention-actions .attention-done .btn"))

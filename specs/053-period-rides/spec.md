@@ -51,3 +51,7 @@ On a part's Install History and on a bike's Install History, each period row has
 
 - Read-only: rides are edited from the bike's Rides screen.
 - No new setting, table or migration.
+
+## Amendments
+
+- **2026-11-18 (feature 083)**: period Rides lists use the same Title and Activity type columns. See `specs/083-rides-title-type/`.

@@ -22,7 +22,7 @@ def _strava(bike, activity_id, miles, when="2026-09-01T08:00:00.000000Z"):
 
 
 def _form(**kw):
-    return {"ride_date": "2026-09-02", "ride_time": "07:30", "miles": "12.5", "note": "Loop", **kw}
+    return {"ride_date": "2026-09-02", "ride_time": "07:30", "miles": "12.5", "title": "Loop", **kw}  # specs/083: a manual ride's title
 
 
 def _total(bike):
@@ -66,7 +66,7 @@ def test_the_log_starts_with_the_starting_mileage_then_shows_rides_newest_first(
 
     assert "Starting mileage" in rows[-1] and "100.0" in rows[-1]
     assert "5.5" in rows[0] and "Commute" in rows[0] and "Manual" in rows[0] and "115.5" in rows[0]
-    assert "10.0" in rows[1] and "Strava" in rows[1] and "110.0" in rows[1]
+    assert "10.0" in rows[1] and "110.0" in rows[1] and "Manual" not in rows[1]  # specs/083: no Source column
     assert "115.5 mi" in html  # the total
     assert re.search(r"<h1[^>]*>\s*Rides\s*</h1>", html)
 
@@ -135,12 +135,12 @@ def test_adjustments_are_listed_but_read_only(signed_in_client):
 # ---------------------------------------------------------------- add
 
 
-def test_the_add_form_has_date_time_miles_and_a_note(signed_in_client):
+def test_the_add_form_has_date_time_miles_and_a_title(signed_in_client):
     bike = _bike()
 
     html = signed_in_client.get(f"/bikes/{bike.id}/rides/new").text
 
-    for name, kind in (("ride_date", "date"), ("ride_time", "time"), ("miles", "number"), ("note", "text")):
+    for name, kind in (("ride_date", "date"), ("ride_time", "time"), ("miles", "number"), ("title", "text")):
         assert re.search(rf'<input id="{name}" name="{name}" type="{kind}"', html)
     assert 'name="bike_id"' not in html  # a new ride is for this bike
     assert re.search(r"<input id=\"ride_date\"[^>]*required", html) and re.search(r"<input id=\"miles\"[^>]*required", html)
@@ -162,7 +162,7 @@ def test_adding_a_ride_updates_the_mileage_and_returns_to_the_log(signed_in_clie
         ({"miles": "0"}, "miles"), ({"miles": "-3"}, "miles"), ({"miles": "abc"}, "miles"),
         ({"miles": "5001"}, "miles"), ({"miles": ""}, "miles"),
         ({"ride_date": ""}, "ride_date"), ({"ride_date": "not-a-date"}, "ride_date"),
-        ({"ride_time": "25:00"}, "ride_time"), ({"note": "x" * 201}, "note"),
+        ({"ride_time": "25:00"}, "ride_time"), ({"title": "x" * 201}, "title"),
     ],
 )
 def test_invalid_ride_entries_are_rejected_beside_the_field_keeping_the_rest(signed_in_client, change, field):
@@ -172,7 +172,7 @@ def test_invalid_ride_entries_are_rejected_beside_the_field_keeping_the_rest(sig
 
     assert response.status_code == 422 and f'id="{field}-error"' in response.text
     assert _total(bike) == 0
-    if field != "note":
+    if field != "title":
         assert 'value="Loop"' in response.text
 
 
@@ -313,7 +313,7 @@ def test_the_starting_row_stays_but_has_no_edit_link_on_a_bike(signed_in_client)
 
     html = signed_in_client.get(f"/bikes/{bike.id}/rides").text
 
-    assert "Starting mileage" in html and "100.0" in html and "Baseline" in html
+    assert "Starting mileage" in html and "100.0" in html
     assert "Edit starting mileage" not in html
 
 
@@ -429,3 +429,68 @@ def test_a_future_ride_is_refused_beside_its_date_and_shown_with_four_digits(sig
     assert 'value="2099-01-01"' in response.text
     assert re.search(r'id="ride_date-error"[^>]*>\s*The ride date cannot be in the future', response.text)
     assert _total(bike) == 100
+
+
+# ------------------------------------------------ specs/083: Title and Activity type
+
+
+def _headers(html):
+    return [re.sub(r"<[^>]+>", "", h).replace("&amp;", "&").strip() for h in re.findall(r"<th[^>]*>(.*?)</th>", html, re.S)]
+
+
+def test_the_rides_list_shows_title_and_activity_type(signed_in_client):
+    bike = _bike()
+    with connection.get_connection() as conn:
+        mileage_db.upsert_ride_activity(conn, strava_activity_id=1, strava_gear_id="g", bike_id=bike.id, distance_miles=10,
+                                        occurred_at="2026-09-01T08:00:00.000000Z", sport_type="GravelRide", activity_name="Gravel loop")
+        mileage_db.upsert_ride_activity(conn, strava_activity_id=2, strava_gear_id="g", bike_id=bike.id, distance_miles=5,
+                                        occurred_at="2026-08-01T08:00:00.000000Z")
+        conn.execute("UPDATE ride_activity SET note = 'Chain skipped', user_modified = 1 WHERE strava_activity_id = 1")
+    ride_service.create_ride(bike.id, day=__import__("datetime").date(2026, 9, 2), time=None, miles=3, title="Trainer")
+    html = signed_in_client.get(f"/bikes/{bike.id}/rides").text
+    assert _headers(html) == ["Date & time", "Title", "Miles", "Moving time", "Activity type", "Total", "Actions"]
+    rows = _rows(html)
+    trainer = next(r for r in rows if "Trainer" in r)
+    assert re.search(r'data-label="Activity type">\s*Manual\s*<', trainer)
+    gravel = next(r for r in rows if "Gravel loop" in r)
+    assert re.search(r'<small class="ride-note">Chain skipped</small>', gravel)
+    assert re.search(r'data-label="Activity type">\s*Gravel ride\s*<', gravel)
+    old = next(r for r in rows if "5.0" in r and "Trainer" not in r and "Gravel" not in r)
+    assert re.search(r'data-label="Title">\s*<', old) and re.search(r'data-label="Activity type">\s*<', old)
+
+
+def test_a_parts_list_has_the_same_columns_without_actions(signed_in_client):
+    bike = _bike()
+    part = component_service.create_component(name="Chain", component_type="chain", parent_bike_id=bike.id)
+    html = signed_in_client.get(f"/components/{part.id}/rides").text
+    assert _headers(html) == ["Date & time", "Title", "Miles", "Moving time", "Activity type", "Total"]
+
+
+def test_the_add_form_has_a_title_prefilled_manual_ride_and_no_note(signed_in_client):
+    bike = _bike()
+    html = signed_in_client.get(f"/bikes/{bike.id}/rides/new").text
+    assert re.search(r'name="title"[^>]*value="Manual Ride"|value="Manual Ride"[^>]*name="title"', html)
+    assert 'name="note"' not in html
+
+
+def test_a_strava_rides_edit_form_shows_title_and_type_as_text_and_keeps_note(signed_in_client):
+    bike = _bike()
+    with connection.get_connection() as conn:
+        mileage_db.upsert_ride_activity(conn, strava_activity_id=1, strava_gear_id="g", bike_id=bike.id, distance_miles=10,
+                                        occurred_at="2026-09-01T08:00:00.000000Z", sport_type="Ride", activity_name="Morning Ride")
+        ride_id = conn.execute("SELECT id FROM ride_activity").fetchone()[0]
+    html = signed_in_client.get(f"/rides/{ride_id}/edit").text
+    assert 'name="title"' not in html and 'name="note"' in html
+    assert re.search(r"<dt>Title</dt>\s*<dd>Morning Ride</dd>", html) and re.search(r"<dt>Activity type</dt>\s*<dd>Ride</dd>", html)
+    assert "From Strava. Rename it there, then Re-import." in html
+    signed_in_client.post(f"/rides/{ride_id}", data={"ride_date": "2026-09-01", "ride_time": "08:00", "miles": "10",
+                                                     "bike_id": str(bike.id), "title": "Renamed", "note": "Windy"})
+    with connection.get_connection() as conn:
+        assert tuple(conn.execute("SELECT activity_name, note FROM ride_activity").fetchone()) == ("Morning Ride", "Windy")
+
+
+def test_a_manual_rides_edit_form_has_its_title(signed_in_client):
+    bike = _bike()
+    ride = ride_service.create_ride(bike.id, day=__import__("datetime").date(2026, 9, 2), time=None, miles=3, title="Trainer")
+    html = signed_in_client.get(f"/rides/{ride.id}/edit").text
+    assert re.search(r'name="title"[^>]*value="Trainer"|value="Trainer"[^>]*name="title"', html) and 'name="note"' not in html

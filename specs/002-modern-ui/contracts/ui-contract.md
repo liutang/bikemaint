@@ -83,3 +83,7 @@ Status codes, redirects and data effects are otherwise identical to feature 001'
 - Every interactive element shows a `:focus-visible` outline.
 - Tables have `<th scope="col">`; icons are `aria-hidden="true"` and never the only signal.
 - `@media (prefers-reduced-motion: reduce)` disables transitions and animations.
+
+## Amendments
+
+- **2026-11-18 (feature 084)**: header: "Maintenance" link text, dot-only sync status, and an icon-only Sign out (`btn btn-icon`, `aria-label` and `title` "Sign out"). See `specs/084-quiet-top-bar/`.

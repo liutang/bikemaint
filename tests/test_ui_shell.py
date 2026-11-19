@@ -46,17 +46,27 @@ def test_current_section_is_marked_exactly_once(signed_in_client, path, expected
 
 
 @pytest.mark.parametrize("path", PAGES)
-def test_signed_in_pages_show_the_sync_indicator(signed_in_client, path):
+def test_the_top_bar_shows_only_the_sync_dot_with_state_and_time_on_hover(signed_in_client, path):
+    """specs/084 US2: no visible text; the hover text and accessible name carry the state and the time."""
     html = signed_in_client.get(path).text
-    assert re.search(r'<span class="sync-status[^"]*"[^>]*>[^<]*(Not synced yet|Synced [^<]+)</span>', html)
+    span = re.search(r'<span class="sync-status sync-(ok|error|off|unknown)"([^>]*)>(.*?)</span>', html, re.S)
+    assert span, "the sync dot needs a state class"
+    assert span.group(3).strip() == ""
+    title = re.search(r'title="([^"]+)"', span.group(2)).group(1)
+    assert re.search(r'aria-label="([^"]+)"', span.group(2)).group(1) == title
+    assert re.match(r"(Sync is working|Sync isn&#39;t working|Automatic sync is off|Sync status unknown) · (Not synced yet|just now|\d+ (min|h|d) ago)$", title)
 
 
 @pytest.mark.parametrize("path", PAGES)
-def test_the_sync_indicator_carries_its_state_as_a_class_and_a_tooltip(signed_in_client, path):
+def test_the_top_bar_reads_maintenance_and_sign_out_is_an_icon(signed_in_client, path):
+    """specs/084 US1 and US3."""
     html = signed_in_client.get(path).text
-    span = re.search(r'<span class="sync-status sync-(ok|error|off|unknown)"[^>]*title="([^"]+)"', html)
-    assert span, "the sync indicator needs a state class and a tooltip"
-    assert span.group(2) in {"Sync is working", "Sync is not working", "Automatic sync is off", "Sync status unknown"}
+    link = re.search(r'<a href="/maintenance/due"[^>]*>(.*?)</a>', html, re.S).group(1)
+    assert re.sub(r"<[^>]+>", "", link).strip() == "Maintenance"
+    button = re.search(r'<form method="post" action="/logout">\s*<button([^>]*)>(.*?)</button>', html, re.S)
+    assert 'class="btn btn-icon"' in button.group(1)
+    assert 'aria-label="Sign out"' in button.group(1) and 'title="Sign out"' in button.group(1)
+    assert re.sub(r"<[^>]+>", "", button.group(2)).strip() == ""
 
 
 def test_pages_make_no_external_requests(signed_in_client, client):

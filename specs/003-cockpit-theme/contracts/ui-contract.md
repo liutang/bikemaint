@@ -38,3 +38,7 @@ overdue = red, due soon = gold (distinct hue from accent), on track = green, no 
 - One orange `btn-primary` per card for its main action; secondary actions are `btn`.
 - Settings cards auto-save through HTMX (`hx-trigger="change"`, card re-rendered with `.save-status` "Saved"/"Not saved"); `<noscript>` Save fallback.
 - Row actions Rides/Edit/Delete are `btn btn-icon` with `aria-label` and `title` (icons `route`, `edit`, `trash`).
+
+## Amendments
+
+- **2026-11-18 (feature 084)**: `.sync-status` in the header is empty (`role="img"`, `title` = `aria-label` = hover text). The Strava card has `p.sync-line` with its own dot. The nav link reads "Maintenance". Sign out is `btn btn-icon` with `aria-label` and `title` "Sign out". See `specs/084-quiet-top-bar/`.

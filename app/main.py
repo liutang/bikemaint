@@ -74,6 +74,8 @@ def create_app() -> FastAPI:
     app.state.templates = Jinja2Templates(directory=TEMPLATES_DIR)
     app.state.templates.env.globals["last_sync_label"] = sync_status_service.last_sync_label
     app.state.templates.env.globals["sync_state"] = sync_status_service.sync_state
+    app.state.templates.env.globals["sync_hover"] = sync_status_service.sync_hover  # specs/084
+    app.state.templates.env.globals["sync_line"] = sync_status_service.sync_line
     app.state.templates.env.filters["kind_name"] = component_kinds.kind_name
     app.state.templates.env.globals["static_url"] = asset_service.static_url
     app.state.templates.env.globals["is_locked"] = archive_service.is_locked  # specs/079: hide change controls

@@ -955,6 +955,7 @@ input[type="checkbox"],
 input[type="radio"] {
   width: 1.25rem;
   height: 1.25rem;
+  flex-shrink: 0; /* a wrapping label must not squeeze the box or bubble (specs/079 T037) */
   accent-color: var(--primary);
 }
 
